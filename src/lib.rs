@@ -18,12 +18,10 @@ pub struct Job {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobResult {
+    pub job: Job,
     pub successful_packages: Vec<String>,
-    pub git_ref: String,
-    pub arch: String,
     pub failed_package: Option<String>,
     pub log: Option<String>,
-    pub tg_chatid: ChatId,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {

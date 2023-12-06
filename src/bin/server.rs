@@ -183,11 +183,12 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             info!("Processing job result {:?}", result);
             // Report job result to user
             bot.send_message(
-                result.tg_chatid,
+                result.job.tg_chatid,
                 format!(
-                    "Job completed:\nGit ref: {}\nArch: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
-                    result.git_ref,
-                    result.arch,
+                    "Job completed:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    result.job.git_ref,
+                    result.job.arch,
+                    result.job.packages.join(", "),
                     result.successful_packages.join(", "),
                     result.failed_package.unwrap_or(String::from("None")),
                     result.log.unwrap_or(String::from("None")),

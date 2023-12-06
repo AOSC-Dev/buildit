@@ -3,10 +3,7 @@ use chrono::Local;
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
-    options::{
-        BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
-        QueueDeclareOptions,
-    },
+    options::{BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions},
     types::FieldTable,
     BasicProperties, ConnectionProperties,
 };
@@ -15,7 +12,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     process::{Command, Output},
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
 
 #[derive(Parser, Debug)]
@@ -52,7 +49,7 @@ async fn get_output_logged(
     let elapsed = begin.elapsed();
     logs.extend(
         format!(
-            "{}: `{} {}` finished in {:?} with status {}\n",
+            "{}: `{} {}` finished in {:?} with {}\n",
             Local::now(),
             cmd,
             args.join(" "),
@@ -71,7 +68,7 @@ async fn get_output_logged(
 
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
     let mut successful_packages = vec![];
-    let mut failed_package = None;
+    let failed_package = None;
 
     // switch to git ref
     let mut logs = vec![];
@@ -103,7 +100,22 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             // build packages
             let mut sudo_args = vec!["ciel", "build", "-i", &args.ciel_instance];
             sudo_args.extend(job.packages.iter().map(String::as_str));
-            get_output_logged("sudo", &sudo_args, &args.ciel_path, &mut logs).await?;
+            let output = get_output_logged("sudo", &sudo_args, &args.ciel_path, &mut logs).await?;
+
+            // parse output
+            let mut found_build_summary = false;
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                if !found_build_summary && line.contains("--- Build Summary ---") {
+                    found_build_summary = true;
+                } else if found_build_summary && line.is_empty() {
+                    found_build_summary = false;
+                } else if found_build_summary {
+                    // e.g. bash (amd64 @ 5.2.15-0)
+                    if let Some(package_name) = line.split(" ").next() {
+                        successful_packages.push(package_name.to_string());
+                    }
+                }
+            }
         }
     }
 
@@ -125,12 +137,10 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         .and_then(|v| v.as_str());
 
     let result = JobResult {
+        job: job.clone(),
         successful_packages,
-        arch: job.arch.clone(),
-        git_ref: job.git_ref.clone(),
         failed_package,
         log: log_url.map(String::from),
-        tg_chatid: job.tg_chatid,
     };
     Ok(result)
 }
