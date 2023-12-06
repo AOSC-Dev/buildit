@@ -1,4 +1,4 @@
-use buildit::{Job, JobResult};
+use buildit::{Job, JobResult, ensure_job_queue};
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
@@ -125,16 +125,7 @@ async fn worker(args: &Args) -> anyhow::Result<()> {
 
     let channel = conn.create_channel().await?;
     let queue_name = format!("job-{}", &args.arch);
-    let _queue = channel
-        .queue_declare(
-            &queue_name,
-            QueueDeclareOptions {
-                durable: true,
-                ..QueueDeclareOptions::default()
-            },
-            FieldTable::default(),
-        )
-        .await?;
+    ensure_job_queue(&queue_name, &channel).await?;
 
     let mut consumer = channel
         .basic_consume(
