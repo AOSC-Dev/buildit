@@ -55,7 +55,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
 
     if output.status.success() {
         let output = Command::new("git")
-            .args(["reset", &job.git_ref, "--hard"])
+            .args(["reset", "FETCH_HEAD", "--hard"])
             .current_dir(&tree_path)
             .output()?;
         logs.extend(format!("Git reset exited with status {}:\n", output.status).as_bytes());
@@ -65,6 +65,16 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         logs.extend(output.stderr);
 
         if output.status.success() {
+            let output = Command::new("sudo")
+                .args(["ciel", "update-os"])
+                .current_dir(&args.ciel_path)
+                .output()?;
+            logs.extend(format!("Ciel exited with status {}:\n", output.status).as_bytes());
+            logs.extend("STDOUT:\n".as_bytes());
+            logs.extend(output.stdout);
+            logs.extend("STDERR:\n".as_bytes());
+            logs.extend(output.stderr);
+
             let output = Command::new("sudo")
                 .args(["ciel", "build", "-i", &args.ciel_instance])
                 .args(&job.packages)
