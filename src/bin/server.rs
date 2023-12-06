@@ -1,9 +1,9 @@
-use buildit::{Job, JobResult, ensure_job_queue};
+use buildit::{ensure_job_queue, Job, JobResult};
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
-    types::{FieldTable},
+    types::FieldTable,
     BasicProperties, ConnectionProperties,
 };
 use log::{error, info, warn};
@@ -188,7 +188,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                     "Job completed:\nGit ref: {}\nArch: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
                     result.git_ref,
                     result.arch,
-                    result.sucessful_packages.join(", "),
+                    result.successful_packages.join(", "),
                     result.failed_package.unwrap_or(String::from("None")),
                     result.log.unwrap_or(String::from("None")),
                 ),

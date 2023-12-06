@@ -1,4 +1,5 @@
-use buildit::{Job, JobResult, ensure_job_queue};
+use buildit::{ensure_job_queue, Job, JobResult};
+use chrono::Local;
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
@@ -13,8 +14,8 @@ use log::{error, info, warn};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    process::Command,
-    time::Duration,
+    process::{Command, Output},
+    time::{Duration, Instant, SystemTime},
 };
 
 #[derive(Parser, Debug)]
@@ -37,55 +38,72 @@ struct Args {
     ciel_instance: String,
 }
 
+async fn get_output_logged(
+    cmd: &str,
+    args: &[&str],
+    cwd: &Path,
+    logs: &mut Vec<u8>,
+) -> anyhow::Result<Output> {
+    let begin = Instant::now();
+    logs.extend(format!("{}: Running {} {}\n", Local::now(), cmd, args.join(" ")).as_bytes());
+
+    let output = Command::new(cmd).args(args).current_dir(cwd).output()?;
+
+    let elapsed = begin.elapsed();
+    logs.extend(
+        format!(
+            "{}: {} {} finished in {:?} with status {}\n",
+            Local::now(),
+            cmd,
+            args.join(" "),
+            elapsed,
+            output.status
+        )
+        .as_bytes(),
+    );
+    logs.extend("STDOUT:\n".as_bytes());
+    logs.extend(output.stdout.clone());
+    logs.extend("STDERR:\n".as_bytes());
+    logs.extend(output.stderr.clone());
+
+    Ok(output)
+}
+
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
+    let mut successful_packages = vec![];
+    let mut failed_package = None;
+
     // switch to git ref
     let mut logs = vec![];
-    let output = Command::new("git")
-        .args([
+    let output = get_output_logged(
+        "git",
+        &[
             "fetch",
             "https://github.com/AOSC-Dev/aosc-os-abbs.git",
             &job.git_ref,
-        ])
-        .current_dir(&tree_path)
-        .output()?;
-    logs.extend(format!("Git fetch exited with status {}:\n", output.status).as_bytes());
-    logs.extend("STDOUT:\n".as_bytes());
-    logs.extend(output.stdout);
-    logs.extend("STDERR:\n".as_bytes());
-    logs.extend(output.stderr);
+        ],
+        &tree_path,
+        &mut logs,
+    )
+    .await?;
 
     if output.status.success() {
-        let output = Command::new("git")
-            .args(["reset", "FETCH_HEAD", "--hard"])
-            .current_dir(&tree_path)
-            .output()?;
-        logs.extend(format!("Git reset exited with status {}:\n", output.status).as_bytes());
-        logs.extend("STDOUT:\n".as_bytes());
-        logs.extend(output.stdout);
-        logs.extend("STDERR:\n".as_bytes());
-        logs.extend(output.stderr);
+        let output = get_output_logged(
+            "git",
+            &["reset", "FETCH_HEAD", "--hard"],
+            &tree_path,
+            &mut logs,
+        )
+        .await?;
 
         if output.status.success() {
-            let output = Command::new("sudo")
-                .args(["ciel", "update-os"])
-                .current_dir(&args.ciel_path)
-                .output()?;
-            logs.extend(format!("Ciel exited with status {}:\n", output.status).as_bytes());
-            logs.extend("STDOUT:\n".as_bytes());
-            logs.extend(output.stdout);
-            logs.extend("STDERR:\n".as_bytes());
-            logs.extend(output.stderr);
+            // update container
+            get_output_logged("sudo", &["ciel", "update-os"], &args.ciel_path, &mut logs).await?;
 
-            let output = Command::new("sudo")
-                .args(["ciel", "build", "-i", &args.ciel_instance])
-                .args(&job.packages)
-                .current_dir(&args.ciel_path)
-                .output()?;
-            logs.extend(format!("Ciel exited with status {}:\n", output.status).as_bytes());
-            logs.extend("STDOUT:\n".as_bytes());
-            logs.extend(output.stdout);
-            logs.extend("STDERR:\n".as_bytes());
-            logs.extend(output.stderr);
+            // build packages
+            let mut sudo_args = vec!["ciel", "-i", &args.ciel_instance];
+            sudo_args.extend(job.packages.iter().map(String::as_str));
+            get_output_logged("sudo", &sudo_args, &args.ciel_path, &mut logs).await?;
         }
     }
 
@@ -107,10 +125,10 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         .and_then(|v| v.as_str());
 
     let result = JobResult {
-        sucessful_packages: job.packages.clone(),
+        successful_packages,
         arch: job.arch.clone(),
         git_ref: job.git_ref.clone(),
-        failed_package: None,
+        failed_package,
         log: log_url.map(String::from),
         tg_chatid: job.tg_chatid,
     };

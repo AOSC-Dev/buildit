@@ -1,15 +1,12 @@
-
-
 use lapin::{
-    options::{QueueDeclareOptions},
-    types::{AMQPValue, FieldTable}, Channel, Queue,
+    options::QueueDeclareOptions,
+    types::{AMQPValue, FieldTable},
+    Channel, Queue,
 };
-
 
 use serde::{Deserialize, Serialize};
 
 use teloxide::types::ChatId;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
@@ -21,7 +18,7 @@ pub struct Job {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobResult {
-    pub sucessful_packages: Vec<String>,
+    pub successful_packages: Vec<String>,
     pub git_ref: String,
     pub arch: String,
     pub failed_package: Option<String>,
