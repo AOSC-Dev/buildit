@@ -72,11 +72,46 @@ async fn build(
     Ok(())
 }
 
+async fn status() -> anyhow::Result<String> {
+    let mut res = String::from("Queue status:\n");
+    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
+
+    let channel = conn.create_channel().await?;
+    for arch in [
+        "amd64",
+        "arm64",
+        "loongarch64",
+        "loongson3",
+        "mips64r6el",
+        "ppc64el",
+        "riscv64",
+    ] {
+        let queue_name = format!("job-{}", arch);
+        let queue = channel
+            .queue_declare(
+                &queue_name,
+                QueueDeclareOptions {
+                    durable: true,
+                    ..QueueDeclareOptions::default()
+                },
+                FieldTable::default(),
+            )
+            .await?;
+        res += &format!(
+            "{}: {} messages, {} consumers\n",
+            queue_name,
+            queue.message_count(),
+            queue.consumer_count()
+        );
+    }
+    Ok(res)
+}
+
 async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
-                .await?
+                .await?;
         }
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(" ").collect();
@@ -111,12 +146,17 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 msg.chat.id,
                 format!("Got invalid job description: {arguments}."),
             )
-            .await?
+            .await?;
         }
-        Command::Status => {
-            bot.send_message(msg.chat.id, Command::descriptions().to_string())
-                .await?
-        }
+        Command::Status => match status().await {
+            Ok(status) => {
+                bot.send_message(msg.chat.id, status).await?;
+            }
+            Err(err) => {
+                bot.send_message(msg.chat.id, format!("Failed to get status: {}", err))
+                    .await?;
+            }
+        },
     };
 
     Ok(())
