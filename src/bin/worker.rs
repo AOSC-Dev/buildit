@@ -13,7 +13,8 @@ use log::{error, info, warn};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    process::Command, time::Duration,
+    process::Command,
+    time::Duration,
 };
 
 #[derive(Parser, Debug)]

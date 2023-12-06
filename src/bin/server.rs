@@ -21,6 +21,55 @@ enum Command {
     Help,
     #[command(description = "start a job: /build [git-ref] [packages] [archs].")]
     Build(String),
+    #[command(description = "show queue status: /status.")]
+    Status,
+}
+
+async fn build(
+    git_ref: &str,
+    packages: &Vec<&str>,
+    archs: &Vec<&str>,
+    msg: &Message,
+) -> anyhow::Result<()> {
+    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
+
+    let channel = conn.create_channel().await?;
+    // for each arch, create a job
+    for arch in archs {
+        let job = Job {
+            packages: packages.iter().map(|s| s.to_string()).collect(),
+            git_ref: git_ref.to_string(),
+            arch: arch.to_string(),
+            tg_chatid: msg.chat.id,
+        };
+
+        info!("Adding job to message queue {:?}", job);
+
+        // each arch has its own queue
+        let queue_name = format!("job-{}", job.arch);
+        let _queue = channel
+            .queue_declare(
+                &queue_name,
+                QueueDeclareOptions {
+                    durable: true,
+                    ..QueueDeclareOptions::default()
+                },
+                FieldTable::default(),
+            )
+            .await?;
+
+        channel
+            .basic_publish(
+                "",
+                &queue_name,
+                BasicPublishOptions::default(),
+                &serde_json::to_vec(&job)?,
+                BasicProperties::default(),
+            )
+            .await?
+            .await?;
+    }
+    Ok(())
 }
 
 async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
@@ -36,61 +85,25 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 let packages: Vec<&str> = parts[1].split(",").collect();
                 let archs: Vec<&str> = parts[2].split(",").collect();
 
-                let conn =
-                    lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default())
-                        .await
-                        .unwrap();
-
-                let channel = conn.create_channel().await.unwrap();
-                // for each arch, create a job
-                for arch in &archs {
-                    let job = Job {
-                        packages: packages.iter().map(|s| s.to_string()).collect(),
-                        git_ref: git_ref.to_string(),
-                        arch: arch.to_string(),
-                        tg_chatid: msg.chat.id,
-                    };
-
-                    info!("Adding job to message queue {:?}", job);
-
-                    // each arch has its own queue
-                    let queue_name = format!("job-{}", job.arch);
-                    let _queue = channel
-                        .queue_declare(
-                            &queue_name,
-                            QueueDeclareOptions {
-                                durable: true,
-                                ..QueueDeclareOptions::default()
-                            },
-                            FieldTable::default(),
+                match build(git_ref, &packages, &archs, &msg).await {
+                    Ok(()) => {
+                        bot.send_message(
+                            msg.chat.id,
+                            format!(
+                                "Creating jobs for:\nGit ref: {}\nArch: {}\nPackages: {}\n",
+                                git_ref,
+                                archs.join(", "),
+                                packages.join(", ")
+                            ),
                         )
-                        .await
-                        .unwrap();
-
-                    channel
-                        .basic_publish(
-                            "",
-                            &queue_name,
-                            BasicPublishOptions::default(),
-                            &serde_json::to_vec(&job).unwrap(),
-                            BasicProperties::default(),
-                        )
-                        .await
-                        .unwrap()
-                        .await
-                        .unwrap();
+                        .await?;
+                    }
+                    Err(err) => {
+                        bot.send_message(msg.chat.id, format!("Failed to create job: {}", err))
+                            .await?;
+                    }
                 }
 
-                bot.send_message(
-                    msg.chat.id,
-                    format!(
-                        "Creating jobs for:\nGit ref: {}\nArch: {}\nPackages: {}\n",
-                        git_ref,
-                        archs.join(", "),
-                        packages.join(", ")
-                    ),
-                )
-                .await?;
                 return Ok(());
             }
 
@@ -99,6 +112,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 format!("Got invalid job description: {arguments}."),
             )
             .await?
+        }
+        Command::Status => {
+            bot.send_message(msg.chat.id, Command::descriptions().to_string())
+                .await?
         }
     };
 
