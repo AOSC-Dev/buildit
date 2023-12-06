@@ -45,14 +45,14 @@ async fn get_output_logged(
     logs: &mut Vec<u8>,
 ) -> anyhow::Result<Output> {
     let begin = Instant::now();
-    logs.extend(format!("{}: Running {} {}\n", Local::now(), cmd, args.join(" ")).as_bytes());
+    logs.extend(format!("{}: Running `{} {}`\n", Local::now(), cmd, args.join(" ")).as_bytes());
 
     let output = Command::new(cmd).args(args).current_dir(cwd).output()?;
 
     let elapsed = begin.elapsed();
     logs.extend(
         format!(
-            "{}: {} {} finished in {:?} with status {}\n",
+            "{}: `{} {}` finished in {:?} with status {}\n",
             Local::now(),
             cmd,
             args.join(" "),
@@ -101,7 +101,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             get_output_logged("sudo", &["ciel", "update-os"], &args.ciel_path, &mut logs).await?;
 
             // build packages
-            let mut sudo_args = vec!["ciel", "-i", &args.ciel_instance];
+            let mut sudo_args = vec!["ciel", "build", "-i", &args.ciel_instance];
             sudo_args.extend(job.packages.iter().map(String::as_str));
             get_output_logged("sudo", &sudo_args, &args.ciel_path, &mut logs).await?;
         }
