@@ -42,18 +42,18 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         .unwrap();
 
                 let channel = conn.create_channel().await.unwrap();
-                let mut reply = String::from("Building for:\n");
-                for arch in archs {
+                // for each arch, create a job
+                for arch in &archs {
                     let job = Job {
                         packages: packages.iter().map(|s| s.to_string()).collect(),
                         git_ref: git_ref.to_string(),
                         arch: arch.to_string(),
                         tg_chatid: msg.chat.id,
                     };
-                    reply += &format!("{:?}\n", job);
 
                     info!("Adding job to message queue {:?}", job);
 
+                    // each arch has its own queue
                     let queue_name = format!("job-{}", job.arch);
                     let _queue = channel
                         .queue_declare(
@@ -81,7 +81,16 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         .unwrap();
                 }
 
-                bot.send_message(msg.chat.id, reply).await?;
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Creating jobs for:\nGit ref: {}\nArch: {}\nPackages: {}\n",
+                        git_ref,
+                        archs.join(", "),
+                        packages.join(", ")
+                    ),
+                )
+                .await?;
                 return Ok(());
             }
 
@@ -96,6 +105,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     Ok(())
 }
 
+/// Observe job completion messages
 pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::Result<()> {
     let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
 
@@ -131,12 +141,18 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
         if let Some(result) = serde_json::from_slice::<JobResult>(&delivery.data).ok() {
             info!("Processing job result {:?}", result);
+            // Report job result to user
             bot.send_message(
                 result.tg_chatid,
-                format!("Received job result: {:?}", result),
+                format!(
+                    "Job completed:\nGit ref: {}\nArch: {}\nSuccessful packages: {}\nFailed package: {}\n",
+                    result.git_ref,
+                    result.arch,
+                    result.sucessful_packages.join(", "),
+                    result.failed_package.unwrap_or(String::from("None"))
+                ),
             )
-            .await
-            .unwrap();
+            .await?;
         }
 
         // finish
@@ -175,7 +191,7 @@ static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
 async fn main() {
     env_logger::init();
 
-    info!("Starting AOSC BuildIt! server with args {:?}", ARGS);
+    info!("Starting AOSC BuildIt! server with args {:?}", *ARGS);
 
     let bot = Bot::from_env();
 
