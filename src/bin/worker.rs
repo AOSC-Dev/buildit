@@ -13,7 +13,7 @@ use log::{error, info, warn};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    process::Command,
+    process::Command, time::Duration,
 };
 
 #[derive(Parser, Debug)]
@@ -116,12 +116,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     Ok(result)
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    env_logger::init();
-    let args = Args::parse();
-    info!("Starting AOSC BuildIt! worker");
-
+async fn worker(args: &Args) -> anyhow::Result<()> {
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
@@ -195,4 +190,18 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    env_logger::init();
+    let args = Args::parse();
+    info!("Starting AOSC BuildIt! worker");
+
+    loop {
+        if let Err(err) = worker(&args).await {
+            warn!("Got error running worker: {}", err);
+        }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
 }
