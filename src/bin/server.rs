@@ -1,9 +1,9 @@
-use buildit::{Job, JobResult};
+use buildit::{Job, JobResult, ensure_job_queue};
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
-    types::FieldTable,
+    types::{FieldTable},
     BasicProperties, ConnectionProperties,
 };
 use log::{error, info, warn};
@@ -47,16 +47,7 @@ async fn build(
 
         // each arch has its own queue
         let queue_name = format!("job-{}", job.arch);
-        let _queue = channel
-            .queue_declare(
-                &queue_name,
-                QueueDeclareOptions {
-                    durable: true,
-                    ..QueueDeclareOptions::default()
-                },
-                FieldTable::default(),
-            )
-            .await?;
+        ensure_job_queue(&queue_name, &channel).await?;
 
         channel
             .basic_publish(
@@ -87,16 +78,8 @@ async fn status() -> anyhow::Result<String> {
         "riscv64",
     ] {
         let queue_name = format!("job-{}", arch);
-        let queue = channel
-            .queue_declare(
-                &queue_name,
-                QueueDeclareOptions {
-                    durable: true,
-                    ..QueueDeclareOptions::default()
-                },
-                FieldTable::default(),
-            )
-            .await?;
+
+        let queue = ensure_job_queue(&queue_name, &channel).await?;
         res += &format!(
             "{}: {} messages, {} consumers\n",
             queue_name,
