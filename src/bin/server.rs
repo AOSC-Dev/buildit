@@ -1,4 +1,5 @@
 use buildit::{Job, JobResult};
+use clap::Parser;
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
@@ -6,6 +7,7 @@ use lapin::{
     BasicProperties, ConnectionProperties,
 };
 use log::{error, info, warn};
+use once_cell::sync::Lazy;
 use std::time::Duration;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
@@ -35,7 +37,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 let archs: Vec<&str> = parts[2].split(",").collect();
 
                 let conn =
-                    lapin::Connection::connect("amqp://localhost", ConnectionProperties::default())
+                    lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default())
                         .await
                         .unwrap();
 
@@ -150,24 +152,34 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
     Ok(())
 }
 
-pub async fn job_completion_worker(bot: Bot, amqp_addr: &str) -> anyhow::Result<()> {
+pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Result<()> {
     loop {
         info!("Starting job completion worker");
-        if let Err(err) = job_completion_worker_inner(bot.clone(), amqp_addr).await {
+        if let Err(err) = job_completion_worker_inner(bot.clone(), &amqp_addr).await {
             error!("Got error running job completion worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// AMQP address to access message queue
+    amqp_addr: String,
+}
+
+static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    info!("Starting AOSC BuildIt! server");
+
+    info!("Starting AOSC BuildIt! server with args {:?}", ARGS);
 
     let bot = Bot::from_env();
 
-    tokio::spawn(job_completion_worker(bot.clone(), "amqp://localhost"));
+    tokio::spawn(job_completion_worker(bot.clone(), ARGS.amqp_addr.clone()));
 
     Command::repl(bot, answer).await;
 }
