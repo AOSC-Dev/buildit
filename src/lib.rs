@@ -15,6 +15,6 @@ pub struct JobResult {
     pub git_ref: String,
     pub arch: String,
     pub failed_package: Option<String>,
-    pub failure_log: Option<String>,
+    pub log: Option<String>,
     pub tg_chatid: ChatId,
 }

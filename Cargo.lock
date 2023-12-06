@@ -372,6 +372,7 @@ dependencies = [
  "lapin",
  "log",
  "once_cell",
+ "reqwest",
  "serde",
  "serde_json",
  "teloxide",

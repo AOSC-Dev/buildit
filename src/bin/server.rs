@@ -145,11 +145,12 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.tg_chatid,
                 format!(
-                    "Job completed:\nGit ref: {}\nArch: {}\nSuccessful packages: {}\nFailed package: {}\n",
+                    "Job completed:\nGit ref: {}\nArch: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
                     result.git_ref,
                     result.arch,
                     result.sucessful_packages.join(", "),
-                    result.failed_package.unwrap_or(String::from("None"))
+                    result.failed_package.unwrap_or(String::from("None")),
+                    result.log.unwrap_or(String::from("None")),
                 ),
             )
             .await?;
