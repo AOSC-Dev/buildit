@@ -68,7 +68,7 @@ async fn get_output_logged(
 
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
     let mut successful_packages = vec![];
-    let failed_package = None;
+    let mut failed_package = None;
 
     // switch to git ref
     let mut logs = vec![];
@@ -114,6 +114,14 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                     if let Some(package_name) = line.split(" ").next() {
                         successful_packages.push(package_name.to_string());
                     }
+                }
+            }
+
+            // find the first package not in successful_packages
+            for package in &job.packages {
+                if !successful_packages.contains(package) {
+                    failed_package = Some(package.clone());
+                    break;
                 }
             }
         }
