@@ -48,7 +48,9 @@ async fn get_output_logged(
     logs: &mut Vec<u8>,
 ) -> anyhow::Result<Output> {
     let begin = Instant::now();
-    logs.extend(format!("{}: Running `{} {}`\n", Local::now(), cmd, args.join(" ")).as_bytes());
+    let msg = format!("{}: Running `{} {}`\n", Local::now(), cmd, args.join(" "));
+    logs.extend(msg.as_bytes());
+    info!("{}", msg);
 
     let output = Command::new(cmd)
         .args(args)
