@@ -105,7 +105,7 @@ async fn status() -> anyhow::Result<String> {
     if let Ok(lock) = WORKERS.lock() {
         for (name, status) in lock.iter() {
             res += &format!(
-                "{}: last heartbeat on {}\n",
+                "{}: last heartbeat {}\n",
                 name,
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
             );
