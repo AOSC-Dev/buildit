@@ -139,6 +139,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         "ppc64el",
                         "riscv64",
                     ]);
+                    archs.retain(|arch| *arch != "mainline");
                 }
                 archs.sort();
                 archs.dedup();
