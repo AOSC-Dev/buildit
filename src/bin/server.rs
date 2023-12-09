@@ -231,6 +231,7 @@ static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
     env_logger::init();
 
     info!("Starting AOSC BuildIt! server with args {:?}", *ARGS);

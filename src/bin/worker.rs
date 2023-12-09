@@ -222,6 +222,7 @@ async fn worker(args: &Args) -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
     env_logger::init();
     let args = Args::parse();
     info!("Starting AOSC BuildIt! worker");
