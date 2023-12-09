@@ -1,0 +1,14 @@
+[Unit]
+Description=AOSC BuildIt! Server
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+ExecStart=cargo run --bin server -- REDACTED
+WorkingDirectory=/buildroots/buildit/buildit
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target

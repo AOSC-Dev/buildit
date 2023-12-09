@@ -1,0 +1,14 @@
+[Unit]
+Description=AOSC BuildIt! Worker
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+ExecStart=cargo run --bin worker -- --amqp-addr REDACTED --ciel-path /buildroots/buildit --arch ARCH
+WorkingDirectory=/buildroots/buildit/buildit
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
