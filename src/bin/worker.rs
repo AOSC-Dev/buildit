@@ -106,12 +106,12 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
 
         if output.status.success() {
             // update container
-            get_output_logged("sudo", &["ciel", "update-os"], &args.ciel_path, &mut logs).await?;
+            get_output_logged("ciel", &["update-os"], &args.ciel_path, &mut logs).await?;
 
             // build packages
-            let mut sudo_args = vec!["ciel", "build", "-i", &args.ciel_instance];
-            sudo_args.extend(job.packages.iter().map(String::as_str));
-            let output = get_output_logged("sudo", &sudo_args, &args.ciel_path, &mut logs).await?;
+            let mut ciel_args = vec![ "build", "-i", &args.ciel_instance];
+            ciel_args.extend(job.packages.iter().map(String::as_str));
+            let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
             // parse output
             let mut found_build_summary = false;
