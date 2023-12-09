@@ -155,7 +155,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         successful_packages,
         failed_package,
         log: log_url.map(String::from),
-        worker_hostname: format!("{:?}", gethostname::gethostname()),
+        worker_hostname: gethostname::gethostname().to_string_lossy().to_string(),
         elapsed: begin.elapsed(),
     };
     Ok(result)
@@ -242,7 +242,7 @@ async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                 "worker-heartbeat",
                 BasicPublishOptions::default(),
                 &serde_json::to_vec(&WorkerHeartbeat {
-                    worker_hostname: format!("{:?}", gethostname::gethostname()),
+                    worker_hostname: gethostname::gethostname().to_string_lossy().to_string(),
                 })
                 .unwrap(),
                 BasicProperties::default(),
