@@ -181,11 +181,13 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
         if let Some(result) = serde_json::from_slice::<JobResult>(&delivery.data).ok() {
             info!("Processing job result {:?}", result);
+            let success = result.successful_packages == result.job.packages;
             // Report job result to user
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "Job completed on {}:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    "{} Job completed on {}:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    if success { "✅️" } else { "❌" },
                     result.worker_hostname,
                     result.job.git_ref,
                     result.job.arch,
