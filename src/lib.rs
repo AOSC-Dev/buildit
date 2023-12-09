@@ -28,6 +28,11 @@ pub struct JobResult {
     pub elapsed: Duration,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerHeartbeat {
+    pub worker_hostname: String,
+}
+
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {
     let mut arguments = FieldTable::default();
     // extend consumer timeout because we may have long running tasks

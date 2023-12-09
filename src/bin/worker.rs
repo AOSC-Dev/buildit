@@ -1,4 +1,4 @@
-use buildit::{ensure_job_queue, Job, JobResult};
+use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat};
 use chrono::Local;
 use clap::Parser;
 use futures::StreamExt;
@@ -16,7 +16,7 @@ use std::{
 };
 use tokio::process::Command;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// AMQP address to access message queue
@@ -228,12 +228,48 @@ async fn worker(args: &Args) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
+    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
+
+    let channel = conn.create_channel().await?;
+    let queue_name = "worker-heartbeat";
+    ensure_job_queue(&queue_name, &channel).await?;
+
+    loop {
+        channel
+            .basic_publish(
+                "",
+                "worker-heartbeat",
+                BasicPublishOptions::default(),
+                &serde_json::to_vec(&WorkerHeartbeat {
+                    worker_hostname: format!("{:?}", gethostname::gethostname()),
+                })
+                .unwrap(),
+                BasicProperties::default(),
+            )
+            .await?
+            .await?;
+        tokio::time::sleep(Duration::from_secs(3600)).await;
+    }
+}
+
+async fn heartbeat_worker(args: Args) -> anyhow::Result<()> {
+    loop {
+        if let Err(err) = heartbeat_worker_inner(&args).await {
+            warn!("Got error running heartbeat worker: {}", err);
+        }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
     let args = Args::parse();
     info!("Starting AOSC BuildIt! worker");
+
+    tokio::spawn(heartbeat_worker(args.clone()));
 
     loop {
         if let Err(err) = worker(&args).await {

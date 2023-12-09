@@ -1,4 +1,5 @@
-use buildit::{ensure_job_queue, Job, JobResult};
+use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat};
+use chrono::{DateTime, Local};
 use clap::Parser;
 use futures::StreamExt;
 use lapin::{
@@ -8,7 +9,11 @@ use lapin::{
 };
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
@@ -24,6 +29,13 @@ enum Command {
     #[command(description = "show queue status: /status.")]
     Status,
 }
+
+struct WorkerStatus {
+    last_heartbeat: DateTime<Local>,
+}
+
+static WORKERS: Lazy<Arc<Mutex<HashMap<String, WorkerStatus>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 async fn build(
     git_ref: &str,
@@ -86,6 +98,13 @@ async fn status() -> anyhow::Result<String> {
             queue.message_count(),
             queue.consumer_count()
         );
+    }
+
+    res += "Worker status:\n";
+    if let Ok(lock) = WORKERS.lock() {
+        for (name, status) in lock.iter() {
+            res += &format!("{}: last heartbeat on {}\n", name, status.last_heartbeat);
+        }
     }
     Ok(res)
 }
@@ -219,6 +238,69 @@ pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Resul
         info!("Starting job completion worker");
         if let Err(err) = job_completion_worker_inner(bot.clone(), &amqp_addr).await {
             error!("Got error running job completion worker: {}", err);
+        }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
+    let conn = lapin::Connection::connect(&amqp_addr, ConnectionProperties::default()).await?;
+
+    let channel = conn.create_channel().await?;
+    let queue_name = "worker-heartbeat";
+    ensure_job_queue(&queue_name, &channel).await?;
+
+    let mut consumer = channel
+        .basic_consume(
+            &queue_name,
+            "worker-heartbeat",
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
+    while let Some(delivery) = consumer.next().await {
+        let delivery = match delivery {
+            Ok(delivery) => delivery,
+            Err(err) => {
+                error!("Got error in lapin delivery: {}", err);
+                continue;
+            }
+        };
+
+        if let Some(heartbeat) = serde_json::from_slice::<WorkerHeartbeat>(&delivery.data).ok() {
+            info!("Processing worker heartbeat {:?}", heartbeat);
+
+            // update worker status
+            if let Ok(mut lock) = WORKERS.lock() {
+                if let Some(status) = lock.get_mut(&heartbeat.worker_hostname) {
+                    status.last_heartbeat = Local::now();
+                } else {
+                    lock.insert(
+                        heartbeat.worker_hostname.clone(),
+                        WorkerStatus {
+                            last_heartbeat: Local::now(),
+                        },
+                    );
+                }
+            }
+
+            // finish
+            if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
+                warn!("Failed to ack heartbeat {:?} with err {:?}", delivery, err);
+            } else {
+                info!("Finish ack-ing heartbeat {:?}", delivery.delivery_tag);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn heartbeat_worker(amqp_addr: String) -> anyhow::Result<()> {
+    loop {
+        info!("Starting heartbeat worker");
+        if let Err(err) = heartbeat_worker_inner(amqp_addr.clone()).await {
+            error!("Got error running heartbeat worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
