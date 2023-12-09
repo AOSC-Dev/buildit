@@ -6,9 +6,9 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec=30
-ExecStart=cargo run --bin server -- REDACTED
+ExecStart=cargo run --bin server
 WorkingDirectory=/buildroots/buildit/buildit
-Environment=RUST_LOG=info
+Environment=RUST_LOG=info BUILDIT_AMQP_ADDR=REDACTED
 
 [Install]
 WantedBy=multi-user.target

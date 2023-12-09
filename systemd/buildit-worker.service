@@ -6,9 +6,9 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec=30
-ExecStart=cargo run --bin worker -- --amqp-addr REDACTED --ciel-path /buildroots/buildit --arch ARCH
+ExecStart=cargo run --bin worker -- --ciel-path /buildroots/buildit --arch ARCH
 WorkingDirectory=/buildroots/buildit/buildit
-Environment=RUST_LOG=info
+Environment=RUST_LOG=info BUILDIT_AMQP_ADDR=REDACTED
 
 [Install]
 WantedBy=multi-user.target
