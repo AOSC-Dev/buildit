@@ -24,7 +24,9 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 enum Command {
     #[command(description = "display usage: /help.")]
     Help,
-    #[command(description = "start a job: /build [git-ref] [packages] [archs].")]
+    #[command(
+        description = "start a job: /build [git-ref] [packages] [archs], e.g. /build stable bash,fish amd64,arm64."
+    )]
     Build(String),
     #[command(description = "show queue status: /status.")]
     Status,
@@ -125,7 +127,21 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             if parts.len() == 3 {
                 let git_ref = parts[0];
                 let packages: Vec<&str> = parts[1].split(",").collect();
-                let archs: Vec<&str> = parts[2].split(",").collect();
+                let mut archs: Vec<&str> = parts[2].split(",").collect();
+                if archs.contains(&"mainline") {
+                    // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
+                    archs.extend_from_slice(&[
+                        "amd64",
+                        "arm64",
+                        "loongarch64",
+                        "loongson3",
+                        "mips64r6el",
+                        "ppc64el",
+                        "riscv64",
+                    ]);
+                }
+                archs.sort();
+                archs.dedup();
 
                 match build(git_ref, &packages, &archs, &msg).await {
                     Ok(()) => {
