@@ -176,7 +176,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
     let channel = conn.create_channel().await?;
     let _queue = channel
         .queue_declare(
-            "job_completion",
+            "job-completion",
             QueueDeclareOptions {
                 durable: true,
                 ..QueueDeclareOptions::default()
@@ -187,7 +187,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
     let mut consumer = channel
         .basic_consume(
-            "job_completion",
+            "job-completion",
             "backend_server",
             BasicConsumeOptions::default(),
             FieldTable::default(),

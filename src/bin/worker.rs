@@ -197,7 +197,7 @@ async fn worker(args: &Args) -> anyhow::Result<()> {
                     channel
                         .basic_publish(
                             "",
-                            "job_completion",
+                            "job-completion",
                             BasicPublishOptions::default(),
                             &serde_json::to_vec(&result).unwrap(),
                             BasicProperties::default(),
