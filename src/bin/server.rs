@@ -324,6 +324,8 @@ async fn main() {
 
     let bot = Bot::from_env();
 
+    tokio::spawn(heartbeat_worker(ARGS.amqp_addr.clone()));
+
     tokio::spawn(job_completion_worker(bot.clone(), ARGS.amqp_addr.clone()));
 
     Command::repl(bot, answer).await;
