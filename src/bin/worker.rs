@@ -11,9 +11,10 @@ use log::{error, info, warn};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Output,
     time::{Duration, Instant},
 };
+use tokio::process::Command;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -44,7 +45,11 @@ async fn get_output_logged(
     let begin = Instant::now();
     logs.extend(format!("{}: Running `{} {}`\n", Local::now(), cmd, args.join(" ")).as_bytes());
 
-    let output = Command::new(cmd).args(args).current_dir(cwd).output()?;
+    let output = Command::new(cmd)
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .await?;
 
     let elapsed = begin.elapsed();
     logs.extend(
