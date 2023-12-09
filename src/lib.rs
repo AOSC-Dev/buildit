@@ -22,6 +22,7 @@ pub struct JobResult {
     pub successful_packages: Vec<String>,
     pub failed_package: Option<String>,
     pub log: Option<String>,
+    pub worker_hostname: String,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {

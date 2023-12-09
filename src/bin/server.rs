@@ -185,7 +185,8 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "Job completed:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    "Job completed on {}:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    result.worker_hostname,
                     result.job.git_ref,
                     result.job.arch,
                     result.job.packages.join(", "),

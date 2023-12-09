@@ -149,6 +149,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         successful_packages,
         failed_package,
         log: log_url.map(String::from),
+        worker_hostname: format!("{:?}", gethostname::gethostname()),
     };
     Ok(result)
 }
