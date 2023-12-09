@@ -28,9 +28,16 @@ pub struct JobResult {
     pub elapsed: Duration,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WorkerIdentifier {
+    pub hostname: String,
+    pub arch: String,
+    pub pid: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerHeartbeat {
-    pub worker_hostname: String,
+    pub identifier: WorkerIdentifier,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {

@@ -1,4 +1,4 @@
-use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat};
+use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::{DateTime, Local};
 use clap::Parser;
 use futures::StreamExt;
@@ -36,7 +36,7 @@ struct WorkerStatus {
     last_heartbeat: DateTime<Local>,
 }
 
-static WORKERS: Lazy<Arc<Mutex<HashMap<String, WorkerStatus>>>> =
+static WORKERS: Lazy<Arc<Mutex<HashMap<WorkerIdentifier, WorkerStatus>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 async fn build(
@@ -105,10 +105,12 @@ async fn status() -> anyhow::Result<String> {
     res += "Worker status:\n";
     let fmt = timeago::Formatter::new();
     if let Ok(lock) = WORKERS.lock() {
-        for (name, status) in lock.iter() {
+        for (identifier, status) in lock.iter() {
             res += &format!(
-                "{}: last heartbeat {}\n",
-                name,
+                "{} ({} {}): last heartbeat {}\n",
+                identifier.hostname,
+                identifier.arch,
+                identifier.pid,
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
             );
         }
@@ -294,11 +296,11 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
 
             // update worker status
             if let Ok(mut lock) = WORKERS.lock() {
-                if let Some(status) = lock.get_mut(&heartbeat.worker_hostname) {
+                if let Some(status) = lock.get_mut(&heartbeat.identifier) {
                     status.last_heartbeat = Local::now();
                 } else {
                     lock.insert(
-                        heartbeat.worker_hostname.clone(),
+                        heartbeat.identifier.clone(),
                         WorkerStatus {
                             last_heartbeat: Local::now(),
                         },

@@ -1,4 +1,4 @@
-use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat};
+use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::Local;
 use clap::Parser;
 use futures::StreamExt;
@@ -111,7 +111,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             get_output_logged("ciel", &["update-os"], &args.ciel_path, &mut logs).await?;
 
             // build packages
-            let mut ciel_args = vec![ "build", "-i", &args.ciel_instance];
+            let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.iter().map(String::as_str));
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
@@ -249,7 +249,11 @@ async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                 "worker-heartbeat",
                 BasicPublishOptions::default(),
                 &serde_json::to_vec(&WorkerHeartbeat {
-                    worker_hostname: gethostname::gethostname().to_string_lossy().to_string(),
+                    identifier: WorkerIdentifier {
+                        hostname: gethostname::gethostname().to_string_lossy().to_string(),
+                        arch: args.arch.clone(),
+                        pid: std::process::id(),
+                    },
                 })
                 .unwrap(),
                 BasicProperties::default(),
