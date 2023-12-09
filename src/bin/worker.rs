@@ -20,19 +20,24 @@ use tokio::process::Command;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// AMQP address to access message queue
-    #[arg(short, long)]
+    #[arg(short, long, env = "BUILDIT_AMQP_ADDR")]
     amqp_addr: String,
 
     /// Architecture that can build
-    #[arg(short = 'A', long)]
+    #[arg(short = 'A', long, env = "BUILDIT_ARCH")]
     arch: String,
 
     /// Path to ciel workspace
-    #[arg(short, long)]
+    #[arg(short, long, env = "BUILDIT_CIEL_PATH")]
     ciel_path: PathBuf,
 
-    /// Ciel instant name
-    #[arg(short = 'I', long, default_value = "main")]
+    /// Ciel instance name
+    #[arg(
+        short = 'I',
+        long,
+        default_value = "main",
+        env = "BUILDIT_CIEL_INSTANCE"
+    )]
     ciel_instance: String,
 }
 

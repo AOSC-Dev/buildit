@@ -315,6 +315,7 @@ pub async fn heartbeat_worker(amqp_addr: String) -> anyhow::Result<()> {
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// AMQP address to access message queue
+    #[arg(env = "BUILDIT_AMQP_ADDR")]
     amqp_addr: String,
 }
 
