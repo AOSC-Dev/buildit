@@ -72,6 +72,7 @@ async fn get_output_logged(
 }
 
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
+    let begin = Instant::now();
     let mut successful_packages = vec![];
     let mut failed_package = None;
 
@@ -155,6 +156,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         failed_package,
         log: log_url.map(String::from),
         worker_hostname: format!("{:?}", gethostname::gethostname()),
+        elapsed: begin.elapsed(),
     };
     Ok(result)
 }

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use lapin::{
     options::QueueDeclareOptions,
     types::{AMQPValue, FieldTable},
@@ -23,6 +25,7 @@ pub struct JobResult {
     pub failed_package: Option<String>,
     pub log: Option<String>,
     pub worker_hostname: String,
+    pub elapsed: Duration,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {
