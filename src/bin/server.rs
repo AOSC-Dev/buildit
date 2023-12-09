@@ -101,9 +101,14 @@ async fn status() -> anyhow::Result<String> {
     }
 
     res += "Worker status:\n";
+    let fmt = timeago::Formatter::new();
     if let Ok(lock) = WORKERS.lock() {
         for (name, status) in lock.iter() {
-            res += &format!("{}: last heartbeat on {}\n", name, status.last_heartbeat);
+            res += &format!(
+                "{}: last heartbeat on {}\n",
+                name,
+                fmt.convert_chrono(status.last_heartbeat, Local::now())
+            );
         }
     }
     Ok(res)
