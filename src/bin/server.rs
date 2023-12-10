@@ -14,7 +14,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use teloxide::{prelude::*, utils::command::BotCommands};
+use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -96,7 +96,7 @@ async fn status() -> anyhow::Result<String> {
         let queue = ensure_job_queue(&queue_name, &channel).await?;
         res += &format!(
             "*{}*: {} unallocated jobs, {} available servers\n",
-            queue_name,
+            teloxide::utils::markdown::escape(&queue_name),
             queue.message_count(),
             queue.consumer_count()
         );
@@ -106,12 +106,12 @@ async fn status() -> anyhow::Result<String> {
     let fmt = timeago::Formatter::new();
     if let Ok(lock) = WORKERS.lock() {
         for (identifier, status) in lock.iter() {
-            res += &format!(
+            res += &teloxide::utils::markdown::escape(&format!(
                 "{} ({}): Online as of {}\n",
                 identifier.hostname,
                 identifier.arch,
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
-            );
+            ));
         }
     }
     Ok(res)
@@ -175,7 +175,9 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         }
         Command::Status => match status().await {
             Ok(status) => {
-                bot.send_message(msg.chat.id, status).await?;
+                bot.send_message(msg.chat.id, status)
+                    .parse_mode(ParseMode::MarkdownV2)
+                    .await?;
             }
             Err(err) => {
                 bot.send_message(msg.chat.id, format!("Failed to get status: {}", err))
@@ -228,18 +230,18 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "{} Job completed on {} ({})\n*Time elapsed*: {:.2?}\n*Architecture*: {}\n*Package(s) to build*: {}\n*Package(s) successfully built*: {}\n*Package(s) failed to build*: {}\n[Build Log >>]({})\n",
+                    "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n\n[Build Log \\>\\>]({})\n",
                     if success { "✅️" } else { "❌" },
-                    result.worker.hostname,
+                    teloxide::utils::markdown::escape(&result.worker.hostname),
                     result.worker.arch,
-                    result.elapsed,
+                    teloxide::utils::markdown::escape(&format!("{:.2?}", result.elapsed)),
                     result.job.arch,
-                    result.job.packages.join(", "),
-                    result.successful_packages.join(", "),
-                    result.failed_package.unwrap_or(String::from("None")),
+                    teloxide::utils::markdown::escape(&result.job.packages.join(", ")),
+                    teloxide::utils::markdown::escape(&result.successful_packages.join(", ")),
+                    teloxide::utils::markdown::escape(&result.failed_package.unwrap_or(String::from("None"))),
                     result.log.unwrap_or(String::from("None")),
                 ),
-            )
+            ).parse_mode(ParseMode::MarkdownV2)
             .await?;
         }
 
