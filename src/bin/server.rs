@@ -115,7 +115,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
         }
         res += &format!(
             "*{}*: {}{} available server\\(s\\)\n",
-            teloxide::utils::markdown::escape(&queue_name),
+            teloxide::utils::markdown::escape(&arch),
             unacknowledged_str,
             queue.consumer_count()
         );
