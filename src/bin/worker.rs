@@ -5,16 +5,19 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions},
     types::FieldTable,
-    BasicProperties, ConnectionProperties,
+    BasicProperties, Channel, Connection, ConnectionProperties,
 };
 use log::{error, info, warn};
+use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     process::Output,
+    sync::Arc,
     time::{Duration, Instant},
 };
 use tokio::process::Command;
+use tokio::sync::Mutex;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -40,6 +43,8 @@ struct Args {
     )]
     ciel_instance: String,
 }
+
+static CONNECTION: Lazy<Arc<Mutex<Option<Connection>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 async fn get_output_logged(
     cmd: &str,
@@ -172,13 +177,41 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     Ok(result)
 }
 
+// try to reuse amqp channel
+async fn ensure_channel(args: &Args) -> anyhow::Result<Channel> {
+    let mut lock = CONNECTION.lock().await;
+    let conn = match &*lock {
+        Some(conn) => {
+            if conn.status().connected() {
+                conn
+            } else {
+                // re-connect
+                *lock = None;
+
+                let conn =
+                    lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default())
+                        .await?;
+                *lock = Some(conn);
+                lock.as_ref().unwrap()
+            }
+        }
+        None => {
+            let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default())
+                .await?;
+            *lock = Some(conn);
+            lock.as_ref().unwrap()
+        }
+    };
+
+    let channel = conn.create_channel().await?;
+    Ok(channel)
+}
+
 async fn worker(args: &Args) -> anyhow::Result<()> {
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
-    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
-
-    let channel = conn.create_channel().await?;
+    let channel = ensure_channel(args).await?;
     let queue_name = format!("job-{}", &args.arch);
     ensure_job_queue(&queue_name, &channel).await?;
 
@@ -240,9 +273,7 @@ async fn worker(args: &Args) -> anyhow::Result<()> {
 }
 
 async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
-
-    let channel = conn.create_channel().await?;
+    let channel = ensure_channel(args).await?;
     let queue_name = "worker-heartbeat";
     ensure_job_queue(&queue_name, &channel).await?;
 
