@@ -114,10 +114,9 @@ async fn status(args: &Args) -> anyhow::Result<String> {
             }
         }
         res += &format!(
-            "*{}*: {} unallocated job\\(s\\), {}{} available server\\(s\\)\n",
+            "*{}*: {}{} available server\\(s\\)\n",
             teloxide::utils::markdown::escape(&queue_name),
             unacknowledged_str,
-            queue.message_count(),
             queue.consumer_count()
         );
     }
