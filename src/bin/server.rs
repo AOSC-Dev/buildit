@@ -236,7 +236,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                     result.worker.arch,
                     teloxide::utils::markdown::escape(&format!("{:.2?}", result.elapsed)),
                     if let Some(git_commit) = result.git_commit {
-                        format!("*Git commit*: [{:8}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})*\n", git_commit, git_commit)
+                        format!("*Git commit*: [{:8}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", git_commit, git_commit)
                     } else {
                         String::new()
                     },
