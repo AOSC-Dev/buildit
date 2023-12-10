@@ -77,7 +77,7 @@ async fn build(
     Ok(())
 }
 
-async fn status() -> anyhow::Result<String> {
+async fn status(args: &Args) -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
 
@@ -94,9 +94,29 @@ async fn status() -> anyhow::Result<String> {
         let queue_name = format!("job-{}", arch);
 
         let queue = ensure_job_queue(&queue_name, &channel).await?;
+
+        // read unacknowledged job count
+        let mut unacknowledged_str = String::new();
+        if let Some(api) = &args.rabbitmq_queue_api {
+            let client = reqwest::Client::new();
+            let res = client
+                .get(format!("{}{}", api, queue_name))
+                .send()
+                .await?
+                .json::<serde_json::Value>()
+                .await?;
+            if let Some(unacknowledged) = res
+                .as_object()
+                .and_then(|m| m.get("messages_unacknowledged"))
+                .and_then(|v| v.as_i64())
+            {
+                unacknowledged_str = format!("{} unacknowledged job\\(s\\), ", unacknowledged);
+            }
+        }
         res += &format!(
-            "*{}*: {} unallocated job\\(s\\), {} available server\\(s\\)\n",
+            "*{}*: {} unallocated job\\(s\\), {}{} available server\\(s\\)\n",
             teloxide::utils::markdown::escape(&queue_name),
+            unacknowledged_str,
             queue.message_count(),
             queue.consumer_count()
         );
@@ -173,7 +193,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             )
             .await?;
         }
-        Command::Status => match status().await {
+        Command::Status => match status(&ARGS).await {
             Ok(status) => {
                 bot.send_message(msg.chat.id, status)
                     .parse_mode(ParseMode::MarkdownV2)
@@ -342,6 +362,10 @@ struct Args {
     /// AMQP address to access message queue
     #[arg(env = "BUILDIT_AMQP_ADDR")]
     amqp_addr: String,
+
+    /// RabbitMQ address to access queue api e.g. http://user:password@host:port/api/queues/vhost/
+    #[arg(env = "BUILDIT_RABBITMQ_QUEUE_API")]
+    rabbitmq_queue_api: Option<String>,
 }
 
 static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
