@@ -19,16 +19,16 @@ use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 #[derive(BotCommands, Clone)]
 #[command(
     rename_rule = "lowercase",
-    description = "These commands are supported:"
+    description = "BuildIt! supports the following commands:"
 )]
 enum Command {
-    #[command(description = "display usage: /help.")]
+    #[command(description = "Display usage: /help")]
     Help,
     #[command(
-        description = "start a job: /build [git-ref] [packages] [archs], e.g. /build stable bash,fish amd64,arm64."
+        description = "Start a build job: /build [git-ref] [packages] [archs] (e.g., /build stable bash,fish amd64,arm64)"
     )]
     Build(String),
-    #[command(description = "show queue status: /status.")]
+    #[command(description = "Show queue and server status: /status")]
     Status,
 }
 
@@ -57,7 +57,7 @@ async fn build(
             tg_chatid: msg.chat.id,
         };
 
-        info!("Adding job to message queue {:?}", job);
+        info!("Adding job to message queue {:?} ...", job);
 
         // each arch has its own queue
         let queue_name = format!("job-{}", job.arch);
@@ -78,7 +78,7 @@ async fn build(
 }
 
 async fn status() -> anyhow::Result<String> {
-    let mut res = String::from("__*Queue status*__\n\n");
+    let mut res = String::from("__*Queue Status*__\n\n");
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
 
     let channel = conn.create_channel().await?;
@@ -95,14 +95,14 @@ async fn status() -> anyhow::Result<String> {
 
         let queue = ensure_job_queue(&queue_name, &channel).await?;
         res += &format!(
-            "*{}*: {} unallocated jobs, {} available servers\n",
+            "*{}*: {} unallocated job(s), {} available server(s)\n",
             teloxide::utils::markdown::escape(&queue_name),
             queue.message_count(),
             queue.consumer_count()
         );
     }
 
-    res += "\n__*Server status*__\n";
+    res += "\n__*Server Status*__\n\n";
     let fmt = timeago::Formatter::new();
     if let Ok(lock) = WORKERS.lock() {
         for (identifier, status) in lock.iter() {
@@ -150,7 +150,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         bot.send_message(
                             msg.chat.id,
                             format!(
-                                "Creating jobs for:\nGit ref: {}\nArch: {}\nPackages: {}\n",
+                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture(s): {}\nPackage(s): {}\n",
                                 git_ref,
                                 archs.join(", "),
                                 packages.join(", ")
@@ -224,7 +224,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
         };
 
         if let Some(result) = serde_json::from_slice::<JobResult>(&delivery.data).ok() {
-            info!("Processing job result {:?}", result);
+            info!("Processing job result {:?} ...", result);
             let success = result.successful_packages == result.job.packages;
             // Report job result to user
             bot.send_message(
@@ -248,11 +248,11 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
         // finish
         if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
             warn!(
-                "Failed to delete job result {:?} with err {:?}",
+                "Failed to delete job result {:?}, error: {:?}",
                 delivery, err
             );
         } else {
-            info!("Finish processing job result {:?}", delivery.delivery_tag);
+            info!("Finished processing job result {:?}", delivery.delivery_tag);
         }
     }
     Ok(())
@@ -260,9 +260,9 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
 pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Result<()> {
     loop {
-        info!("Starting job completion worker");
+        info!("Starting job completion worker ...");
         if let Err(err) = job_completion_worker_inner(bot.clone(), &amqp_addr).await {
-            error!("Got error running job completion worker: {}", err);
+            error!("Got error while starting job completion worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
@@ -293,7 +293,7 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
         };
 
         if let Some(heartbeat) = serde_json::from_slice::<WorkerHeartbeat>(&delivery.data).ok() {
-            info!("Processing worker heartbeat {:?}", heartbeat);
+            info!("Processing worker heartbeat {:?} ...", heartbeat);
 
             // update worker status
             if let Ok(mut lock) = WORKERS.lock() {
@@ -311,9 +311,9 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
 
             // finish
             if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
-                warn!("Failed to ack heartbeat {:?} with err {:?}", delivery, err);
+                warn!("Failed to ack heartbeat {:?}, error: {:?}", delivery, err);
             } else {
-                info!("Finish ack-ing heartbeat {:?}", delivery.delivery_tag);
+                info!("Finished ack-ing heartbeat {:?}", delivery.delivery_tag);
             }
         }
     }
@@ -323,9 +323,9 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
 
 pub async fn heartbeat_worker(amqp_addr: String) -> anyhow::Result<()> {
     loop {
-        info!("Starting heartbeat worker");
+        info!("Starting heartbeat worker ...");
         if let Err(err) = heartbeat_worker_inner(amqp_addr.clone()).await {
-            error!("Got error running heartbeat worker: {}", err);
+            error!("Got error while starting heartbeat worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
