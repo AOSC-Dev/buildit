@@ -110,7 +110,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
                 .and_then(|m| m.get("messages_unacknowledged"))
                 .and_then(|v| v.as_i64())
             {
-                unacknowledged_str = format!("{} unacknowledged job\\(s\\), ", unacknowledged);
+                unacknowledged_str = format!("{} job\\(s\\), ", unacknowledged);
             }
         }
         res += &format!(
