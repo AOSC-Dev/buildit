@@ -95,7 +95,7 @@ async fn status() -> anyhow::Result<String> {
 
         let queue = ensure_job_queue(&queue_name, &channel).await?;
         res += &format!(
-            "*{}*: {} unallocated job(s), {} available server(s)\n",
+            "*{}*: {} unallocated job\\(s\\), {} available server\\(s\\)\n",
             teloxide::utils::markdown::escape(&queue_name),
             queue.message_count(),
             queue.consumer_count()
