@@ -365,7 +365,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
                     // update to create new comment
                     let page = octocrab::instance()
-                        .pulls("owner", "repo")
+                        .pulls("AOSC-Dev", "aosc-os-abbs")
                         .list_comments(Some(pr))
                         .send()
                         .await?;
@@ -387,7 +387,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                                 body += "\n";
                                 body += &new_content;
 
-                                crab.issues("owner", "repo")
+                                crab.issues("AOSC-Dev", "aosc-os-abbs")
                                     .update_comment(comment.id, body)
                                     .await?;
                                 break;
@@ -396,7 +396,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                     }
 
                     if !found {
-                        crab.issues("owner", "repo")
+                        crab.issues("AOSC-Dev", "aosc-os-abbs")
                             .create_comment(pr, new_content)
                             .await?;
                     }
