@@ -155,7 +155,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                                 archs.join(", "),
                                 teloxide::utils::markdown::escape(&packages.join(", ")),
                             ),
-                        )
+                        ).parse_mode(ParseMode::MarkdownV2)
                         .await?;
                     }
                     Err(err) => {
