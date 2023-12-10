@@ -162,7 +162,11 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         successful_packages,
         failed_package,
         log: log_url.map(String::from),
-        worker_hostname: gethostname::gethostname().to_string_lossy().to_string(),
+        worker: WorkerIdentifier {
+            hostname: gethostname::gethostname().to_string_lossy().to_string(),
+            arch: args.arch.clone(),
+            pid: std::process::id(),
+        },
         elapsed: begin.elapsed(),
     };
     Ok(result)

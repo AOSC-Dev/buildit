@@ -231,7 +231,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                 format!(
                     "{} Job completed on {} in {:?}:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
                     if success { "✅️" } else { "❌" },
-                    result.worker_hostname,
+                    result.worker.hostname,
                     result.elapsed,
                     result.job.git_ref,
                     result.job.arch,
