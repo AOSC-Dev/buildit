@@ -78,7 +78,7 @@ async fn build(
 }
 
 async fn status() -> anyhow::Result<String> {
-    let mut res = String::from("Queue status:\n");
+    let mut res = String::from("__*Queue status*__\n\n");
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
 
     let channel = conn.create_channel().await?;
@@ -95,22 +95,21 @@ async fn status() -> anyhow::Result<String> {
 
         let queue = ensure_job_queue(&queue_name, &channel).await?;
         res += &format!(
-            "{}: {} messages, {} consumers\n",
+            "*{}*: {} unallocated jobs, {} available servers\n",
             queue_name,
             queue.message_count(),
             queue.consumer_count()
         );
     }
 
-    res += "Worker status:\n";
+    res += "\n__*Server status*__\n";
     let fmt = timeago::Formatter::new();
     if let Ok(lock) = WORKERS.lock() {
         for (identifier, status) in lock.iter() {
             res += &format!(
-                "{} ({} {}): last heartbeat {}\n",
+                "{} ({}): Online as of {}\n",
                 identifier.hostname,
                 identifier.arch,
-                identifier.pid,
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
             );
         }
@@ -229,11 +228,11 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "{} Job completed on {} in {:?}:\nGit ref: {}\nArch: {}\nPackages to build: {}\nSuccessful packages: {}\nFailed package: {}\nLog: {}\n",
+                    "{} Job completed on {} ({})\n*Time elapsed*: {:.2?}\n*Architecture*: {}\n*Package(s) to build*: {}\n*Package(s) successfully built*: {}\n*Package(s) failed to build*: {}\n[Build Log >>]({})\n",
                     if success { "✅️" } else { "❌" },
                     result.worker.hostname,
+                    result.worker.arch,
                     result.elapsed,
-                    result.job.git_ref,
                     result.job.arch,
                     result.job.packages.join(", "),
                     result.successful_packages.join(", "),
