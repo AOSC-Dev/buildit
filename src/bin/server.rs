@@ -150,7 +150,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         bot.send_message(
                             msg.chat.id,
                             format!(
-                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture(s): {}\nPackage(s): {}\n",
+                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture\\(s\\): {}\nPackage\\(s\\): {}\n",
                                 teloxide::utils::markdown::escape(git_ref),
                                 archs.join(", "),
                                 teloxide::utils::markdown::escape(&packages.join(", ")),
