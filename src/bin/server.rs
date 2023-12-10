@@ -111,8 +111,9 @@ async fn build(
             bot.send_message(
                             msg.chat.id,
                             format!(
-                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture\\(s\\): {}\nPackage\\(s\\): {}\n",
+                                "\n__*New Job Summary*__\n\nGit reference: {}\n{}Architecture\\(s\\): {}\nPackage\\(s\\): {}\n",
                                 teloxide::utils::markdown::escape(git_ref),
+                                if let Some(pr) = github_pr { format!("GitHub PR: [#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr) } else { String::new() },
                                 archs.join(", "),
                                 teloxide::utils::markdown::escape(&packages.join(", ")),
                             ),
@@ -317,13 +318,18 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n{}*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n\n[Build Log \\>\\>]({})\n",
+                    "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n{}{}*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n\n[Build Log \\>\\>]({})\n",
                     if success { "✅️" } else { "❌" },
                     teloxide::utils::markdown::escape(&result.worker.hostname),
                     result.worker.arch,
                     teloxide::utils::markdown::escape(&format!("{:.2?}", result.elapsed)),
                     if let Some(git_commit) = result.git_commit {
                         format!("*Git commit*: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
+                    } else {
+                        String::new()
+                    },
+                    if let Some(pr) = result.job.github_pr {
+                        format!("*GitHub PR*: [#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr)
                     } else {
                         String::new()
                     },
