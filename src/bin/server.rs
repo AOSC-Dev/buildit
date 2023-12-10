@@ -230,11 +230,16 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             bot.send_message(
                 result.job.tg_chatid,
                 format!(
-                    "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n\n[Build Log \\>\\>]({})\n",
+                    "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n{}*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n\n[Build Log \\>\\>]({})\n",
                     if success { "✅️" } else { "❌" },
                     teloxide::utils::markdown::escape(&result.worker.hostname),
                     result.worker.arch,
                     teloxide::utils::markdown::escape(&format!("{:.2?}", result.elapsed)),
+                    if let Some(git_commit) = result.git_commit {
+                        format!("*Git commit*: [{:8}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})*\n", git_commit, git_commit)
+                    } else {
+                        String::new()
+                    },
                     result.job.arch,
                     teloxide::utils::markdown::escape(&result.job.packages.join(", ")),
                     teloxide::utils::markdown::escape(&result.successful_packages.join(", ")),

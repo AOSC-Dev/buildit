@@ -87,6 +87,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let begin = Instant::now();
     let mut successful_packages = vec![];
     let mut failed_package = None;
+    let mut git_commit = None;
 
     // switch to git ref
     let mut logs = vec![];
@@ -103,6 +104,10 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     .await?;
 
     if output.status.success() {
+        let output =
+            get_output_logged("git", &["rev-parse", "FETCH_HEAD"], &tree_path, &mut logs).await?;
+        git_commit = Some(String::from_utf8_lossy(&output.stdout).to_string());
+
         // try to switch branch, but allow it to fail:
         // ensure branch exists
         get_output_logged(
@@ -185,6 +190,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             pid: std::process::id(),
         },
         elapsed: begin.elapsed(),
+        git_commit,
     };
     Ok(result)
 }

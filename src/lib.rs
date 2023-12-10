@@ -26,6 +26,7 @@ pub struct JobResult {
     pub log: Option<String>,
     pub worker: WorkerIdentifier,
     pub elapsed: Duration,
+    pub git_commit: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
