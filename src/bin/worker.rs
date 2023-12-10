@@ -50,7 +50,7 @@ async fn get_output_logged(
     let begin = Instant::now();
     let msg = format!("{}: Running `{} {}`\n", Local::now(), cmd, args.join(" "));
     logs.extend(msg.as_bytes());
-    info!("{}", msg);
+    info!("{}", msg.trim());
 
     let output = Command::new(cmd)
         .args(args)
