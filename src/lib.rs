@@ -16,6 +16,7 @@ pub struct Job {
     pub git_ref: String,
     pub arch: String,
     pub tg_chatid: ChatId,
+    pub github_pr: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

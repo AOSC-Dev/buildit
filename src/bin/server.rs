@@ -45,6 +45,7 @@ async fn build_inner(
     git_ref: &str,
     packages: &Vec<String>,
     archs: &Vec<&str>,
+    github_pr: Option<u64>,
     msg: &Message,
 ) -> anyhow::Result<()> {
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
@@ -57,6 +58,7 @@ async fn build_inner(
             git_ref: git_ref.to_string(),
             arch: arch.to_string(),
             tg_chatid: msg.chat.id,
+            github_pr,
         };
 
         info!("Adding job to message queue {:?} ...", job);
@@ -84,6 +86,7 @@ async fn build(
     git_ref: &str,
     packages: &Vec<String>,
     archs: &Vec<&str>,
+    github_pr: Option<u64>,
     msg: &Message,
 ) -> ResponseResult<()> {
     let mut archs = archs.clone();
@@ -103,7 +106,7 @@ async fn build(
     archs.sort();
     archs.dedup();
 
-    match build_inner(git_ref, &packages, &archs, &msg).await {
+    match build_inner(git_ref, &packages, &archs, github_pr, &msg).await {
         Ok(()) => {
             bot.send_message(
                             msg.chat.id,
@@ -222,7 +225,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                                 "ppc64el",
                                 "riscv64",
                             ];
-                            build(&bot, git_ref, &packages, &archs, &msg).await?;
+                            build(&bot, git_ref, &packages, &archs, Some(pr_number), &msg).await?;
                         } else {
                             bot.send_message(msg.chat.id, format!("Please list packages to build in pr info starting with '#buildit'."))
                                 .await?;
@@ -247,7 +250,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 let git_ref = parts[0];
                 let packages: Vec<String> = parts[1].split(",").map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(",").collect();
-                build(&bot, git_ref, &packages, &archs, &msg).await?;
+                build(&bot, git_ref, &packages, &archs, None, &msg).await?;
                 return Ok(());
             }
 
