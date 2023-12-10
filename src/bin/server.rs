@@ -111,9 +111,9 @@ async fn build(
             bot.send_message(
                             msg.chat.id,
                             format!(
-                                "\n__*New Job Summary*__\n\nGit reference: {}\n{}Architecture\\(s\\): {}\nPackage\\(s\\): {}\n",
+                                "\n__*New Job Summary*__\n\n*Git reference*: {}\n{}*Architecture\\(s\\)*: {}\n*Package\\(s\\)*: {}\n",
                                 teloxide::utils::markdown::escape(git_ref),
-                                if let Some(pr) = github_pr { format!("GitHub PR: [#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr) } else { String::new() },
+                                if let Some(pr) = github_pr { format!("*GitHub PR*: [\\#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr) } else { String::new() },
                                 archs.join(", "),
                                 teloxide::utils::markdown::escape(&packages.join(", ")),
                             ),
@@ -329,7 +329,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                         String::new()
                     },
                     if let Some(pr) = result.job.github_pr {
-                        format!("*GitHub PR*: [#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr)
+                        format!("*GitHub PR*: [\\#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr)
                     } else {
                         String::new()
                     },
