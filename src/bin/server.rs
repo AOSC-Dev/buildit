@@ -41,9 +41,9 @@ struct WorkerStatus {
 static WORKERS: Lazy<Arc<Mutex<HashMap<WorkerIdentifier, WorkerStatus>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-async fn build(
+async fn build_inner(
     git_ref: &str,
-    packages: &Vec<&str>,
+    packages: &Vec<String>,
     archs: &Vec<&str>,
     msg: &Message,
 ) -> anyhow::Result<()> {
@@ -75,6 +75,51 @@ async fn build(
             )
             .await?
             .await?;
+    }
+    Ok(())
+}
+
+async fn build(
+    bot: &Bot,
+    git_ref: &str,
+    packages: &Vec<String>,
+    archs: &Vec<&str>,
+    msg: &Message,
+) -> ResponseResult<()> {
+    let mut archs = archs.clone();
+    if archs.contains(&"mainline") {
+        // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
+        archs.extend_from_slice(&[
+            "amd64",
+            "arm64",
+            "loongarch64",
+            "loongson3",
+            "mips64r6el",
+            "ppc64el",
+            "riscv64",
+        ]);
+        archs.retain(|arch| *arch != "mainline");
+    }
+    archs.sort();
+    archs.dedup();
+
+    match build_inner(git_ref, &packages, &archs, &msg).await {
+        Ok(()) => {
+            bot.send_message(
+                            msg.chat.id,
+                            format!(
+                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture\\(s\\): {}\nPackage\\(s\\): {}\n",
+                                teloxide::utils::markdown::escape(git_ref),
+                                archs.join(", "),
+                                teloxide::utils::markdown::escape(&packages.join(", ")),
+                            ),
+                        ).parse_mode(ParseMode::MarkdownV2)
+                        .await?;
+        }
+        Err(err) => {
+            bot.send_message(msg.chat.id, format!("Failed to create job: {}", err))
+                .await?;
+        }
     }
     Ok(())
 }
@@ -152,8 +197,36 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     .await
                 {
                     Ok(pr) => {
-                        bot.send_message(msg.chat.id, format!("Building for pr {:?}", pr))
-                            .await?;
+                        let git_ref = &pr.head.ref_field;
+                        // find lines starting with #buildit
+                        let packages: Vec<String> = pr
+                            .body
+                            .and_then(|body| {
+                                body.lines()
+                                    .filter(|line| line.starts_with("#buildit"))
+                                    .map(|line| {
+                                        line.split(" ")
+                                            .map(str::to_string)
+                                            .skip(1)
+                                            .collect::<Vec<_>>()
+                                    })
+                                    .next()
+                            })
+                            .unwrap_or_else(Vec::new);
+                        if packages.len() > 0 {
+                            let archs = vec![
+                                "amd64",
+                                "arm64",
+                                "loongson3",
+                                "mips64r6el",
+                                "ppc64el",
+                                "riscv64",
+                            ];
+                            build(&bot, git_ref, &packages, &archs, &msg).await?;
+                        } else {
+                            bot.send_message(msg.chat.id, format!("Please list packages to build in pr info starting with '#buildit'."))
+                                .await?;
+                        }
                     }
                     Err(err) => {
                         bot.send_message(msg.chat.id, format!("Failed to get pr info: {err}."))
@@ -172,43 +245,9 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             let parts: Vec<&str> = arguments.split(" ").collect();
             if parts.len() == 3 {
                 let git_ref = parts[0];
-                let packages: Vec<&str> = parts[1].split(",").collect();
-                let mut archs: Vec<&str> = parts[2].split(",").collect();
-                if archs.contains(&"mainline") {
-                    // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
-                    archs.extend_from_slice(&[
-                        "amd64",
-                        "arm64",
-                        "loongarch64",
-                        "loongson3",
-                        "mips64r6el",
-                        "ppc64el",
-                        "riscv64",
-                    ]);
-                    archs.retain(|arch| *arch != "mainline");
-                }
-                archs.sort();
-                archs.dedup();
-
-                match build(git_ref, &packages, &archs, &msg).await {
-                    Ok(()) => {
-                        bot.send_message(
-                            msg.chat.id,
-                            format!(
-                                "\n__*New Job Summary*__\n\nGit reference: {}\nArchitecture\\(s\\): {}\nPackage\\(s\\): {}\n",
-                                teloxide::utils::markdown::escape(git_ref),
-                                archs.join(", "),
-                                teloxide::utils::markdown::escape(&packages.join(", ")),
-                            ),
-                        ).parse_mode(ParseMode::MarkdownV2)
-                        .await?;
-                    }
-                    Err(err) => {
-                        bot.send_message(msg.chat.id, format!("Failed to create job: {}", err))
-                            .await?;
-                    }
-                }
-
+                let packages: Vec<String> = parts[1].split(",").map(str::to_string).collect();
+                let archs: Vec<&str> = parts[2].split(",").collect();
+                build(&bot, git_ref, &packages, &archs, &msg).await?;
                 return Ok(());
             }
 
