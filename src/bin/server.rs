@@ -28,6 +28,8 @@ enum Command {
         description = "Start a build job: /build [git-ref] [packages] [archs] (e.g., /build stable bash,fish amd64,arm64)"
     )]
     Build(String),
+    #[command(description = "Start a build job from GitHub PR: /pr [pr-number]")]
+    PR(String),
     #[command(description = "Show queue and server status: /status")]
     Status,
 }
@@ -141,6 +143,30 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?;
+        }
+        Command::PR(arguments) => {
+            if let Ok(pr_number) = str::parse::<u64>(&arguments) {
+                match octocrab::instance()
+                    .pulls("AOSC-Dev", "aosc-os-abbs")
+                    .get(pr_number)
+                    .await
+                {
+                    Ok(pr) => {
+                        bot.send_message(msg.chat.id, format!("Building for pr {:?}", pr))
+                            .await?;
+                    }
+                    Err(err) => {
+                        bot.send_message(msg.chat.id, format!("Failed to get pr info: {err}."))
+                            .await?;
+                    }
+                }
+            } else {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Got invalid pr description: {arguments}."),
+                )
+                .await?;
+            }
         }
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(" ").collect();
@@ -365,6 +391,10 @@ struct Args {
     /// RabbitMQ address to access queue api e.g. http://user:password@host:port/api/queues/vhost/
     #[arg(env = "BUILDIT_RABBITMQ_QUEUE_API")]
     rabbitmq_queue_api: Option<String>,
+
+    /// GitHub access token
+    #[arg(env = "BUILDIT_GITHUB_ACCESS_TOKEN")]
+    github_access_token: Option<String>,
 }
 
 static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
