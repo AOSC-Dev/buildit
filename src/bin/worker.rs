@@ -103,6 +103,18 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     .await?;
 
     if output.status.success() {
+        // try to switch branch, but allow it to fail:
+        // ensure branch exists
+        get_output_logged(
+            "git",
+            &["checkout", "-b", &job.git_ref],
+            &tree_path,
+            &mut logs,
+        )
+        .await?;
+        // checkout to branch
+        get_output_logged("git", &["checkout", &job.git_ref], &tree_path, &mut logs).await?;
+
         let output = get_output_logged(
             "git",
             &["reset", "FETCH_HEAD", "--hard"],
