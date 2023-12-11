@@ -32,8 +32,9 @@ pub struct JobResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WorkerIdentifier {
-    pub hostname: String,
+    // sort by (arch, hostname, pid)
     pub arch: String,
+    pub hostname: String,
     pub pid: u32,
 }
 

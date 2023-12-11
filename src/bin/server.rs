@@ -10,7 +10,7 @@ use lapin::{
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -38,8 +38,8 @@ struct WorkerStatus {
     last_heartbeat: DateTime<Local>,
 }
 
-static WORKERS: Lazy<Arc<Mutex<HashMap<WorkerIdentifier, WorkerStatus>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+static WORKERS: Lazy<Arc<Mutex<BTreeMap<WorkerIdentifier, WorkerStatus>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(BTreeMap::new())));
 
 async fn build_inner(
     git_ref: &str,
