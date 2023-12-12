@@ -16,6 +16,12 @@ use std::{
 };
 use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 
+macro_rules! PR {
+    () => {
+        "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\n\nBuild Order\n-----------\n\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n**Primary Architectures**\n\n- [ ] AMD64 `amd64`   \n- [ ] AArch64 `arm64`\n \n<!-- - [ ] 32-bit Optional Environment `optenv32` -->\n<!-- - [ ] Architecture-independent `noarch` -->\n\n**Secondary Architectures**\n\n- [ ] Loongson 3 `loongson3`\n- [ ] MIPS R6 64-bit (Little Endian) `mips64r6el`\n- [ ] PowerPC 64-bit (Little Endian) `ppc64el`\n- [ ] RISC-V 64-bit `riscv64`"
+    };
+}
+
 #[derive(BotCommands, Clone)]
 #[command(
     rename_rule = "lowercase",
@@ -32,6 +38,10 @@ enum Command {
     PR(String),
     #[command(description = "Show queue and server status: /status")]
     Status,
+    #[command(
+        description = "Open Pull Request by git-ref /openpr [title];[git-ref];[packages] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
+    )]
+    OpenPR(String),
 }
 
 struct WorkerStatus {
@@ -272,9 +282,51 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     .await?;
             }
         },
+        Command::OpenPR(arguments) => {
+            let parts: Vec<&str> = arguments.split(";").collect();
+
+            if parts.len() == 3 {
+                let _ = match open_pr(parts).await {
+                    Ok(url) => {
+                        bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
+                    }
+                    Err(e) => bot.send_message(msg.chat.id, format!("Got error: {e}")),
+                };
+
+                return Ok(());
+            }
+
+            bot.send_message(
+                msg.chat.id,
+                format!("Got invalid job description: {arguments}."),
+            )
+            .await?;
+        }
     };
 
     Ok(())
+}
+
+async fn open_pr(parts: Vec<&str>) -> anyhow::Result<String> {
+    let github_access_token = ARGS
+        .github_access_token
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Environment has no variable GITHUB_ACCESS_TOKEN"))?;
+
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(github_access_token.to_string())
+        .build()?;
+
+    let pr = crab
+        .pulls("AOSC-Dev", "aosc-os-abbs")
+        .create(parts[0], parts[1], "stable")
+        .draft(false)
+        .maintainer_can_modify(true)
+        .body(format!(PR!(), parts[2], parts[2], parts[2]))
+        .send()
+        .await?;
+
+    Ok(pr.url)
 }
 
 /// Observe job completion messages
