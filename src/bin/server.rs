@@ -286,11 +286,15 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             let parts: Vec<&str> = arguments.split(";").collect();
 
             if parts.len() == 3 {
-                let _ = match open_pr(parts).await {
+                match open_pr(parts).await {
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
+                            .await?
                     }
-                    Err(e) => bot.send_message(msg.chat.id, format!("Got error: {e}")),
+                    Err(e) => {
+                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                            .await?
+                    }
                 };
 
                 return Ok(());
