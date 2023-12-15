@@ -393,6 +393,7 @@ dependencies = [
  "env_logger",
  "futures",
  "gethostname",
+ "jsonwebtoken",
  "lapin",
  "log",
  "octocrab",
