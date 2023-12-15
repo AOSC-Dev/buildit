@@ -374,7 +374,7 @@ async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
     let client = reqwest::Client::new();
     let resp = client
         .get("https://repo.aosc.io:8000/get_token")
-        .query(&["id", &msg.chat.id.0.to_string()])
+        .query(&[("id", &msg.chat.id.0.to_string())])
         .header("secret", secret)
         .send()
         .await
