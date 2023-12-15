@@ -12,3 +12,4 @@ Steps:
 4. `cp /buildroots/buildit/buildit/systemd/buildit-worker.service /etc/systemd/system`
 5. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH and BUILDIT_AMQP_ADDR
 6. `systemctl enable --now buildit-worker`
+7. `chmod 600 /etc/systemd/system/buildit-worker.service`
