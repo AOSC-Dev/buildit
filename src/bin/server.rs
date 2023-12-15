@@ -13,8 +13,9 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
+    path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration, path::PathBuf,
+    time::Duration,
 };
 use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 
@@ -394,10 +395,12 @@ async fn open_pr(parts: Vec<&str>, access_token: String) -> anyhow::Result<Strin
     let app_private_key = ARGS
         .github_app_key
         .as_ref()
-        .ok_or_else(|| anyhow!("GITHUB_APP_KEY is not set"))?;
+        .ok_or_else(|| anyhow!("GITHUB_APP_KEY_PEM_PATH is not set"))?;
 
-    let key = std::fs::read(app_private_key)?;
-    let key = jsonwebtoken::EncodingKey::from_rsa_pem(&key)?;
+    let key = tokio::fs::read(app_private_key).await?;
+
+    let key = tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
+        .await??;
 
     let crab = octocrab::Octocrab::builder()
         .app(id.parse::<u64>()?.into(), key)
