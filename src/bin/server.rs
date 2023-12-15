@@ -330,7 +330,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             } else {
                 let client = reqwest::Client::new();
                 let resp = client
-                    .get("https://repo.aosc.io/login_from_telegram")
+                    .get(format!("https://minzhengbu.aosc.io/login_from_telegram"))
                     .query(&[
                         ("telegram_id", msg.chat.id.0.to_string()),
                         ("rid", arguments),
