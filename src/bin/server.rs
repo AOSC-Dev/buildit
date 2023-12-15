@@ -373,7 +373,7 @@ async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
         .ok_or_else(|| anyhow!("SECRET is not set"))?;
     let client = reqwest::Client::new();
     let resp = client
-        .get("https://repo.aosc.io:8000/get_token")
+        .get("https://minzhengbu.aosc.io/get_token")
         .query(&[("id", &msg.chat.id.0.to_string())])
         .header("secret", secret)
         .send()
