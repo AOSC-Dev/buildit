@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::Duration, path::PathBuf,
 };
 use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 
@@ -386,7 +386,21 @@ async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
 }
 
 async fn open_pr(parts: Vec<&str>, access_token: String) -> anyhow::Result<String> {
+    let id = ARGS
+        .github_app_id
+        .as_ref()
+        .ok_or_else(|| anyhow!("GITHUB_APP_ID is not set"))?;
+
+    let app_private_key = ARGS
+        .github_app_key
+        .as_ref()
+        .ok_or_else(|| anyhow!("GITHUB_APP_KEY is not set"))?;
+
+    let key = std::fs::read(app_private_key)?;
+    let key = jsonwebtoken::EncodingKey::from_rsa_pem(&key)?;
+
     let crab = octocrab::Octocrab::builder()
+        .app(id.parse::<u64>()?.into(), key)
         .user_access_token(access_token)
         .build()?;
 
@@ -636,6 +650,12 @@ struct Args {
     /// Secret
     #[arg(env = "SECRET")]
     secret: Option<String>,
+
+    #[arg(env = "GITHUB_APP_ID")]
+    github_app_id: Option<String>,
+
+    #[arg(env = "GITHUB_APP_KEY_PEM_PATH")]
+    github_app_key: Option<PathBuf>,
 }
 
 static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
