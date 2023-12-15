@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::{DateTime, Local};
 use clap::Parser;
@@ -9,6 +10,7 @@ use lapin::{
 };
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
@@ -42,6 +44,10 @@ enum Command {
         description = "Open Pull Request by git-ref /openpr [title];[git-ref];[packages] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
     )]
     OpenPR(String),
+    #[command(description = "Login to github")]
+    Login,
+    #[command(description = "Start bot")]
+    Start(String),
 }
 
 struct WorkerStatus {
@@ -285,8 +291,17 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::OpenPR(arguments) => {
             let parts: Vec<&str> = arguments.split(";").collect();
 
+            let token = match get_token(&msg).await {
+                Ok(s) => s.access_token,
+                Err(e) => {
+                    bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                        .await?;
+                    return Ok(());
+                }
+            };
+
             if parts.len() == 3 {
-                match open_pr(parts).await {
+                match open_pr(parts, token).await {
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?
@@ -306,19 +321,73 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             )
             .await?;
         }
+        Command::Login => {
+            bot.send_message(msg.chat.id, "https://github.com/login/oauth/authorize?client_id=Iv1.bf26f3e9dd7883ae&redirect_uri=https://repo.aosc.io:8000/login").await?;
+        }
+        Command::Start(arguments) => {
+            if arguments.len() != 20 {
+                return Ok(());
+            } else {
+                let client = reqwest::Client::new();
+                let resp = client
+                    .get("https://repo.aosc.io/login_from_telegram")
+                    .query(&[
+                        ("telegram_id", msg.chat.id.0.to_string()),
+                        ("rid", arguments),
+                    ])
+                    .send()
+                    .await
+                    .and_then(|x| x.error_for_status());
+
+                match resp {
+                    Ok(_) => {
+                        bot.send_message(msg.chat.id, "Successfully to login.")
+                            .await?
+                    }
+                    Err(e) => {
+                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                            .await?
+                    }
+                };
+            }
+        }
     };
 
     Ok(())
 }
 
-async fn open_pr(parts: Vec<&str>) -> anyhow::Result<String> {
-    let github_access_token = ARGS
-        .github_access_token
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Environment has no variable GITHUB_ACCESS_TOKEN"))?;
+#[derive(Deserialize, Serialize, Debug)]
+struct CallbackSecondLoginArgs {
+    access_token: String,
+    expires_in: i64,
+    refresh_token: String,
+    refresh_token_expires_in: i64,
+    scope: String,
+    token_type: String,
+}
 
+async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
+    let secret = ARGS
+        .secret
+        .as_ref()
+        .ok_or_else(|| anyhow!("SECRET is not set"))?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("https://repo.aosc.io:8000/get_token")
+        .query(&["id", &msg.chat.id.0.to_string()])
+        .header("secret", secret)
+        .send()
+        .await
+        .and_then(|x| x.error_for_status())?;
+
+    let token = resp.json().await?;
+
+    Ok(token)
+}
+
+async fn open_pr(parts: Vec<&str>, access_token: String) -> anyhow::Result<String> {
     let crab = octocrab::Octocrab::builder()
-        .user_access_token(github_access_token.to_string())
+        .user_access_token(access_token)
         .build()?;
 
     let pr = crab
@@ -563,6 +632,10 @@ struct Args {
     /// GitHub access token
     #[arg(env = "BUILDIT_GITHUB_ACCESS_TOKEN")]
     github_access_token: Option<String>,
+
+    /// Secret
+    #[arg(env = "SECRET")]
+    secret: Option<String>,
 }
 
 static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
