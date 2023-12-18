@@ -3,12 +3,14 @@ use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifie
 use chrono::{DateTime, Local};
 use clap::Parser;
 use futures::StreamExt;
+use jsonwebtoken::EncodingKey;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
     types::FieldTable,
     BasicProperties, ConnectionProperties,
 };
 use log::{error, info, warn};
+use octocrab::models::pulls::PullRequest;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -292,7 +294,15 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::OpenPR(arguments) => {
             let parts: Vec<&str> = arguments.split(";").collect();
 
-            let token = match get_token(&msg).await {
+            let secret = match ARGS.secret.as_ref() {
+                Some(s) => s,
+                None => {
+                    bot.send_message(msg.chat.id, "SECRET is not set").await?;
+                    return Ok(());
+                }
+            };
+
+            let token = match get_token(&msg.chat.id, secret).await {
                 Ok(s) => s.access_token,
                 Err(e) => {
                     bot.send_message(msg.chat.id, format!("Got error: {e}"))
@@ -302,7 +312,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             };
 
             if parts.len() == 3 {
-                match open_pr(parts, token).await {
+                match open_pr(parts, token, secret, msg.chat.id).await {
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?
@@ -367,15 +377,11 @@ struct CallbackSecondLoginArgs {
     token_type: String,
 }
 
-async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
-    let secret = ARGS
-        .secret
-        .as_ref()
-        .ok_or_else(|| anyhow!("SECRET is not set"))?;
+async fn get_token(msg_chatid: &ChatId, secret: &str) -> anyhow::Result<CallbackSecondLoginArgs> {
     let client = reqwest::Client::new();
     let resp = client
         .get("https://minzhengbu.aosc.io/get_token")
-        .query(&[("id", &msg.chat.id.0.to_string())])
+        .query(&[("id", &msg_chatid.0.to_string())])
         .header("secret", secret)
         .send()
         .await
@@ -386,11 +392,17 @@ async fn get_token(msg: &Message) -> anyhow::Result<CallbackSecondLoginArgs> {
     Ok(token)
 }
 
-async fn open_pr(parts: Vec<&str>, access_token: String) -> anyhow::Result<String> {
+async fn open_pr(
+    parts: Vec<&str>,
+    access_token: String,
+    secret: &str,
+    msg_chatid: ChatId,
+) -> anyhow::Result<String> {
     let id = ARGS
         .github_app_id
         .as_ref()
-        .ok_or_else(|| anyhow!("GITHUB_APP_ID is not set"))?;
+        .ok_or_else(|| anyhow!("GITHUB_APP_ID is not set"))?
+        .parse::<u64>()?;
 
     let app_private_key = ARGS
         .github_app_key
@@ -398,25 +410,54 @@ async fn open_pr(parts: Vec<&str>, access_token: String) -> anyhow::Result<Strin
         .ok_or_else(|| anyhow!("GITHUB_APP_KEY_PEM_PATH is not set"))?;
 
     let key = tokio::fs::read(app_private_key).await?;
-
     let key = tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
         .await??;
 
+    let pr = open_pr_inner(access_token, &parts, id, key.clone()).await;
+
+    match pr {
+        Ok(pr) => Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url)),
+        Err(e) => match e {
+            octocrab::Error::GitHub { source, .. }
+                if source.message.contains("Bad credentials") =>
+            {
+                let client = reqwest::Client::new();
+                client
+                    .get("https://minzhengbu.aosc.io/refresh_token")
+                    .header("secret", secret)
+                    .query(&[("id", msg_chatid.0.to_string())])
+                    .send()
+                    .await
+                    .and_then(|x| x.error_for_status())?;
+
+                let token = get_token(&msg_chatid, secret).await?;
+                let pr = open_pr_inner(token.access_token, &parts, id, key).await?;
+
+                Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
+            }
+            _ => return Err(e.into()),
+        },
+    }
+}
+
+async fn open_pr_inner(
+    access_token: String,
+    parts: &[&str],
+    id: u64,
+    key: EncodingKey,
+) -> Result<PullRequest, octocrab::Error> {
     let crab = octocrab::Octocrab::builder()
-        .app(id.parse::<u64>()?.into(), key)
+        .app(id.into(), key)
         .user_access_token(access_token)
         .build()?;
 
-    let pr = crab
-        .pulls("AOSC-Dev", "aosc-os-abbs")
+    crab.pulls("AOSC-Dev", "aosc-os-abbs")
         .create(parts[0], parts[1], "stable")
         .draft(false)
         .maintainer_can_modify(true)
         .body(format!(PR!(), parts[2], parts[2], parts[2]))
         .send()
-        .await?;
-
-    Ok(pr.url)
+        .await
 }
 
 /// Observe job completion messages
