@@ -460,9 +460,9 @@ async fn open_pr(
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     let mut s = String::new();
     for c in commits {
-        s.push_str(&c.msg.0);
+        s.push_str(&format!("- {}\n", c.msg.0));
         if let Some(body) = &c.msg.1 {
-            s.push_str(&format!("    {body}"));
+            s.push_str(&format!("    {body}\n"));
         }
     }
 
