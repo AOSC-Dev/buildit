@@ -259,7 +259,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             } else {
                 bot.send_message(
                     msg.chat.id,
-                    format!("Got invalid pr description: {arguments}."),
+                    format!("Got invalid pr description: {arguments}.\n{}", Command::descriptions().to_string()),
                 )
                 .await?;
             }
