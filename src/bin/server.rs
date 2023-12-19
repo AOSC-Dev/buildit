@@ -796,6 +796,35 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                             .create_comment(pr, new_content)
                             .await?;
                     }
+
+                    if success {
+                        let body = crab
+                            .pulls("AOSC-Dev", "aosc-os-abbs")
+                            .get(pr)
+                            .await?
+                            .body
+                            .ok_or_else(|| anyhow!("This PR has no body"))?;
+
+                        let pr_arch = match result.job.arch.as_str() {
+                            "amd64" => "AMD64 `amd64`",
+                            "arm64" => "AArch64 `arm64`",
+                            "noarch" => "Architecture-independent `noarch`",
+                            "loongson3" => "Loongson 3 `loongson3`",
+                            "mips64r6el" => "MIPS R6 64-bit (Little Endian) `mips64r6el`",
+                            "ppc64el" => "PowerPC 64-bit (Little Endian) `ppc64el`",
+                            "riscv64" => "RISC-V 64-bit `riscv64`",
+                            _ => bail!("Unknown architecture"),
+                        };
+
+                        let body =
+                            body.replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"));
+
+                        crab.pulls("AOSC-Dev", "aosc-os-abbs")
+                            .update(pr)
+                            .body(body)
+                            .send()
+                            .await?;
+                    }
                 }
             }
         }
