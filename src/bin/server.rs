@@ -1,8 +1,13 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail, Context};
 use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::{DateTime, Local};
 use clap::Parser;
 use futures::StreamExt;
+use gix::{
+    prelude::ObjectIdExt,
+    sec::{self, trust::DefaultForLevel},
+    Repository, ThreadSafeRepository,
+};
 use jsonwebtoken::EncodingKey;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
@@ -15,11 +20,12 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
 use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use tokio::{process, task};
 
 macro_rules! PR {
     () => {
@@ -259,7 +265,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             } else {
                 bot.send_message(
                     msg.chat.id,
-                    format!("Got invalid pr description: {arguments}.\n\n{}", Command::descriptions().to_string()),
+                    format!(
+                        "Got invalid pr description: {arguments}.\n\n{}",
+                        Command::descriptions().to_string()
+                    ),
                 )
                 .await?;
             }
@@ -413,7 +422,15 @@ async fn open_pr(
     let key = tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
         .await??;
 
-    let pr = open_pr_inner(access_token, &parts, id, key.clone()).await;
+    update_abbs(parts[1]).await?;
+    let path = ARGS
+        .abbs_path
+        .as_ref()
+        .ok_or_else(|| anyhow!("ABBS_PATH_PEM_PATH is not set"))?;
+
+    let commits = task::spawn_blocking(move || get_commits(path)).await??;
+    let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
+    let pr = open_pr_inner(access_token, &parts, id, key.clone(), &commits).await;
 
     match pr {
         Ok(pr) => Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url)),
@@ -431,7 +448,7 @@ async fn open_pr(
                     .and_then(|x| x.error_for_status())?;
 
                 let token = get_token(&msg_chatid, secret).await?;
-                let pr = open_pr_inner(token.access_token, &parts, id, key).await?;
+                let pr = open_pr_inner(token.access_token, &parts, id, key, &commits).await?;
 
                 Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
             }
@@ -440,11 +457,83 @@ async fn open_pr(
     }
 }
 
+fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
+    let mut s = String::new();
+    for c in commits {
+        s.push_str(&format!("- {}\n", c.msg.0));
+        if let Some(body) = &c.msg.1 {
+            let body = body.split('\n');
+            for line in body {
+                s.push_str(&format!("    {line}\n"));
+            }
+        }
+    }
+
+    Ok(s)
+}
+
+struct Commit {
+    _id: String,
+    msg: (String, Option<String>),
+}
+
+fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
+    let mut res = vec![];
+    let repo = get_repo(&path)?;
+    let commits = repo
+        .head()?
+        .try_into_peeled_id()?
+        .ok_or(anyhow!("Failed to get peeled id"))?
+        .ancestors()
+        .all()?;
+
+    let refrences = repo.references()?;
+    let branch = refrences
+        .local_branches()?
+        .filter_map(Result::ok)
+        .filter(|x| x.name().shorten() == "stable")
+        .next()
+        .ok_or(anyhow!("failed to get stable branch"))?;
+
+    for i in commits {
+        let o = i?.id.attach(&repo).object()?;
+        let commit = o.into_commit();
+        let commit_str = commit.id.to_string();
+
+        if commit_in_stable(branch.clone(), &commit_str).unwrap_or(false) {
+            break;
+        }
+
+        let msg = commit.message()?;
+
+        res.push(Commit {
+            _id: commit_str,
+            msg: (msg.title.to_string(), msg.body.map(|x| x.to_string())),
+        })
+    }
+
+    Ok(res)
+}
+
+fn commit_in_stable(branch: gix::Reference<'_>, commit: &str) -> anyhow::Result<bool> {
+    let res = branch
+        .into_fully_peeled_id()?
+        .object()?
+        .into_commit()
+        .id
+        .to_string()
+        == commit;
+
+    Ok(res)
+}
+
+/// Open Pull Request
 async fn open_pr_inner(
     access_token: String,
     parts: &[&str],
     id: u64,
     key: EncodingKey,
+    desc: &str,
 ) -> Result<PullRequest, octocrab::Error> {
     let crab = octocrab::Octocrab::builder()
         .app(id.into(), key)
@@ -455,9 +544,123 @@ async fn open_pr_inner(
         .create(parts[0], parts[1], "stable")
         .draft(false)
         .maintainer_can_modify(true)
-        .body(format!(PR!(), parts[2], parts[2], parts[2]))
+        .body(format!(PR!(), desc, parts[2], parts[2]))
         .send()
         .await
+}
+
+/// Update ABBS tree commit logs
+async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
+    let abbs_path = ARGS
+        .abbs_path
+        .as_ref()
+        .ok_or_else(|| anyhow!("ABBS_PATH is not set"))?;
+
+    process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg("stable")
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    let cmd = process::Command::new("git")
+        .arg("checkout")
+        .arg("stable")
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    if !cmd.status.success() {
+        bail!("Failed to checkout stable");
+    }
+
+    process::Command::new("git")
+        .arg("pull")
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    process::Command::new("git")
+        .args(&["reset", "FETCH_HEAD", "--hard"])
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    let cmd = process::Command::new("git")
+        .arg("fetch")
+        .arg("origin")
+        .arg(git_ref)
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    if !cmd.status.success() {
+        bail!("Failed to fetch origin");
+    }
+
+    process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg(git_ref)
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    let cmd = process::Command::new("git")
+        .arg("checkout")
+        .arg(git_ref)
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    if !cmd.status.success() {
+        bail!("Failed to checkout {git_ref}");
+    }
+
+    process::Command::new("git")
+        .args(&["reset", "FETCH_HEAD", "--hard"])
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    Ok(())
+}
+
+fn get_repo(path: &Path) -> anyhow::Result<Repository> {
+    let mut git_open_opts_map = sec::trust::Mapping::<gix::open::Options>::default();
+
+    let config = gix::open::permissions::Config {
+        git_binary: false,
+        system: false,
+        git: false,
+        user: false,
+        env: true,
+        includes: true,
+    };
+
+    git_open_opts_map.reduced = git_open_opts_map
+        .reduced
+        .permissions(gix::open::Permissions {
+            config,
+            ..gix::open::Permissions::default_for_level(sec::Trust::Reduced)
+        });
+
+    git_open_opts_map.full = git_open_opts_map.full.permissions(gix::open::Permissions {
+        config,
+        ..gix::open::Permissions::default_for_level(sec::Trust::Full)
+    });
+
+    let shared_repo = ThreadSafeRepository::discover_with_environment_overrides_opts(
+        path,
+        Default::default(),
+        git_open_opts_map,
+    )
+    .context("Failed to find git repo")?;
+
+    let repository = shared_repo.to_thread_local();
+
+    Ok(repository)
 }
 
 /// Observe job completion messages
@@ -701,6 +904,9 @@ struct Args {
 
     #[arg(env = "GITHUB_APP_KEY_PEM_PATH")]
     github_app_key: Option<PathBuf>,
+
+    #[arg(env = "ABBS_PATH")]
+    abbs_path: Option<PathBuf>,
 }
 
 static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
