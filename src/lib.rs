@@ -24,6 +24,7 @@ pub struct JobResult {
     pub job: Job,
     pub successful_packages: Vec<String>,
     pub failed_package: Option<String>,
+    pub skipped_packages: Vec<String>,
     pub log: Option<String>,
     pub worker: WorkerIdentifier,
     pub elapsed: Duration,

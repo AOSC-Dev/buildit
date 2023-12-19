@@ -87,6 +87,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let begin = Instant::now();
     let mut successful_packages = vec![];
     let mut failed_package = None;
+    let mut skipped_packages = vec![];
     let mut git_commit = None;
 
     // switch to git ref
@@ -138,25 +139,48 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
             // parse output
-            let mut found_build_summary = false;
+            // match acbs/acbs/util.py
+            let mut found_banner = false;
+            let mut found_acbs_build = false;
+            let mut found_failed_package = false;
+            let mut found_packages_built = false;
+            let mut found_packages_not_built = false;
             for line in String::from_utf8_lossy(&output.stdout).lines() {
-                if !found_build_summary && line.contains("--- Build Summary ---") {
-                    found_build_summary = true;
-                } else if found_build_summary && line.is_empty() {
-                    found_build_summary = false;
-                } else if found_build_summary {
-                    // e.g. bash (amd64 @ 5.2.15-0)
-                    if let Some(package_name) = line.split(" ").next() {
-                        successful_packages.push(package_name.to_string());
+                if line.contains("========================================") {
+                    found_banner = true;
+                } else if line.contains("ACBS Build") {
+                    found_acbs_build = true;
+                } else if found_banner && found_acbs_build {
+                    if line.starts_with("Failed package:") {
+                        found_failed_package = true;
+                        found_packages_built = false;
+                        found_packages_not_built = false;
+                    } else if line.starts_with("Package(s) built:") {
+                        found_failed_package = false;
+                        found_packages_built = true;
+                        found_packages_not_built = false;
+                    } else if line
+                        .starts_with("Package(s) not built due to previous build failure:")
+                    {
+                        found_failed_package = false;
+                        found_packages_built = false;
+                        found_packages_not_built = true;
+                    } else if line.contains("(") {
+                        // e.g. bash (amd64 @ 5.2.15-0)
+                        if let Some(package_name) = line.split(" ").next() {
+                            if found_packages_built {
+                                successful_packages.push(package_name.to_string());
+                            } else if found_failed_package {
+                                failed_package = Some(package_name.to_string());
+                            } else if found_packages_not_built {
+                                skipped_packages.push(package_name.to_string());
+                            }
+                        }
+                    } else if line.is_empty() {
+                        found_failed_package = false;
+                        found_packages_built = false;
+                        found_packages_not_built = false;
                     }
-                }
-            }
-
-            // find the first package not in successful_packages
-            for package in &job.packages {
-                if !successful_packages.contains(package) {
-                    failed_package = Some(package.clone());
-                    break;
                 }
             }
         }
@@ -183,6 +207,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         job: job.clone(),
         successful_packages,
         failed_package,
+        skipped_packages,
         log: log_url.map(String::from),
         worker: WorkerIdentifier {
             hostname: gethostname::gethostname().to_string_lossy().to_string(),
