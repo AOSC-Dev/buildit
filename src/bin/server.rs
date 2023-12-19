@@ -544,7 +544,7 @@ async fn open_pr_inner(
         .create(parts[0], parts[1], "stable")
         .draft(false)
         .maintainer_can_modify(true)
-        .body(format!(PR!(), desc, parts[2], parts[2]))
+        .body(format!(PR!(), parts[2], parts[2], parts[2].replace(",", " ")))
         .send()
         .await
 }
