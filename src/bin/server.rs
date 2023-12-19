@@ -733,7 +733,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             if let Some(github_access_token) = &ARGS.github_access_token {
                 if let Some(pr) = result.job.github_pr {
                     let new_content = format!(
-                        "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n\n[Build Log \\>\\>]({})\n",
+                        "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n[Build Log \\>\\>]({})\n",
                         if success { "✅️" } else { "❌" },
                         result.worker.hostname,
                         result.worker.arch,
@@ -747,6 +747,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                         teloxide::utils::markdown::escape(&result.job.packages.join(", ")),
                         teloxide::utils::markdown::escape(&result.successful_packages.join(", ")),
                         teloxide::utils::markdown::escape(&result.failed_package.clone().unwrap_or(String::from("None"))),
+                        teloxide::utils::markdown::escape(&result.skipped_packages.join(", ")),
                         result.log.unwrap_or(String::from("None")),
                     );
 
