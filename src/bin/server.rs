@@ -686,7 +686,7 @@ async fn open_pr_inner(
         Cow::Borrowed(tags)
     } else {
         let mut labels = vec![];
-        let title = parts[0].to_ascii_lowercase();
+        let title = parts[0].to_ascii_lowercase().replace(':', "");
         let title = title.split_ascii_whitespace().collect::<Vec<_>>();
 
         let v = vec![
