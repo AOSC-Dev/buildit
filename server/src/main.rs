@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context};
-use buildit::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
+use common::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::{DateTime, Local};
 use clap::Parser;
 use futures::StreamExt;
