@@ -532,7 +532,7 @@ fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<
                     final_version.push_str(&format!("-{rel}"));
                 }
 
-                res.push(format!("{pkg}: {final_version}"));
+                res.push(format!("- {pkg}: {final_version}"));
             }
         }
     }
