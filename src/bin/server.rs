@@ -694,35 +694,34 @@ async fn open_pr_inner(
         let title = title.split_ascii_whitespace().collect::<Vec<_>>();
 
         let v = vec![
-            ("fix", String::from("has-fix")),
-            ("update", String::from("upgrade")),
-            ("upgrade", String::from("upgrade")),
-            ("downgrade", String::from("downgrade")),
-            ("survey", String::from("survey")),
-            ("drop", String::from("drop-package")),
-            ("security", String::from("security")),
-            ("cve", String::from("security")),
-            ("0day", String::from("0day")),
-            ("0day", String::from("security")),
-            ("improve", String::from("enhancement")),
-            ("enhance", String::from("enhancement")),
-            ("dep", String::from("dependencies")),
-            ("dependencies", String::from("dependencies")),
-            ("dependency", String::from("dependencies")),
-            ("pkgdep", String::from("dependencies")),
-            ("builddep", String::from("dependencies")),
-            ("depend", String::from("dependencies")),
-            ("core", String::from("core")),
-            ("mips64r6el", String::from("cip-pilot")),
-            ("mips64isar6el", String::from("cip-pilot")),
-            ("r6", String::from("cip-pilot")),
-            ("linux-kernel", String::from("kernel")),
-            ("new", String::from("new-packages")),
+            ("fix", vec![String::from("has-fix")]),
+            ("update", vec![String::from("upgrade")]),
+            ("upgrade", vec![String::from("upgrade")]),
+            ("downgrade", vec![String::from("downgrade")]),
+            ("survey", vec![String::from("survey")]),
+            ("drop", vec![String::from("drop-package")]),
+            ("security", vec![String::from("security")]),
+            ("cve", vec![String::from("security")]),
+            ("0day", vec![String::from("0day"), String::from("security")]),
+            ("improve", vec![String::from("enhancement")]),
+            ("enhance", vec![String::from("enhancement")]),
+            ("dep", vec![String::from("dependencies")]),
+            ("dependencies", vec![String::from("dependencies")]),
+            ("dependency", vec![String::from("dependencies")]),
+            ("pkgdep", vec![String::from("dependencies")]),
+            ("builddep", vec![String::from("dependencies")]),
+            ("depend", vec![String::from("dependencies")]),
+            ("core", vec![String::from("core")]),
+            ("mips64r6el", vec![String::from("cip-pilot")]),
+            ("mips64isar6el", vec![String::from("cip-pilot")]),
+            ("r6", vec![String::from("cip-pilot")]),
+            ("linux-kernel", vec![String::from("kernel")]),
+            ("new", vec![String::from("new-packages")]),
         ];
 
         for (k, v) in v {
             if title.contains(&k) {
-                labels.push(v);
+                labels.extend(v);
             }
         }
 
