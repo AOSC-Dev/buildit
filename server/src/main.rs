@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Context};
-use common::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use chrono::{DateTime, Local};
 use clap::Parser;
+use common::{ensure_job_queue, Job, JobResult, WorkerHeartbeat, WorkerIdentifier};
 use futures::StreamExt;
 use gix::{
     prelude::ObjectIdExt,
@@ -56,7 +56,7 @@ enum Command {
     #[command(description = "Show queue and server status: /status")]
     Status,
     #[command(
-        description = "Open Pull Request by git-ref /openpr [title];[git-ref];[packages] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
+        description = "Open Pull Request by git-ref: /openpr [title];[git-ref];[packages] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
     )]
     OpenPR(String),
     #[command(description = "Login to github")]

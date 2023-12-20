@@ -1,13 +1,10 @@
-use std::time::Duration;
-
 use lapin::{
     options::QueueDeclareOptions,
     types::{AMQPValue, FieldTable},
     Channel, Queue,
 };
-
 use serde::{Deserialize, Serialize};
-
+use std::time::Duration;
 use teloxide::types::ChatId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
