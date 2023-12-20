@@ -1,11 +1,8 @@
+use crate::{ensure_channel, Args};
 use common::{ensure_job_queue, WorkerHeartbeat, WorkerIdentifier};
-
 use lapin::{options::BasicPublishOptions, BasicProperties};
 use log::warn;
-
 use std::time::Duration;
-
-use crate::{ensure_channel, Args};
 
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     let channel = ensure_channel(args).await?;

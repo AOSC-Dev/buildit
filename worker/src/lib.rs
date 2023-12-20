@@ -4,11 +4,11 @@ use once_cell::sync::Lazy;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
-pub static CONNECTION: Lazy<Arc<Mutex<Option<Connection>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(None)));
-
 pub mod build;
 pub mod heartbeat;
+
+pub static CONNECTION: Lazy<Arc<Mutex<Option<Connection>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(None)));
 
 // try to reuse amqp channel
 pub async fn ensure_channel(args: &Args) -> anyhow::Result<Channel> {
