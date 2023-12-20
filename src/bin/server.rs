@@ -688,24 +688,21 @@ async fn open_pr_inner(
         let mut labels = vec![];
         let title = parts[0].to_ascii_lowercase();
 
-        if title.contains("fix") {
-            labels.push(String::from("has-fix"));
-        }
+        let v = vec![
+            ("fix", String::from("has-fix")),
+            ("update", String::from("upgrade")),
+            ("upgrade", String::from("upgrade")),
+            ("downgrade", String::from("downgrade")),
+            ("survey", String::from("survey")),
+            ("drop", String::from("drop-package")),
+            ("security", String::from("security")),
+            ("cve", String::from("security")),
+        ];
 
-        if title.contains("update") || title.contains("upgrade") {
-            labels.push(String::from("upgrade"));
-        }
-
-        if title.contains("downgrade") {
-            labels.push(String::from("downgrade"));
-        }
-
-        if title.contains("survey") {
-            labels.push(String::from("survey"));
-        }
-
-        if title.contains("drop") {
-            labels.push(String::from("drop-package"));
+        for (k, v) in v {
+            if title.contains(k) {
+                labels.push(v);
+            }
         }
 
         Cow::Owned(labels)
