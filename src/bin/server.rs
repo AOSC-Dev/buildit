@@ -14,18 +14,19 @@ use lapin::{
     types::FieldTable,
     BasicProperties, ConnectionProperties,
 };
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use octocrab::models::pulls::PullRequest;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
 use teloxide::{prelude::*, types::{ParseMode, ChatAction}, utils::command::BotCommands};
 use tokio::{process, task};
+use walkdir::WalkDir;
 
 macro_rules! PR {
     () => {
@@ -432,7 +433,23 @@ async fn open_pr(
 
     let commits = task::spawn_blocking(move || get_commits(path)).await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
-    let pr = open_pr_inner(access_token, &parts, id, key.clone(), &commits).await;
+
+    let pkgs = parts[2]
+        .split(",")
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
+
+    let pkg_affected =
+        task::spawn_blocking(move || find_version_by_packages(&pkgs, &path)).await??;
+    let pr = open_pr_inner(
+        access_token,
+        &parts,
+        id,
+        key.clone(),
+        &commits,
+        &pkg_affected,
+    )
+    .await;
 
     match pr {
         Ok(pr) => Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url)),
@@ -450,13 +467,93 @@ async fn open_pr(
                     .and_then(|x| x.error_for_status())?;
 
                 let token = get_token(&msg_chatid, secret).await?;
-                let pr = open_pr_inner(token.access_token, &parts, id, key, &commits).await?;
+                let pr =
+                    open_pr_inner(token.access_token, &parts, id, key, &commits, &pkg_affected)
+                        .await?;
 
                 Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
             }
             _ => return Err(e.into()),
         },
     }
+}
+
+fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<String>> {
+    let mut res = vec![];
+    for i in WalkDir::new(path)
+        .max_depth(2)
+        .min_depth(2)
+        .into_iter()
+        .flatten()
+    {
+        if i.path().is_file() {
+            continue;
+        }
+
+        let pkg = i.file_name().to_str();
+
+        if pkg.is_none() {
+            debug!("Failed to convert str: {}", i.path().display());
+            continue;
+        }
+
+        let pkg = pkg.unwrap();
+        if pkgs.contains(&pkg.to_string()) {
+            let spec = i.path().join("spec");
+            let defines = i.path().join("autobuild").join("defines");
+            let spec = std::fs::read_to_string(spec);
+            let defines = std::fs::read_to_string(defines);
+            if let Ok(spec) = spec {
+                let spec = read_ab_with_apml(&spec)?;
+                let ver = spec.get("VER");
+                let rel = spec.get("REL");
+                let defines = defines
+                    .ok()
+                    .and_then(|defines| read_ab_with_apml(&defines).ok());
+
+                let epoch = if let Some(ref def) = defines {
+                    def.get("PKGEPOCH")
+                } else {
+                    None
+                };
+
+                if ver.is_none() {
+                    debug!("{pkg} has no VER variable");
+                }
+
+                let mut final_version = String::new();
+                if let Some(epoch) = epoch {
+                    final_version.push_str(&format!("{epoch}:"));
+                }
+
+                final_version.push_str(ver.unwrap());
+
+                if let Some(rel) = rel {
+                    final_version.push_str(&format!("-{rel}"));
+                }
+
+                res.push(format!("{pkg}: {final_version}"));
+            }
+        }
+    }
+
+    Ok(res)
+}
+
+fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> {
+    let mut context = HashMap::new();
+
+    // Try to set some ab3 flags to reduce the chance of returning errors
+    for i in ["ARCH", "PKGDIR", "SRCDIR"] {
+        context.insert(i.to_string(), "".to_string());
+    }
+
+    abbs_meta_apml::parse(file, &mut context).map_err(|e| {
+        let e: Vec<String> = e.iter().map(|e| e.to_string()).collect();
+        anyhow!(e.join(": "))
+    })?;
+
+    Ok(context)
 }
 
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
@@ -536,6 +633,7 @@ async fn open_pr_inner(
     id: u64,
     key: EncodingKey,
     desc: &str,
+    pkg_affected: &[String],
 ) -> Result<PullRequest, octocrab::Error> {
     let crab = octocrab::Octocrab::builder()
         .app(id.into(), key)
@@ -549,7 +647,7 @@ async fn open_pr_inner(
         .body(format!(
             PR!(),
             desc,
-            parts[2],
+            pkg_affected.join("\n"),
             format!("#buildit {}", parts[2].replace(",", " "))
         ))
         .send()
