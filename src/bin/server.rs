@@ -686,7 +686,11 @@ async fn open_pr_inner(
         Cow::Borrowed(tags)
     } else {
         let mut labels = vec![];
-        let title = parts[0].to_ascii_lowercase().replace(':', "");
+        let title = parts[0]
+            .to_ascii_lowercase()
+            .chars()
+            .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
+            .collect::<String>();
         let title = title.split_ascii_whitespace().collect::<Vec<_>>();
 
         let v = vec![
@@ -709,8 +713,8 @@ async fn open_pr_inner(
             ("builddep", String::from("dependencies")),
             ("depend", String::from("dependencies")),
             ("core", String::from("core")),
-            ("mipsr6el", String::from("cip-pilot")),
-            ("mipsisar6el", String::from("cip-pilot")),
+            ("mips64r6el", String::from("cip-pilot")),
+            ("mips64isar6el", String::from("cip-pilot")),
             ("r6", String::from("cip-pilot")),
             ("linux-kernel", String::from("kernel")),
             ("new", String::from("new-packages")),
