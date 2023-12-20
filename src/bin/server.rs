@@ -19,12 +19,17 @@ use octocrab::models::pulls::PullRequest;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
-use teloxide::{prelude::*, types::{ParseMode, ChatAction}, utils::command::BotCommands};
+use teloxide::{
+    prelude::*,
+    types::{ChatAction, ParseMode},
+    utils::command::BotCommands,
+};
 use tokio::{process, task};
 use walkdir::WalkDir;
 
@@ -323,8 +328,21 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 }
             };
 
-            if parts.len() == 3 {
-                match open_pr(parts, token, secret, msg.chat.id).await {
+            if (3..=4).contains(&parts.len()) {
+                let tags = if parts.len() == 4 {
+                    Some(
+                        parts
+                            .last()
+                            .unwrap()
+                            .split(',')
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    None
+                };
+
+                match open_pr(parts, token, secret, msg.chat.id, tags.as_deref()).await {
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?
@@ -409,6 +427,7 @@ async fn open_pr(
     access_token: String,
     secret: &str,
     msg_chatid: ChatId,
+    tags: Option<&[String]>,
 ) -> anyhow::Result<String> {
     let id = ARGS
         .github_app_id
@@ -448,6 +467,7 @@ async fn open_pr(
         key.clone(),
         &commits,
         &pkg_affected,
+        tags,
     )
     .await;
 
@@ -467,9 +487,16 @@ async fn open_pr(
                     .and_then(|x| x.error_for_status())?;
 
                 let token = get_token(&msg_chatid, secret).await?;
-                let pr =
-                    open_pr_inner(token.access_token, &parts, id, key, &commits, &pkg_affected)
-                        .await?;
+                let pr = open_pr_inner(
+                    token.access_token,
+                    &parts,
+                    id,
+                    key,
+                    &commits,
+                    &pkg_affected,
+                    tags,
+                )
+                .await?;
 
                 Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
             }
@@ -634,13 +661,15 @@ async fn open_pr_inner(
     key: EncodingKey,
     desc: &str,
     pkg_affected: &[String],
+    tags: Option<&[String]>,
 ) -> Result<PullRequest, octocrab::Error> {
     let crab = octocrab::Octocrab::builder()
         .app(id.into(), key)
         .user_access_token(access_token)
         .build()?;
 
-    crab.pulls("AOSC-Dev", "aosc-os-abbs")
+    let pr = crab
+        .pulls("AOSC-Dev", "aosc-os-abbs")
         .create(parts[0], parts[1], "stable")
         .draft(false)
         .maintainer_can_modify(true)
@@ -651,7 +680,42 @@ async fn open_pr_inner(
             format!("#buildit {}", parts[2].replace(",", " "))
         ))
         .send()
-        .await
+        .await?;
+
+    let tags = if let Some(tags) = tags {
+        Cow::Borrowed(tags)
+    } else {
+        let mut labels = vec![];
+        let title = parts[0].to_ascii_lowercase();
+
+        if title.contains("fix") {
+            labels.push(String::from("has-fix"));
+        }
+
+        if title.contains("update") || title.contains("upgrade") {
+            labels.push(String::from("upgrade"));
+        }
+
+        if title.contains("downgrade") {
+            labels.push(String::from("downgrade"));
+        }
+
+        if title.contains("survey") {
+            labels.push(String::from("survey"));
+        }
+
+        if title.contains("drop") {
+            labels.push(String::from("drop-package"));
+        }
+
+        Cow::Owned(labels)
+    };
+
+    crab.issues("AOSC-Dev", "aosc-os-abbs")
+        .add_labels(pr.number, &tags)
+        .await?;
+
+    Ok(pr)
 }
 
 /// Update ABBS tree commit logs
