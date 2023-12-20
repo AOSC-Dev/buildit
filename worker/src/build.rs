@@ -66,7 +66,9 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     output_path.push(format!("OUTPUT-{}", job.git_ref));
 
     // clear output directory
-    get_output_logged("rm", &["-rf", "debs"], &output_path, &mut logs).await?;
+    if output_path.exists() {
+        get_output_logged("rm", &["-rf", "debs"], &output_path, &mut logs).await?;
+    }
 
     // switch to git ref
     let output = get_output_logged(
