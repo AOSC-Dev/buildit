@@ -42,6 +42,10 @@ struct Args {
         env = "BUILDIT_CIEL_INSTANCE"
     )]
     ciel_instance: String,
+
+    /// SSH key for repo uploading
+    #[arg(short = 's', long, env = "BUILDIT_SSH_KEY")]
+    upload_ssh_key: Option<String>,
 }
 
 static CONNECTION: Lazy<Arc<Mutex<Option<Connection>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -89,9 +93,16 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let mut failed_package = None;
     let mut skipped_packages = vec![];
     let mut git_commit = None;
+    let mut logs = vec![];
+
+    // assuming branch name == git_ref
+    let mut output_path = args.ciel_path.clone();
+    output_path.push(format!("OUTPUT-{}", job.git_ref));
+
+    // clear output directory
+    get_output_logged("rm", &["-rf", "debs"], &output_path, &mut logs).await?;
 
     // switch to git ref
-    let mut logs = vec![];
     let output = get_output_logged(
         "git",
         &[
@@ -186,6 +197,20 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         }
     }
 
+    // upload to repo if succeeded
+    if let Some(upload_ssh_key) = &args.upload_ssh_key {
+        if failed_package.is_none() {
+            get_output_logged(
+                "pushpkg",
+                &["-i", &upload_ssh_key, "maintainers", &job.git_ref],
+                &output_path,
+                &mut logs,
+            )
+            .await?;
+        }
+    }
+
+    // update logs to pastebin
     let mut map = HashMap::new();
     map.insert("contents", String::from_utf8_lossy(&logs).to_string());
     map.insert("language", "log".to_string());
