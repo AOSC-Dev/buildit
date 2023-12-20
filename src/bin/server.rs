@@ -687,6 +687,7 @@ async fn open_pr_inner(
     } else {
         let mut labels = vec![];
         let title = parts[0].to_ascii_lowercase();
+        let title = title.split_ascii_whitespace().collect::<Vec<_>>();
 
         let v = vec![
             ("fix", String::from("has-fix")),
@@ -697,10 +698,26 @@ async fn open_pr_inner(
             ("drop", String::from("drop-package")),
             ("security", String::from("security")),
             ("cve", String::from("security")),
+            ("0day", String::from("0day")),
+            ("0day", String::from("security")),
+            ("improve", String::from("enhancement")),
+            ("enhance", String::from("enhancement")),
+            ("dep", String::from("dependencies")),
+            ("dependencies", String::from("dependencies")),
+            ("dependency", String::from("dependencies")),
+            ("pkgdep", String::from("dependencies")),
+            ("builddep", String::from("dependencies")),
+            ("depend", String::from("dependencies")),
+            ("core", String::from("core")),
+            ("mipsr6el", String::from("cip-pilot")),
+            ("mipsisar6el", String::from("cip-pilot")),
+            ("r6", String::from("cip-pilot")),
+            ("linux-kernel", String::from("kernel")),
+            ("new", String::from("new-packages")),
         ];
 
         for (k, v) in v {
-            if title.contains(k) {
+            if title.contains(&k) {
                 labels.push(v);
             }
         }
