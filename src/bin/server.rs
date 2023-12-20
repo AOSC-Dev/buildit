@@ -293,7 +293,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 
             bot.send_message(
                 msg.chat.id,
-                format!("Got invalid job description: {arguments}."),
+                format!(
+                    "Got invalid job description: {arguments}. \n\n{}",
+                    Command::descriptions().to_string()
+                ),
             )
             .await?;
         }
@@ -358,7 +361,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 
             bot.send_message(
                 msg.chat.id,
-                format!("Got invalid job description: {arguments}."),
+                format!(
+                    "Got invalid job description: {arguments}. \n\n{}",
+                    Command::descriptions().to_string()
+                ),
             )
             .await?;
         }
@@ -367,6 +373,8 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         }
         Command::Start(arguments) => {
             if arguments.len() != 20 {
+                bot.send_message(msg.chat.id, Command::descriptions().to_string())
+                    .await?;
                 return Ok(());
             } else {
                 let client = reqwest::Client::new();
@@ -382,7 +390,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 
                 match resp {
                     Ok(_) => {
-                        bot.send_message(msg.chat.id, "Successfully to login.")
+                        bot.send_message(msg.chat.id, "Successful to login.")
                             .await?
                     }
                     Err(e) => {
