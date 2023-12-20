@@ -24,7 +24,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use teloxide::{prelude::*, types::{ParseMode, ChatAction}, utils::command::BotCommands};
 use tokio::{process, task};
 
 macro_rules! PR {
@@ -213,6 +213,8 @@ async fn status(args: &Args) -> anyhow::Result<String> {
 }
 
 async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+    bot.send_chat_action(msg.chat.id, ChatAction::Typing)
+        .await?;
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
