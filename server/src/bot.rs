@@ -677,10 +677,14 @@ async fn open_pr_inner(
         let mut labels = vec![];
         let title = parts[0]
             .to_ascii_lowercase()
-            .chars()
-            .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
-            .collect::<String>();
-        let title = title.split_ascii_whitespace().collect::<Vec<_>>();
+            .split_ascii_whitespace()
+            .map(|x| {
+                x.chars()
+                    .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
 
         let v = vec![
             ("fix", vec![String::from("has-fix")]),
