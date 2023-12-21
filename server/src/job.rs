@@ -1,6 +1,6 @@
 use crate::ARGS;
 use anyhow::{anyhow, bail};
-use common::JobResult;
+use common::{JobError, JobResult};
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
@@ -170,6 +170,10 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                     }
                 }
             }
+        }
+
+        if let Some(result) = serde_json::from_slice::<JobError>(&delivery.data).ok() {
+            bot.send_message(result.job.tg_chatid, result.error).await?;
         }
 
         // finish

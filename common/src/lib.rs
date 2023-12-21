@@ -28,6 +28,12 @@ pub struct JobResult {
     pub git_commit: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobError {
+    pub job: Job,
+    pub error: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WorkerIdentifier {
     // sort by (arch, hostname, pid)

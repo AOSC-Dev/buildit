@@ -1,6 +1,6 @@
 use crate::{ensure_channel, Args};
 use chrono::Local;
-use common::{ensure_job_queue, Job, JobResult, WorkerIdentifier};
+use common::{ensure_job_queue, Job, JobError, JobResult, WorkerIdentifier};
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions},
@@ -264,6 +264,21 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                 }
                 Err(err) => {
                     warn!("Failed to run job {:?} with err {:?}", delivery, err);
+
+                    channel
+                        .basic_publish(
+                            "",
+                            "job-completion",
+                            BasicPublishOptions::default(),
+                            &serde_json::to_vec(&JobError {
+                                job,
+                                error: err.to_string(),
+                            })
+                            .unwrap(),
+                            BasicProperties::default(),
+                        )
+                        .await?
+                        .await?;
 
                     // finish
                     if let Err(err) = delivery.nack(BasicNackOptions::default()).await {
