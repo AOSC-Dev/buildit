@@ -364,66 +364,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
     let tags = if let Some(tags) = tags {
         Cow::Borrowed(tags)
     } else {
-        let mut labels = vec![];
-        let title = parts[0]
-            .to_ascii_lowercase()
-            .split_ascii_whitespace()
-            .map(|x| {
-                x.chars()
-                    .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
-                    .collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        let v = vec![
-            ("fix", vec![String::from("has-fix")]),
-            ("update", vec![String::from("upgrade")]),
-            ("upgrade", vec![String::from("upgrade")]),
-            ("downgrade", vec![String::from("downgrade")]),
-            ("survey", vec![String::from("survey")]),
-            ("drop", vec![String::from("drop-package")]),
-            ("security", vec![String::from("security")]),
-            ("cve", vec![String::from("security")]),
-            ("0day", vec![String::from("0day"), String::from("security")]),
-            ("improve", vec![String::from("enhancement")]),
-            ("enhance", vec![String::from("enhancement")]),
-            ("dep", vec![String::from("dependencies")]),
-            ("dependencies", vec![String::from("dependencies")]),
-            ("dependency", vec![String::from("dependencies")]),
-            ("pkgdep", vec![String::from("dependencies")]),
-            ("builddep", vec![String::from("dependencies")]),
-            ("depend", vec![String::from("dependencies")]),
-            ("core", vec![String::from("core")]),
-            ("mips64r6el", vec![String::from("cip-pilot")]),
-            ("mipsisa64r6el", vec![String::from("cip-pilot")]),
-            ("mipsr6", vec![String::from("cip-pilot")]),
-            ("r6", vec![String::from("cip-pilot")]),
-            ("linux-kernel", vec![String::from("kernel")]),
-            ("new", vec![String::from("new-packages")]),
-            (
-                "ftbfs",
-                vec![String::from("has-fix"), String::from("ftbfs")],
-            ),
-        ];
-
-        for (k, v) in v {
-            if title.contains(&k) {
-                labels.extend(v);
-            }
-        }
-
-        // de-duplicate
-        let mut res = vec![];
-        for i in labels {
-            if res.contains(&i) {
-                continue;
-            }
-
-            res.push(i);
-        }
-
-        Cow::Owned(res)
+        Cow::Owned(auto_add_label(parts[0]))
     };
 
     crab.issues("AOSC-Dev", "aosc-os-abbs")
@@ -431,6 +372,69 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         .await?;
 
     Ok(pr)
+}
+
+fn auto_add_label(title: &str) -> Vec<String> {
+    let mut labels = vec![];
+    let title = title
+        .to_ascii_lowercase()
+        .split_ascii_whitespace()
+        .map(|x| {
+            x.chars()
+                .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let v = vec![
+        ("fix", vec![String::from("has-fix")]),
+        ("update", vec![String::from("upgrade")]),
+        ("upgrade", vec![String::from("upgrade")]),
+        ("downgrade", vec![String::from("downgrade")]),
+        ("survey", vec![String::from("survey")]),
+        ("drop", vec![String::from("drop-package")]),
+        ("security", vec![String::from("security")]),
+        ("cve", vec![String::from("security")]),
+        ("0day", vec![String::from("0day"), String::from("security")]),
+        ("improve", vec![String::from("enhancement")]),
+        ("enhance", vec![String::from("enhancement")]),
+        ("dep", vec![String::from("dependencies")]),
+        ("dependencies", vec![String::from("dependencies")]),
+        ("dependency", vec![String::from("dependencies")]),
+        ("pkgdep", vec![String::from("dependencies")]),
+        ("builddep", vec![String::from("dependencies")]),
+        ("depend", vec![String::from("dependencies")]),
+        ("core", vec![String::from("core")]),
+        ("mips64r6el", vec![String::from("cip-pilot")]),
+        ("mipsisa64r6el", vec![String::from("cip-pilot")]),
+        ("mipsr6", vec![String::from("cip-pilot")]),
+        ("r6", vec![String::from("cip-pilot")]),
+        ("linux-kernel", vec![String::from("kernel")]),
+        ("new", vec![String::from("new-packages")]),
+        (
+            "ftbfs",
+            vec![String::from("has-fix"), String::from("ftbfs")],
+        ),
+    ];
+
+    for (k, v) in v {
+        if title.contains(&k) {
+            labels.extend(v);
+        }
+    }
+
+    // de-duplicate
+    let mut res = vec![];
+    for i in labels {
+        if res.contains(&i) {
+            continue;
+        }
+
+        res.push(i);
+    }
+
+    res
 }
 
 /// Update ABBS tree commit logs
@@ -545,4 +549,26 @@ fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     let repository = shared_repo.to_thread_local();
 
     Ok(repository)
+}
+
+#[test]
+fn test_auto_add_label() {
+    let title = "266: update to 114514";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["upgrade".to_string()]);
+
+    let title = "266: security update to 114514";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["upgrade".to_string(), "security".to_string()]);
+
+    let title = "266: fix 0day";
+    let s = auto_add_label(title);
+    assert_eq!(
+        s,
+        vec![
+            "has-fix".to_string(),
+            "0day".to_string(),
+            "security".to_string()
+        ]
+    );
 }

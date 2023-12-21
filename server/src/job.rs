@@ -48,7 +48,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             }
         };
 
-        if let Some(result) = serde_json::from_slice::<JobResult>(&delivery.data).ok() {
+        if let Ok(result) = serde_json::from_slice::<JobResult>(&delivery.data) {
             let result_clone = result.clone();
             match result {
                 JobResult::Ok {

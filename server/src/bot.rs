@@ -29,7 +29,7 @@ pub enum Command {
     #[command(description = "Show queue and server status: /status")]
     Status,
     #[command(
-        description = "Open Pull Request by git-ref: /openpr title;git-ref;packages;[labels];[architectures] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium;;amd64"
+        description = "Open Pull Request by git-ref: /openpr title;git-ref;packages;[labels];[architectures] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium;;amd64,arm64"
     )]
     OpenPR(String),
     #[command(description = "Login to github")]
@@ -306,14 +306,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 let archs = if parts.len() == 5 {
                     parts[4].split(',').collect::<Vec<_>>()
                 } else {
-                    vec![
-                        "amd64",
-                        "arm64",
-                        "loongson3",
-                        "mips64r6el",
-                        "ppc64el",
-                        "riscv64",
-                    ]
+                    ALL_ARCH.to_vec()
                 };
 
                 match open_pr(parts, token, secret, msg.chat.id, tags.as_deref(), &archs).await {
