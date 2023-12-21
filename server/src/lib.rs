@@ -11,6 +11,7 @@ use std::{
 pub mod bot;
 pub mod heartbeat;
 pub mod job;
+pub mod github;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,
