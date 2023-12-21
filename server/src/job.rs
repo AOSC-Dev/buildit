@@ -164,9 +164,9 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                                     .ok_or_else(|| anyhow!("This PR has no body"))?;
 
                                 let pr_arch = match job.arch.as_str() {
+                                    "amd64" if job.noarch => NOARCH,
                                     "amd64" => AMD64,
                                     "arm64" => ARM64,
-                                    "noarch" => NOARCH,
                                     "loongson3" => LOONGSON3,
                                     "mips64r6el" => MIPS64R6EL,
                                     "ppc64el" => PPC64EL,

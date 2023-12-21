@@ -61,6 +61,7 @@ async fn build_inner(
             },
             tg_chatid: msg.chat.id,
             github_pr,
+            noarch: arch == &"noarch",
         };
 
         info!("Adding job to message queue {:?} ...", job);
