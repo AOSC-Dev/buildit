@@ -723,7 +723,17 @@ async fn open_pr_inner(
             }
         }
 
-        Cow::Owned(labels)
+        // de-duplicate
+        let mut res = vec![];
+        for i in labels {
+            if res.contains(&i) {
+                continue;
+            }
+
+            res.push(i);
+        }
+
+        Cow::Owned(res)
     };
 
     crab.issues("AOSC-Dev", "aosc-os-abbs")
