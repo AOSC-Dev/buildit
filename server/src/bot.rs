@@ -29,7 +29,7 @@ pub enum Command {
     #[command(description = "Show queue and server status: /status")]
     Status,
     #[command(
-        description = "Open Pull Request by git-ref: /openpr title;git-ref;packages;[labels] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
+        description = "Open Pull Request by git-ref: /openpr title;git-ref;packages;[labels];[architectures] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium;;amd64"
     )]
     OpenPR(String),
     #[command(description = "Login to github")]
@@ -314,12 +314,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 }
             };
 
-            if (3..=4).contains(&parts.len()) {
-                let tags = if parts.len() == 4 {
+            if (3..=5).contains(&parts.len()) {
+                let tags = if parts.len() >= 4 {
                     Some(
-                        parts
-                            .last()
-                            .unwrap()
+                        parts[3]
                             .split(',')
                             .map(|x| x.to_string())
                             .collect::<Vec<_>>(),
@@ -328,7 +326,20 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                     None
                 };
 
-                match open_pr(parts, token, secret, msg.chat.id, tags.as_deref()).await {
+                let archs = if parts.len() == 5 {
+                    parts[4].split(',').collect::<Vec<_>>()
+                } else {
+                    vec![
+                        "amd64",
+                        "arm64",
+                        "loongson3",
+                        "mips64r6el",
+                        "ppc64el",
+                        "riscv64",
+                    ]
+                };
+
+                match open_pr(parts, token, secret, msg.chat.id, tags.as_deref(), &archs).await {
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?

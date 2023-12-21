@@ -1,25 +1,38 @@
-use std::{path::Path, collections::HashMap, borrow::Cow};
+use std::{borrow::Cow, path::Path};
 
-use gix::{Repository, sec::{self, trust::DefaultForLevel}, ThreadSafeRepository, prelude::ObjectIdExt};
+use anyhow::{anyhow, bail, Context};
+use gix::{
+    prelude::ObjectIdExt,
+    sec::{self, trust::DefaultForLevel},
+    Repository, ThreadSafeRepository,
+};
+
 use jsonwebtoken::EncodingKey;
 use log::debug;
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
-use anyhow::{anyhow, bail, Context};
-use tokio::{task, process};
+use tokio::{process, task};
 use walkdir::WalkDir;
 
-use crate::ARGS;
+use crate::{utils::read_ab_with_apml, ARGS};
 
 macro_rules! PR {
     () => {
-        "Topic Description\n-----------------\n\n{}Package(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n**Primary Architectures**\n\n- [ ] AMD64 `amd64`   \n- [ ] AArch64 `arm64`\n \n<!-- - [ ] 32-bit Optional Environment `optenv32` -->\n<!-- - [ ] Architecture-independent `noarch` -->\n\n**Secondary Architectures**\n\n- [ ] Loongson 3 `loongson3`\n- [ ] MIPS R6 64-bit (Little Endian) `mips64r6el`\n- [ ] PowerPC 64-bit (Little Endian) `ppc64el`\n- [ ] RISC-V 64-bit `riscv64`"
+        "Topic Description\n-----------------\n\n{}Package(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
     };
 }
 
+pub const AMD64: &str = "AMD64 `amd64`";
+pub const ARM64: &str = "AArch64 `arm64`";
+pub const NOARCH: &str = "Architecture-independent `noarch`";
+pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
+pub const MIPS64R6EL: &str = "MIPS R6 64-bit (Little Endian) `mips64r6el`";
+pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
+pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
+
 #[derive(Deserialize, Serialize, Debug)]
-pub struct CallbackSecondLoginArgs {
+pub struct GithubToken {
     pub access_token: String,
     pub expires_in: i64,
     pub refresh_token: String,
@@ -46,10 +59,7 @@ pub async fn login_github(
     resp
 }
 
-pub async fn get_github_token(
-    msg_chatid: &ChatId,
-    secret: &str,
-) -> anyhow::Result<CallbackSecondLoginArgs> {
+pub async fn get_github_token(msg_chatid: &ChatId, secret: &str) -> anyhow::Result<GithubToken> {
     let client = reqwest::Client::new();
     let resp = client
         .get("https://minzhengbu.aosc.io/get_token")
@@ -70,6 +80,7 @@ pub async fn open_pr(
     secret: &str,
     msg_chatid: ChatId,
     tags: Option<&[String]>,
+    archs: &[&str],
 ) -> anyhow::Result<String> {
     let id = ARGS
         .github_app_id
@@ -102,15 +113,17 @@ pub async fn open_pr(
 
     let pkg_affected =
         task::spawn_blocking(move || find_version_by_packages(&pkgs, &path)).await??;
-    let pr = open_pr_inner(
+
+    let pr = open_pr_inner(OpenPR {
         access_token,
-        &parts,
+        parts: &parts,
         id,
-        key.clone(),
-        &commits,
-        &pkg_affected,
+        key: key.clone(),
+        desc: &commits,
+        pkg_affected: &pkg_affected,
         tags,
-    )
+        archs,
+    })
     .await;
 
     match pr {
@@ -129,15 +142,16 @@ pub async fn open_pr(
                     .and_then(|x| x.error_for_status())?;
 
                 let token = get_github_token(&msg_chatid, secret).await?;
-                let pr = open_pr_inner(
-                    token.access_token,
-                    &parts,
+                let pr = open_pr_inner(OpenPR {
+                    access_token: token.access_token,
+                    parts: &parts,
                     id,
                     key,
-                    &commits,
-                    &pkg_affected,
+                    desc: &commits,
+                    pkg_affected: &pkg_affected,
                     tags,
-                )
+                    archs,
+                })
                 .await?;
 
                 Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
@@ -207,22 +221,6 @@ fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<
     }
 
     Ok(res)
-}
-
-fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> {
-    let mut context = HashMap::new();
-
-    // Try to set some ab3 flags to reduce the chance of returning errors
-    for i in ["ARCH", "PKGDIR", "SRCDIR"] {
-        context.insert(i.to_string(), "".to_string());
-    }
-
-    abbs_meta_apml::parse(file, &mut context).map_err(|e| {
-        let e: Vec<String> = e.iter().map(|e| e.to_string()).collect();
-        anyhow!(e.join(": "))
-    })?;
-
-    Ok(context)
 }
 
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
@@ -295,16 +293,54 @@ fn commit_in_stable(branch: gix::Reference<'_>, commit: &str) -> anyhow::Result<
     Ok(res)
 }
 
-/// Open Pull Request
-async fn open_pr_inner(
+struct OpenPR<'a> {
     access_token: String,
-    parts: &[&str],
+    parts: &'a [&'a str],
     id: u64,
     key: EncodingKey,
-    desc: &str,
-    pkg_affected: &[String],
-    tags: Option<&[String]>,
-) -> Result<PullRequest, octocrab::Error> {
+    desc: &'a str,
+    pkg_affected: &'a [String],
+    tags: Option<&'a [String]>,
+    archs: &'a [&'a str],
+}
+
+fn format_archs(archs: &[&str]) -> String {
+    let mut s = String::from("**Primary Architectures**\n\n");
+    for a in archs {
+        s.push_str(&format!(
+            "- [ ] {}\n",
+            match a {
+                &"amd64" => AMD64,
+                &"arm64" => ARM64,
+                &"noarch" => NOARCH,
+                &"loongson3" => LOONGSON3,
+                &"mips64r6el" => MIPS64R6EL,
+                &"ppc64el" => PPC64EL,
+                &"riscv64" => RISCV64,
+                x => {
+                    debug!("unsupported architecture: {x}");
+                    continue;
+                }
+            }
+        ));
+    }
+
+    s
+}
+
+/// Open Pull Request
+async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
+    let OpenPR {
+        access_token,
+        parts,
+        id,
+        key,
+        desc,
+        pkg_affected,
+        tags,
+        archs,
+    } = pr;
+
     let crab = octocrab::Octocrab::builder()
         .app(id.into(), key)
         .user_access_token(access_token)
@@ -319,7 +355,8 @@ async fn open_pr_inner(
             PR!(),
             desc,
             pkg_affected.join("\n"),
-            format!("#buildit {}", parts[2].replace(",", " "))
+            format!("#buildit {}", parts[2].replace(",", " ")),
+            format_archs(archs)
         ))
         .send()
         .await?;

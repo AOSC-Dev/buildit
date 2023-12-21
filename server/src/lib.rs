@@ -12,6 +12,7 @@ pub mod bot;
 pub mod heartbeat;
 pub mod job;
 pub mod github;
+pub mod utils;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,

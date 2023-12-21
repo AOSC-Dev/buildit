@@ -1,4 +1,7 @@
-use crate::ARGS;
+use crate::{
+    github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
+    ARGS,
+};
 use anyhow::{anyhow, bail};
 use common::JobResult;
 use futures::StreamExt;
@@ -161,13 +164,13 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                                     .ok_or_else(|| anyhow!("This PR has no body"))?;
 
                                 let pr_arch = match job.arch.as_str() {
-                                    "amd64" => "AMD64 `amd64`",
-                                    "arm64" => "AArch64 `arm64`",
-                                    "noarch" => "Architecture-independent `noarch`",
-                                    "loongson3" => "Loongson 3 `loongson3`",
-                                    "mips64r6el" => "MIPS R6 64-bit (Little Endian) `mips64r6el`",
-                                    "ppc64el" => "PowerPC 64-bit (Little Endian) `ppc64el`",
-                                    "riscv64" => "RISC-V 64-bit `riscv64`",
+                                    "amd64" => AMD64,
+                                    "arm64" => ARM64,
+                                    "noarch" => NOARCH,
+                                    "loongson3" => LOONGSON3,
+                                    "mips64r6el" => MIPS64R6EL,
+                                    "ppc64el" => PPC64EL,
+                                    "riscv64" => RISCV64,
                                     _ => bail!("Unknown architecture"),
                                 };
 
