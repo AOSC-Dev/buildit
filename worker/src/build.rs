@@ -1,6 +1,6 @@
 use crate::{ensure_channel, Args};
 use chrono::Local;
-use common::{ensure_job_queue, Job, JobError, JobResult, WorkerIdentifier};
+use common::{ensure_job_queue, Job, JobResult, WorkerIdentifier};
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions},
@@ -196,7 +196,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         .and_then(|m| m.get("url"))
         .and_then(|v| v.as_str());
 
-    let result = JobResult {
+    let result = JobResult::Ok {
         job: job.clone(),
         successful_packages,
         failed_package,
@@ -210,6 +210,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         elapsed: begin.elapsed(),
         git_commit,
     };
+
     Ok(result)
 }
 
@@ -270,7 +271,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                             "",
                             "job-completion",
                             BasicPublishOptions::default(),
-                            &serde_json::to_vec(&JobError {
+                            &serde_json::to_vec(&JobResult::Error {
                                 job,
                                 worker: WorkerIdentifier {
                                     hostname: gethostname::gethostname()
