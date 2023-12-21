@@ -233,7 +233,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                     }
                                 };
                                 if all_packages_is_noarch(&packages, p).unwrap_or(false) {
-                                    vec!["amd64"]
+                                    vec!["noarch"]
                                 } else {
                                     ALL_ARCH.to_vec()
                                 }
