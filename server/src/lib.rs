@@ -9,9 +9,9 @@ use std::{
 };
 
 pub mod bot;
+pub mod github;
 pub mod heartbeat;
 pub mod job;
-pub mod github;
 pub mod utils;
 
 pub struct WorkerStatus {
@@ -51,3 +51,13 @@ pub struct Args {
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
+
+pub(crate) const ALL_ARCH: &[&str] = &[
+    "amd64",
+    "arm64",
+    "loongarch64",
+    "loongson3",
+    "mips64r6el",
+    "ppc64el",
+    "riscv64",
+];

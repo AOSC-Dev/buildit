@@ -1,6 +1,6 @@
 use crate::{
     github::{get_github_token, login_github, open_pr},
-    Args, ARGS, WORKERS,
+    Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
 use common::{ensure_job_queue, Job};
@@ -89,15 +89,7 @@ async fn build(
     let mut archs = archs.clone();
     if archs.contains(&"mainline") {
         // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
-        archs.extend_from_slice(&[
-            "amd64",
-            "arm64",
-            "loongarch64",
-            "loongson3",
-            "mips64r6el",
-            "ppc64el",
-            "riscv64",
-        ]);
+        archs.extend_from_slice(ALL_ARCH);
         archs.retain(|arch| *arch != "mainline");
     }
     archs.sort();
@@ -130,15 +122,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
 
     let channel = conn.create_channel().await?;
-    for arch in [
-        "amd64",
-        "arm64",
-        "loongarch64",
-        "loongson3",
-        "mips64r6el",
-        "ppc64el",
-        "riscv64",
-    ] {
+    for arch in ALL_ARCH {
         let queue_name = format!("job-{}", arch);
 
         let queue = ensure_job_queue(&queue_name, &channel).await?;
@@ -230,14 +214,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                             .unwrap_or_else(Vec::new);
                         if packages.len() > 0 {
                             let archs = if parts.len() == 1 {
-                                vec![
-                                    "amd64",
-                                    "arm64",
-                                    "loongson3",
-                                    "mips64r6el",
-                                    "ppc64el",
-                                    "riscv64",
-                                ]
+                                ALL_ARCH.to_vec()
                             } else {
                                 parts[1].split(',').collect()
                             };
