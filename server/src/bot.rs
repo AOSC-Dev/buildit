@@ -293,12 +293,16 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
 
             if (3..=5).contains(&parts.len()) {
                 let tags = if parts.len() >= 4 {
-                    Some(
-                        parts[3]
-                            .split(',')
-                            .map(|x| x.to_string())
-                            .collect::<Vec<_>>(),
-                    )
+                    let tags = parts[3]
+                        .split(',')
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>();
+
+                    if tags.is_empty() {
+                        None
+                    } else {
+                        Some(tags)
+                    }
                 } else {
                     None
                 };
