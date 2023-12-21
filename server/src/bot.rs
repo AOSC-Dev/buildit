@@ -711,6 +711,10 @@ async fn open_pr_inner(
             ("r6", vec![String::from("cip-pilot")]),
             ("linux-kernel", vec![String::from("kernel")]),
             ("new", vec![String::from("new-packages")]),
+            (
+                "ftbfs",
+                vec![String::from("has-fix"), String::from("ftbfs")],
+            ),
         ];
 
         for (k, v) in v {
