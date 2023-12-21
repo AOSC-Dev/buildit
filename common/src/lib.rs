@@ -31,6 +31,7 @@ pub struct JobResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobError {
     pub job: Job,
+    pub worker: WorkerIdentifier,
     pub error: String,
 }
 

@@ -272,6 +272,13 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                             BasicPublishOptions::default(),
                             &serde_json::to_vec(&JobError {
                                 job,
+                                worker: WorkerIdentifier {
+                                    hostname: gethostname::gethostname()
+                                        .to_string_lossy()
+                                        .to_string(),
+                                    arch: args.arch.clone(),
+                                    pid: std::process::id(),
+                                },
                                 error: err.to_string(),
                             })
                             .unwrap(),

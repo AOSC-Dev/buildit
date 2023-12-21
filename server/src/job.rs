@@ -173,7 +173,14 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
         }
 
         if let Some(result) = serde_json::from_slice::<JobError>(&delivery.data).ok() {
-            bot.send_message(result.job.tg_chatid, result.error).await?;
+            bot.send_message(
+                result.job.tg_chatid,
+                format!(
+                    "{}({}) build packages: {:?} Got Error: {}",
+                    result.worker.hostname, result.job.arch, result.job.packages, result.error
+                ),
+            )
+            .await?;
         }
 
         // finish
