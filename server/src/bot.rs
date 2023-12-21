@@ -36,15 +36,15 @@ pub enum Command {
     #[command(description = "Display usage: /help")]
     Help,
     #[command(
-        description = "Start a build job: /build [git-ref] [packages] [archs] (e.g., /build stable bash,fish amd64,arm64)"
+        description = "Start a build job: /build git-ref packages archs (e.g., /build stable bash,fish amd64,arm64)"
     )]
     Build(String),
-    #[command(description = "Start a build job from GitHub PR: /pr [pr-number]")]
+    #[command(description = "Start a build job from GitHub PR: /pr pr-number [architectures]")]
     PR(String),
     #[command(description = "Show queue and server status: /status")]
     Status,
     #[command(
-        description = "Open Pull Request by git-ref: /openpr [title];[git-ref];[packages] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
+        description = "Open Pull Request by git-ref: /openpr title;git-ref;packages;[labels] (e.g., /openpr VSCode Survey 1.85.0;vscode-1.85.0;vscode,vscodium"
     )]
     OpenPR(String),
     #[command(description = "Login to github")]
@@ -208,7 +208,19 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 .await?;
         }
         Command::PR(arguments) => {
-            if let Ok(pr_number) = str::parse::<u64>(&arguments) {
+            let parts = arguments.split_ascii_whitespace().collect::<Vec<_>>();
+            if !(1..=2).contains(&parts.len()) {
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Got invalid job description: {arguments}. \n\n{}",
+                        Command::descriptions().to_string()
+                    ),
+                )
+                .await?;
+            }
+
+            if let Ok(pr_number) = str::parse::<u64>(&parts[0]) {
                 match octocrab::instance()
                     .pulls("AOSC-Dev", "aosc-os-abbs")
                     .get(pr_number)
@@ -232,14 +244,19 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                             })
                             .unwrap_or_else(Vec::new);
                         if packages.len() > 0 {
-                            let archs = vec![
-                                "amd64",
-                                "arm64",
-                                "loongson3",
-                                "mips64r6el",
-                                "ppc64el",
-                                "riscv64",
-                            ];
+                            let archs = if parts.len() == 1 {
+                                vec![
+                                    "amd64",
+                                    "arm64",
+                                    "loongson3",
+                                    "mips64r6el",
+                                    "ppc64el",
+                                    "riscv64",
+                                ]
+                            } else {
+                                parts[1].split(',').collect()
+                            };
+
                             build(&bot, git_ref, &packages, &archs, Some(pr_number), &msg).await?;
                         } else {
                             bot.send_message(msg.chat.id, format!("Please list packages to build in pr info starting with '#buildit'."))
