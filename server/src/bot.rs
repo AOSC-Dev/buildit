@@ -1,5 +1,6 @@
 use crate::{
     github::{get_github_token, login_github, open_pr},
+    utils::all_packages_is_noarch,
     Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
@@ -53,7 +54,11 @@ async fn build_inner(
         let job = Job {
             packages: packages.iter().map(|s| s.to_string()).collect(),
             git_ref: git_ref.to_string(),
-            arch: arch.to_string(),
+            arch: if arch == &"noarch" {
+                "amd64".to_string()
+            } else {
+                arch.to_string()
+            },
             tg_chatid: msg.chat.id,
             github_pr,
         };
@@ -214,7 +219,23 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                             .unwrap_or_else(Vec::new);
                         if packages.len() > 0 {
                             let archs = if parts.len() == 1 {
-                                ALL_ARCH.to_vec()
+                                let path = &ARGS.abbs_path;
+                                let p = match path {
+                                    Some(p) => p,
+                                    None => {
+                                        bot.send_message(
+                                            msg.chat.id,
+                                            "Got Error: ABBS_PATH is not set",
+                                        )
+                                        .await?;
+                                        return Ok(());
+                                    }
+                                };
+                                if all_packages_is_noarch(&packages, p).unwrap_or(false) {
+                                    vec!["amd64"]
+                                } else {
+                                    ALL_ARCH.to_vec()
+                                }
                             } else {
                                 parts[1].split(',').collect()
                             };
