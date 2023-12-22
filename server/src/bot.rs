@@ -242,7 +242,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 let mut is_noarch = vec![];
                                 let mut fail_archs = vec![];
 
-                                for_each_abbs(&p, |pkg, path| {
+                                for_each_abbs(p, |pkg, path| {
                                     if !packages.contains(&pkg.to_string()) {
                                         return;
                                     }
@@ -262,7 +262,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                             );
 
                                             if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                                                fail_archs.push(fail_arch_regex(&fail_arch).ok())
+                                                fail_archs.push(fail_arch_regex(fail_arch).ok())
                                             } else {
                                                 fail_archs.push(None);
                                             };
@@ -273,39 +273,31 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
                                     // FIXME: loongarch64 is not in the mainline yet and should not be compiled automatically
                                     // let v = ALL_ARCH.to_vec();
-                                    if fail_archs.iter().all(|x| x.is_none()) {
+                                    if fail_archs.iter().any(|x| x.is_none()) {
                                         ALL_ARCH
                                             .iter()
                                             .filter(|x| x != &&"loongarch64")
                                             .map(|x| x.to_owned())
                                             .collect()
                                     } else {
-                                        if fail_archs.iter().any(|x| x.is_none()) {
-                                            ALL_ARCH
+                                        let mut res = vec![];
+
+                                        for i in fail_archs {
+                                            let r = i.unwrap();
+                                            for a in ALL_ARCH
                                                 .iter()
                                                 .filter(|x| x != &&"loongarch64")
                                                 .map(|x| x.to_owned())
-                                                .collect()
-                                        } else {
-                                            let mut res = vec![];
-
-                                            for i in fail_archs {
-                                                let r = i.unwrap();
-                                                for a in ALL_ARCH
-                                                    .iter()
-                                                    .filter(|x| x != &&"loongarch64")
-                                                    .map(|x| x.to_owned())
+                                            {
+                                                if r.is_match(a).unwrap_or(false)
+                                                    && !res.contains(&a)
                                                 {
-                                                    if r.is_match(a).unwrap_or(false)
-                                                        && !res.contains(&a)
-                                                    {
-                                                        res.push(a);
-                                                    }
+                                                    res.push(a);
                                                 }
                                             }
-
-                                            res
                                         }
+
+                                        res
                                     }
                                 } else {
                                     vec!["noarch"]
