@@ -8,7 +8,7 @@ use gix::{
 };
 
 use jsonwebtoken::EncodingKey;
-use log::debug;
+use log::{debug, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
@@ -444,6 +444,8 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow!("ABBS_PATH is not set"))?;
 
+    info!("Running git checkout -b stable ...");
+
     process::Command::new("git")
         .arg("checkout")
         .arg("-b")
@@ -451,6 +453,8 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .current_dir(abbs_path)
         .output()
         .await?;
+
+    info!("Running git checkout stable ...");
 
     let cmd = process::Command::new("git")
         .arg("checkout")
@@ -463,17 +467,23 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         bail!("Failed to checkout stable");
     }
 
+    info!("Running git pull ...");
+
     process::Command::new("git")
         .arg("pull")
         .current_dir(abbs_path)
         .output()
         .await?;
 
+    info!("Running git reset FETCH_HEAD --head ...");
+
     process::Command::new("git")
         .args(&["reset", "FETCH_HEAD", "--hard"])
         .current_dir(abbs_path)
         .output()
         .await?;
+
+    info!("Running git fetch origin {git_ref} ...");
 
     let cmd = process::Command::new("git")
         .arg("fetch")
@@ -484,8 +494,10 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .await?;
 
     if !cmd.status.success() {
-        bail!("Failed to fetch origin");
+        bail!("Failed to fetch origin git-ref: {git_ref}");
     }
+
+    info!("Running git checkout -b {git_ref} ...");
 
     process::Command::new("git")
         .arg("checkout")
@@ -494,6 +506,8 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .current_dir(abbs_path)
         .output()
         .await?;
+
+    info!("Running git checkout {git_ref} ...");
 
     let cmd = process::Command::new("git")
         .arg("checkout")
@@ -505,6 +519,8 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     if !cmd.status.success() {
         bail!("Failed to checkout {git_ref}");
     }
+
+    info!("Running git reset FETCH_HEAD --hard ...");
 
     process::Command::new("git")
         .args(&["reset", "FETCH_HEAD", "--hard"])

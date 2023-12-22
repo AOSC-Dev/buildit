@@ -300,7 +300,21 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
             }
         },
         Command::OpenPR(arguments) => {
-            let parts: Vec<&str> = arguments.split(";").collect();
+            let (title, mut parts) = split_open_pr_message(&arguments);
+
+            if let Some(title) = title {
+                parts.insert(0, title);
+            } else {
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Got invalid job description: {arguments}. \n\n{}",
+                        Command::descriptions().to_string()
+                    ),
+                )
+                .await?;
+                return Ok(());
+            }
 
             let secret = match ARGS.secret.as_ref() {
                 Some(s) => s,
@@ -390,4 +404,21 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
     };
 
     Ok(())
+}
+
+fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
+    let mut parts = arguments.split(";");
+    let title = parts.next();
+    let parts = parts.map(|x| x.trim()).collect::<Vec<_>>();
+
+    (title, parts)
+}
+
+#[test]
+fn test_split_open_pr_message() {
+    let t = split_open_pr_message("clutter fix ftbfs;clutter-fix-ftbfs;clutter");
+    assert_eq!(t, (Some("clutter fix ftbfs"), vec!["clutter-fix-ftbfs", "clutter"]));
+
+    let t = split_open_pr_message("clutter fix ftbfs;clutter-fix-ftbfs ;clutter");
+    assert_eq!(t, (Some("clutter fix ftbfs"), vec!["clutter-fix-ftbfs", "clutter"]));
 }
