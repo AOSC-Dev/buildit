@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, collections::HashMap, path::Path};
 
 use anyhow::{anyhow, bail, Context};
 use gix::{
@@ -315,24 +315,39 @@ struct OpenPR<'a> {
 }
 
 fn format_archs(archs: &[&str]) -> String {
-    let mut s = String::from("**Primary Architectures**\n\n");
-    for a in archs {
-        s.push_str(&format!(
-            "- [ ] {}\n",
-            match a {
-                &"amd64" => AMD64,
-                &"arm64" => ARM64,
-                &"noarch" => NOARCH,
-                &"loongson3" => LOONGSON3,
-                &"mips64r6el" => MIPS64R6EL,
-                &"ppc64el" => PPC64EL,
-                &"riscv64" => RISCV64,
-                x => {
-                    debug!("unsupported architecture: {x}");
-                    continue;
-                }
-            }
-        ));
+    let mut s = "".to_string();
+
+    let mut map = HashMap::new();
+    map.insert("amd64", AMD64);
+    map.insert("arm64", ARM64);
+    map.insert("noarch", NOARCH);
+    map.insert("loongson3", LOONGSON3);
+    map.insert("mips64r6el", MIPS64R6EL);
+    map.insert("ppc64el", PPC64EL);
+    map.insert("riscv64", RISCV64);
+
+    if archs.contains(&"amd64") || archs.contains(&"arm64") || archs.contains(&"noarch") {
+        s.push_str("**Primary Architectures**\n\n");
+    }
+
+    for i in ["amd64", "arm64", "noarch"] {
+        if archs.contains(&i) {
+            s.push_str(&format!("- [ ] {}\n", map[i]));
+        }
+    }
+
+    if archs.contains(&"loongson3")
+        || archs.contains(&"mips64r6el")
+        || archs.contains(&"ppc64el")
+        || archs.contains(&"riscv64")
+    {
+        s.push_str("**Second Architectures**\n\n");
+    }
+
+    for i in ["loongson3", "mips64r6el", "ppc64el", "riscv64"] {
+        if archs.contains(&i) {
+            s.push_str(&format!("- [ ] {}\n", map[i]));
+        }
     }
 
     s
