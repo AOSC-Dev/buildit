@@ -57,7 +57,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
                     .filter(|x| x != &&"loongarch64")
                     .map(|x| x.to_owned())
                 {
-                    if r.is_match(a).unwrap_or(false)
+                    if !r.is_match(a).unwrap_or(false)
                         && !res.contains(&a)
                     {
                         res.push(a);
