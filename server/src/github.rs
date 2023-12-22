@@ -30,7 +30,7 @@ pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
 pub const MIPS64R6EL: &str = "MIPS R6 64-bit (Little Endian) `mips64r6el`";
 pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
 pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
-const COMMITS_COUNT_LIMIT: usize = 30;
+const COMMITS_COUNT_LIMIT: usize = 10;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GithubToken {
