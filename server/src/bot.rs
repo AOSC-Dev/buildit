@@ -346,10 +346,26 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                     None
                 };
 
+                let path = ARGS.abbs_path.as_ref();
+
+                let path = match path {
+                    Some(path) => path,
+                    None => {
+                        bot.send_message(msg.chat.id, "ABBS_PATH_PEM_PATH is not set")
+                            .await?;
+                        return Ok(());
+                    }
+                };
+
+                let pkgs = parts[2]
+                    .split(',')
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>();
+
                 let archs = if parts.len() == 5 {
                     parts[4].split(',').collect::<Vec<_>>()
                 } else {
-                    ALL_ARCH.to_vec()
+                    get_archs(&path, &pkgs)
                 };
 
                 match open_pr(parts, token, secret, msg.chat.id, tags.as_deref(), &archs).await {
