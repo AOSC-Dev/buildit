@@ -24,11 +24,12 @@ teloxide = { version = "0.12.2", features = ["macros"] }
 timeago = { version = "0.4.2", features = ["chrono"] }
 tokio = { version = "1.34.0", features = ["macros", "rt-multi-thread", "process", "sync"] }
 jsonwebtoken = "9"
-gix = {version = "0.56", default-features = false, features = ["max-performance-safe", "revision"]}
+gix = { version = "0.56", default-features = false, features = ["max-performance-safe", "revision"] }
 gix-features = { version = "0.36.0", optional = true }
 walkdir = "2.4.0"
 abbs-meta-apml = { git = "https://github.com/AOSC-Dev/abbs-meta-rs", package = "abbs-meta-apml", rev = "4a592937b44e8bb93103edd34eff384169a3248a" }
 console = "0.15.7"
+fancy-regex = "0.12"
 
 [features]
 default = ["gix-max-perf"]
