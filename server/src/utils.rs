@@ -4,6 +4,74 @@ use log::debug;
 use std::{collections::HashMap, path::Path};
 use walkdir::WalkDir;
 
+use crate::ALL_ARCH;
+
+pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
+    let mut is_noarch = vec![];
+    let mut fail_archs = vec![];
+
+    for_each_abbs(p, |pkg, path| {
+        if !packages.contains(&pkg.to_string()) {
+            return;
+        }
+
+        let defines = path.join("autobuild").join("defines");
+        let defines = std::fs::read_to_string(defines);
+
+        if let Ok(defines) = defines {
+            let defines = read_ab_with_apml(&defines);
+
+            if let Ok(defines) = defines {
+                is_noarch.push(
+                    defines
+                        .get("ABHOST")
+                        .map(|x| x == "noarch")
+                        .unwrap_or(false),
+                );
+
+                if let Some(fail_arch) = defines.get("FAIL_ARCH") {
+                    fail_archs.push(fail_arch_regex(fail_arch).ok())
+                } else {
+                    fail_archs.push(None);
+                };
+            }
+        }
+    });
+
+    if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
+        // FIXME: loongarch64 is not in the mainline yet and should not be compiled automatically
+        // let v = ALL_ARCH.to_vec();
+        if fail_archs.iter().any(|x| x.is_none()) {
+            ALL_ARCH
+                .iter()
+                .filter(|x| x != &&"loongarch64")
+                .map(|x| x.to_owned())
+                .collect()
+        } else {
+            let mut res = vec![];
+
+            for i in fail_archs {
+                let r = i.unwrap();
+                for a in ALL_ARCH
+                    .iter()
+                    .filter(|x| x != &&"loongarch64")
+                    .map(|x| x.to_owned())
+                {
+                    if r.is_match(a).unwrap_or(false)
+                        && !res.contains(&a)
+                    {
+                        res.push(a);
+                    }
+                }
+            }
+
+            res
+        }
+    } else {
+        vec!["noarch"]
+    }
+}
+
 pub fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> {
     let mut context = HashMap::new();
 
@@ -48,9 +116,11 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
     let mut regex = String::from("^");
     let mut negated = false;
     let mut sup_bracket = false;
+
     if expr.len() < 3 {
         return Err(anyhow!("Pattern too short."));
     }
+
     let expr = expr.as_bytes();
     for (i, c) in expr.iter().enumerate() {
         if i == 0 && c == &b'!' {
@@ -71,6 +141,7 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
         }
         regex += std::str::from_utf8(&[*c])?;
     }
+
     if sup_bracket {
         regex += ")";
     }

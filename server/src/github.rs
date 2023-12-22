@@ -13,9 +13,11 @@ use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
-use walkdir::WalkDir;
 
-use crate::{utils::read_ab_with_apml, ARGS};
+use crate::{
+    utils::{for_each_abbs, read_ab_with_apml},
+    ARGS,
+};
 
 macro_rules! PR {
     () => {
@@ -163,33 +165,22 @@ pub async fn open_pr(
     }
 }
 
-fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<String>> {
+fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
     let mut res = vec![];
-    for i in WalkDir::new(path)
-        .max_depth(2)
-        .min_depth(2)
-        .into_iter()
-        .flatten()
-    {
-        if i.path().is_file() {
-            continue;
+
+    for_each_abbs(p, |pkg, path| {
+        if !pkgs.contains(&pkg.to_string()) {
+            return;
         }
 
-        let pkg = i.file_name().to_str();
+        let defines = path.join("autobuild").join("defines");
+        let spec = path.join("spec");
+        let spec = std::fs::read_to_string(spec);
+        let defines = std::fs::read_to_string(defines);
 
-        if pkg.is_none() {
-            debug!("Failed to convert str: {}", i.path().display());
-            continue;
-        }
-
-        let pkg = pkg.unwrap();
-        if pkgs.contains(&pkg.to_string()) {
-            let spec = i.path().join("spec");
-            let defines = i.path().join("autobuild").join("defines");
-            let spec = std::fs::read_to_string(spec);
-            let defines = std::fs::read_to_string(defines);
+        if let Ok(spec) = spec {
+            let spec = read_ab_with_apml(&spec);
             if let Ok(spec) = spec {
-                let spec = read_ab_with_apml(&spec)?;
                 let ver = spec.get("VER");
                 let rel = spec.get("REL");
                 let defines = defines
@@ -220,7 +211,7 @@ fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<
                 res.push(format!("- {pkg}: {final_version}"));
             }
         }
-    }
+    });
 
     Ok(res)
 }

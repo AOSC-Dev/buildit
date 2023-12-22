@@ -2,12 +2,8 @@ use std::borrow::Cow;
 
 use crate::{
     github::{get_github_token, login_github, open_pr},
-    utils::{fail_arch_regex, for_each_abbs, read_ab_with_apml},
-    // utils::is_noarch_and_fail_arch,
-    Args,
-    ALL_ARCH,
-    ARGS,
-    WORKERS,
+    utils::get_archs,
+    Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
 use common::{ensure_job_queue, Job};
@@ -239,69 +235,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                     }
                                 };
 
-                                let mut is_noarch = vec![];
-                                let mut fail_archs = vec![];
-
-                                for_each_abbs(p, |pkg, path| {
-                                    if !packages.contains(&pkg.to_string()) {
-                                        return;
-                                    }
-
-                                    let defines = path.join("autobuild").join("defines");
-                                    let defines = std::fs::read_to_string(defines);
-
-                                    if let Ok(defines) = defines {
-                                        let defines = read_ab_with_apml(&defines);
-
-                                        if let Ok(defines) = defines {
-                                            is_noarch.push(
-                                                defines
-                                                    .get("ABHOST")
-                                                    .map(|x| x == "noarch")
-                                                    .unwrap_or(false),
-                                            );
-
-                                            if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                                                fail_archs.push(fail_arch_regex(fail_arch).ok())
-                                            } else {
-                                                fail_archs.push(None);
-                                            };
-                                        }
-                                    }
-                                });
-
-                                if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
-                                    // FIXME: loongarch64 is not in the mainline yet and should not be compiled automatically
-                                    // let v = ALL_ARCH.to_vec();
-                                    if fail_archs.iter().any(|x| x.is_none()) {
-                                        ALL_ARCH
-                                            .iter()
-                                            .filter(|x| x != &&"loongarch64")
-                                            .map(|x| x.to_owned())
-                                            .collect()
-                                    } else {
-                                        let mut res = vec![];
-
-                                        for i in fail_archs {
-                                            let r = i.unwrap();
-                                            for a in ALL_ARCH
-                                                .iter()
-                                                .filter(|x| x != &&"loongarch64")
-                                                .map(|x| x.to_owned())
-                                            {
-                                                if r.is_match(a).unwrap_or(false)
-                                                    && !res.contains(&a)
-                                                {
-                                                    res.push(a);
-                                                }
-                                            }
-                                        }
-
-                                        res
-                                    }
-                                } else {
-                                    vec!["noarch"]
-                                }
+                                get_archs(p, &packages)
                             } else {
                                 parts[1].split(',').collect()
                             };
