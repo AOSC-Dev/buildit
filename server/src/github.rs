@@ -8,7 +8,7 @@ use gix::{
 };
 
 use jsonwebtoken::EncodingKey;
-use log::{debug, info};
+use log::{debug, error, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
@@ -30,6 +30,7 @@ pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
 pub const MIPS64R6EL: &str = "MIPS R6 64-bit (Little Endian) `mips64r6el`";
 pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
 pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
+const COMMITS_COUNT_LIMIT: usize = 30;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GithubToken {
@@ -105,9 +106,6 @@ pub async fn open_pr(
 
     let commits = task::spawn_blocking(move || get_commits(path)).await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
-
-    info!("PR commits: {commits}");
-
     let pkgs = parts[2]
         .split(",")
         .map(|x| x.to_string())
@@ -115,8 +113,6 @@ pub async fn open_pr(
 
     let pkg_affected =
         task::spawn_blocking(move || find_version_by_packages(&pkgs, &path)).await??;
-
-    info!("pkg_affected: {pkg_affected:?}");
 
     let pr = open_pr_inner(OpenPR {
         access_token,
@@ -132,36 +128,39 @@ pub async fn open_pr(
 
     match pr {
         Ok(pr) => Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url)),
-        Err(e) => match e {
-            octocrab::Error::GitHub { source, .. }
-                if source.message.contains("Bad credentials") =>
-            {
-                let client = reqwest::Client::new();
-                client
-                    .get("https://minzhengbu.aosc.io/refresh_token")
-                    .header("secret", secret)
-                    .query(&[("id", msg_chatid.0.to_string())])
-                    .send()
-                    .await
-                    .and_then(|x| x.error_for_status())?;
+        Err(e) => {
+            error!("{e}");
+            match e {
+                octocrab::Error::GitHub { source, .. }
+                    if source.message.contains("Bad credentials") =>
+                {
+                    let client = reqwest::Client::new();
+                    client
+                        .get("https://minzhengbu.aosc.io/refresh_token")
+                        .header("secret", secret)
+                        .query(&[("id", msg_chatid.0.to_string())])
+                        .send()
+                        .await
+                        .and_then(|x| x.error_for_status())?;
 
-                let token = get_github_token(&msg_chatid, secret).await?;
-                let pr = open_pr_inner(OpenPR {
-                    access_token: token.access_token,
-                    parts: &parts,
-                    id,
-                    key,
-                    desc: &commits,
-                    pkg_affected: &pkg_affected,
-                    tags,
-                    archs,
-                })
-                .await?;
+                    let token = get_github_token(&msg_chatid, secret).await?;
+                    let pr = open_pr_inner(OpenPR {
+                        access_token: token.access_token,
+                        parts: &parts,
+                        id,
+                        key,
+                        desc: &commits,
+                        pkg_affected: &pkg_affected,
+                        tags,
+                        archs,
+                    })
+                    .await?;
 
-                Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
+                    Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
+                }
+                _ => return Err(e.into()),
             }
-            _ => return Err(e.into()),
-        },
+        }
     }
 }
 
@@ -229,7 +228,14 @@ fn find_version_by_packages(pkgs: &[String], path: &Path) -> anyhow::Result<Vec<
 
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     let mut s = String::new();
-    for c in commits {
+    for (i, c) in commits.iter().enumerate() {
+        if i == COMMITS_COUNT_LIMIT {
+            let more = commits.len() - COMMITS_COUNT_LIMIT;
+            if more > 0 {
+                s.push_str(&format!("\n... and {more} more commits\n"));
+            }
+            break;
+        }
         s.push_str(&format!("- {}\n", c.msg.0));
         if let Some(body) = &c.msg.1 {
             let body = body.split('\n');

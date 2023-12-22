@@ -417,8 +417,8 @@ async fn bot_send_message_handle_length(
     msg: &Message,
     text: &str,
 ) -> Result<Message, teloxide::RequestError> {
-    let text = if console::measure_text_width(text) > 4096 {
-        console::truncate_str(text, 4090, "...")
+    let text = if text.chars().count() > 1000 {
+        console::truncate_str(text, 1000, "...")
     } else {
         Cow::Borrowed(text)
     };
