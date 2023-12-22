@@ -20,54 +20,6 @@ pub fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> 
     Ok(context)
 }
 
-// pub fn is_noarch_and_fail_arch(pkgs: &[String], path: &Path) -> anyhow::Result<bool> {
-//     let mut res = None;
-//     // for i in WalkDir::new(path)
-//     //     .max_depth(2)
-//     //     .min_depth(2)
-//     //     .into_iter()
-//     //     .flatten()
-//     // {
-//     //     if i.path().is_file() {
-//     //         continue;
-//     //     }
-
-//     //     let pkg = i.file_name().to_str();
-
-//     //     if pkg.is_none() {
-//     //         debug!("Failed to convert str: {}", i.path().display());
-//     //         continue;
-//     //     }
-
-//     //     let pkg = pkg.unwrap();
-//     //     if pkgs.contains(&pkg.to_string()) {
-//     //         let defines = i.path().join("autobuild").join("defines");
-//     //         let defines = std::fs::read_to_string(defines);
-
-//     //         if let Ok(defines) = defines {
-//     //             let map = read_ab_with_apml(&defines)?;
-
-//     //             let b = map
-//     //                 .get("ABHOST")
-//     //                 .map(|x| x.to_ascii_lowercase() == "noarch")
-//     //                 .unwrap_or(false);
-
-//     //             res = Some(b);
-
-//     //             if !b {
-//     //                 return Ok(false);
-//     //             }
-//     //         }
-//     //     }
-//     // }
-
-//     for_each_tree(path, move |pkg| {
-//         if pkgs.
-//     });
-
-//     Ok(res.is_some())
-// }
-
 pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {
     for i in WalkDir::new(path)
         .max_depth(2)
