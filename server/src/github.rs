@@ -106,6 +106,8 @@ pub async fn open_pr(
     let commits = task::spawn_blocking(move || get_commits(path)).await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
 
+    info!("PR commits: {commits}");
+
     let pkgs = parts[2]
         .split(",")
         .map(|x| x.to_string())
@@ -113,6 +115,8 @@ pub async fn open_pr(
 
     let pkg_affected =
         task::spawn_blocking(move || find_version_by_packages(&pkgs, &path)).await??;
+
+    info!("pkg_affected: {pkg_affected:?}");
 
     let pr = open_pr_inner(OpenPR {
         access_token,

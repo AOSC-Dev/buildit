@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     github::{get_github_token, login_github, open_pr},
     utils::all_packages_is_noarch,
@@ -254,8 +256,12 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                         }
                     }
                     Err(err) => {
-                        bot.send_message(msg.chat.id, format!("Failed to get pr info: {err}."))
-                            .await?;
+                        bot_send_message_handle_length(
+                            &bot,
+                            &msg,
+                            &format!("Failed to get pr info: {err}."),
+                        )
+                        .await?;
                     }
                 }
             } else {
@@ -361,7 +367,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                             .await?
                     }
                     Err(e) => {
-                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                        bot_send_message_handle_length(&bot, &msg, &format!("Got Error: {e}"))
                             .await?
                     }
                 };
@@ -395,7 +401,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                             .await?
                     }
                     Err(e) => {
-                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                        bot_send_message_handle_length(&bot, &msg, &format!("Got error: {e}"))
                             .await?
                     }
                 };
@@ -404,6 +410,20 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
     };
 
     Ok(())
+}
+
+async fn bot_send_message_handle_length(
+    bot: &Bot,
+    msg: &Message,
+    text: &str,
+) -> Result<Message, teloxide::RequestError> {
+    let text = if console::measure_text_width(text) > 4096 {
+        console::truncate_str(text, 4090, "...")
+    } else {
+        Cow::Borrowed(text)
+    };
+
+    bot.send_message(msg.chat.id, text).await
 }
 
 fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
@@ -417,8 +437,20 @@ fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
 #[test]
 fn test_split_open_pr_message() {
     let t = split_open_pr_message("clutter fix ftbfs;clutter-fix-ftbfs;clutter");
-    assert_eq!(t, (Some("clutter fix ftbfs"), vec!["clutter-fix-ftbfs", "clutter"]));
+    assert_eq!(
+        t,
+        (
+            Some("clutter fix ftbfs"),
+            vec!["clutter-fix-ftbfs", "clutter"]
+        )
+    );
 
     let t = split_open_pr_message("clutter fix ftbfs;clutter-fix-ftbfs ;clutter");
-    assert_eq!(t, (Some("clutter fix ftbfs"), vec!["clutter-fix-ftbfs", "clutter"]));
+    assert_eq!(
+        t,
+        (
+            Some("clutter fix ftbfs"),
+            vec!["clutter-fix-ftbfs", "clutter"]
+        )
+    );
 }
