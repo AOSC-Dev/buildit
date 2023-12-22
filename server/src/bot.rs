@@ -235,7 +235,13 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 if all_packages_is_noarch(&packages, p).unwrap_or(false) {
                                     vec!["noarch"]
                                 } else {
-                                    ALL_ARCH.to_vec()
+                                    // FIXME: loongarch64 is not in the mainline yet and should not be compiled automatically
+                                    // let v = ALL_ARCH.to_vec();
+                                    ALL_ARCH
+                                        .iter()
+                                        .filter(|x| x != &&"loongarch64")
+                                        .map(|x| x.to_owned())
+                                        .collect()
                                 }
                             } else {
                                 parts[1].split(',').collect()
