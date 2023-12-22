@@ -280,7 +280,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                             .map(|x| x.to_owned())
                                             .collect()
                                     } else {
-                                        if fail_archs.iter().all(|x| x.is_some()) {
+                                        if fail_archs.iter().any(|x| x.is_none()) {
                                             ALL_ARCH
                                                 .iter()
                                                 .filter(|x| x != &&"loongarch64")
