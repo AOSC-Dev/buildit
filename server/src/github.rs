@@ -326,8 +326,11 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("ppc64el", PPC64EL);
     map.insert("riscv64", RISCV64);
 
+    let mut primary = false;
+
     if archs.contains(&"amd64") || archs.contains(&"arm64") || archs.contains(&"noarch") {
         s.push_str("**Primary Architectures**\n\n");
+        primary = true;
     }
 
     for i in ["amd64", "arm64", "noarch"] {
@@ -341,6 +344,9 @@ fn format_archs(archs: &[&str]) -> String {
         || archs.contains(&"ppc64el")
         || archs.contains(&"riscv64")
     {
+        if primary {
+            s.push('\n');
+        }
         s.push_str("**Second Architectures**\n\n");
     }
 
