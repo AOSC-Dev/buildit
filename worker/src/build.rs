@@ -78,14 +78,14 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             "https://github.com/AOSC-Dev/aosc-os-abbs.git",
             &job.git_ref,
         ],
-        &tree_path,
+        tree_path,
         &mut logs,
     )
     .await?;
 
     if output.status.success() {
         let output =
-            get_output_logged("git", &["rev-parse", "FETCH_HEAD"], &tree_path, &mut logs).await?;
+            get_output_logged("git", &["rev-parse", "FETCH_HEAD"], tree_path, &mut logs).await?;
         git_commit = Some(String::from_utf8_lossy(&output.stdout).to_string());
 
         // try to switch branch, but allow it to fail:
@@ -93,17 +93,17 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         get_output_logged(
             "git",
             &["checkout", "-b", &job.git_ref],
-            &tree_path,
+            tree_path,
             &mut logs,
         )
         .await?;
         // checkout to branch
-        get_output_logged("git", &["checkout", &job.git_ref], &tree_path, &mut logs).await?;
+        get_output_logged("git", &["checkout", &job.git_ref], tree_path, &mut logs).await?;
 
         let output = get_output_logged(
             "git",
             &["reset", "FETCH_HEAD", "--hard"],
-            &tree_path,
+            tree_path,
             &mut logs,
         )
         .await?;
@@ -144,9 +144,9 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                         found_failed_package = false;
                         found_packages_built = false;
                         found_packages_not_built = true;
-                    } else if line.contains("(") {
+                    } else if line.contains('(') {
                         // e.g. bash (amd64 @ 5.2.15-0)
-                        if let Some(package_name) = line.split(" ").next() {
+                        if let Some(package_name) = line.split(' ').next() {
                             if found_packages_built {
                                 successful_packages.push(package_name.to_string());
                             } else if found_failed_package {
@@ -240,10 +240,10 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
             }
         };
 
-        if let Some(job) = serde_json::from_slice::<Job>(&delivery.data).ok() {
+        if let Ok(job) = serde_json::from_slice::<Job>(&delivery.data) {
             info!("Processing job {:?}", job);
 
-            match build(&job, &tree_path, &args).await {
+            match build(&job, &tree_path, args).await {
                 Ok(result) => {
                     channel
                         .basic_publish(

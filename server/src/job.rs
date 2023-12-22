@@ -100,7 +100,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                                 if success { "✅️" } else { "❌" },
                                 worker.hostname,
                                 worker.arch,
-                                format!("{:.2?}", elapsed),
+                                format_args!("{:.2?}", elapsed),
                                 if let Some(git_commit) = &git_commit {
                                     format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
                                 } else {

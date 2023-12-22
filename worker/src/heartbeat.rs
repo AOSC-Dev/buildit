@@ -7,7 +7,7 @@ use std::time::Duration;
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     let channel = ensure_channel(args).await?;
     let queue_name = "worker-heartbeat";
-    ensure_job_queue(&queue_name, &channel).await?;
+    ensure_job_queue(queue_name, &channel).await?;
 
     loop {
         channel

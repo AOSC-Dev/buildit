@@ -15,11 +15,11 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
 
     let channel = conn.create_channel().await?;
     let queue_name = "worker-heartbeat";
-    ensure_job_queue(&queue_name, &channel).await?;
+    ensure_job_queue(queue_name, &channel).await?;
 
     let mut consumer = channel
         .basic_consume(
-            &queue_name,
+            queue_name,
             "worker-heartbeat",
             BasicConsumeOptions::default(),
             FieldTable::default(),
@@ -34,7 +34,7 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
             }
         };
 
-        if let Some(heartbeat) = serde_json::from_slice::<WorkerHeartbeat>(&delivery.data).ok() {
+        if let Ok(heartbeat) = serde_json::from_slice::<WorkerHeartbeat>(&delivery.data) {
             info!("Processing worker heartbeat {:?} ...", heartbeat);
 
             // update worker status

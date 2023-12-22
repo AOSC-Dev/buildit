@@ -50,7 +50,7 @@ pub struct Args {
     pub abbs_path: Option<PathBuf>,
 }
 
-pub static ARGS: Lazy<Args> = Lazy::new(|| Args::parse());
+pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 
 pub(crate) const ALL_ARCH: &[&str] = &[
     "amd64",

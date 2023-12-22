@@ -33,9 +33,8 @@ pub enum JobResult {
         job: Job,
         worker: WorkerIdentifier,
         error: String,
-    }
+    },
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WorkerIdentifier {
@@ -59,7 +58,7 @@ pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Re
     );
     Ok(channel
         .queue_declare(
-            &queue_name,
+            queue_name,
             QueueDeclareOptions {
                 durable: true,
                 ..QueueDeclareOptions::default()

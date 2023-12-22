@@ -43,7 +43,7 @@ pub enum Command {
 
 async fn build_inner(
     git_ref: &str,
-    packages: &Vec<String>,
+    packages: &[String],
     archs: &Vec<&str>,
     github_pr: Option<u64>,
     msg: &Message,
@@ -89,12 +89,12 @@ async fn build_inner(
 async fn build(
     bot: &Bot,
     git_ref: &str,
-    packages: &Vec<String>,
-    archs: &Vec<&str>,
+    packages: &[String],
+    archs: &[&str],
     github_pr: Option<u64>,
     msg: &Message,
 ) -> ResponseResult<()> {
-    let mut archs = archs.clone();
+    let mut archs = archs.to_owned();
     if archs.contains(&"mainline") {
         // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
         archs.extend_from_slice(ALL_ARCH);
@@ -103,7 +103,7 @@ async fn build(
     archs.sort();
     archs.dedup();
 
-    match build_inner(git_ref, &packages, &archs, github_pr, &msg).await {
+    match build_inner(git_ref, packages, &archs, github_pr, msg).await {
         Ok(()) => {
             bot.send_message(
                             msg.chat.id,
@@ -155,7 +155,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
         }
         res += &format!(
             "*{}*: {}{} available server\\(s\\)\n",
-            teloxide::utils::markdown::escape(&arch),
+            teloxide::utils::markdown::escape(arch),
             unacknowledged_str,
             queue.consumer_count()
         );
@@ -191,13 +191,13 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                     msg.chat.id,
                     format!(
                         "Got invalid job description: {arguments}. \n\n{}",
-                        Command::descriptions().to_string()
+                        Command::descriptions()
                     ),
                 )
                 .await?;
             }
 
-            if let Ok(pr_number) = str::parse::<u64>(&parts[0]) {
+            if let Ok(pr_number) = str::parse::<u64>(parts[0]) {
                 match octocrab::instance()
                     .pulls("AOSC-Dev", "aosc-os-abbs")
                     .get(pr_number)
@@ -212,7 +212,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 body.lines()
                                     .filter(|line| line.starts_with("#buildit"))
                                     .map(|line| {
-                                        line.split(" ")
+                                        line.split(' ')
                                             .map(str::to_string)
                                             .skip(1)
                                             .collect::<Vec<_>>()
@@ -220,7 +220,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                     .next()
                             })
                             .unwrap_or_else(Vec::new);
-                        if packages.len() > 0 {
+                        if !packages.is_empty() {
                             let archs = if parts.len() == 1 {
                                 let path = &ARGS.abbs_path;
                                 let p = match path {
@@ -251,7 +251,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
 
                             build(&bot, git_ref, &packages, &archs, Some(pr_number), &msg).await?;
                         } else {
-                            bot.send_message(msg.chat.id, format!("Please list packages to build in pr info starting with '#buildit'."))
+                            bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
                                 .await?;
                         }
                     }
@@ -269,18 +269,18 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                     msg.chat.id,
                     format!(
                         "Got invalid pr description: {arguments}.\n\n{}",
-                        Command::descriptions().to_string()
+                        Command::descriptions()
                     ),
                 )
                 .await?;
             }
         }
         Command::Build(arguments) => {
-            let parts: Vec<&str> = arguments.split(" ").collect();
+            let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 3 {
                 let git_ref = parts[0];
-                let packages: Vec<String> = parts[1].split(",").map(str::to_string).collect();
-                let archs: Vec<&str> = parts[2].split(",").collect();
+                let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
+                let archs: Vec<&str> = parts[2].split(',').collect();
                 build(&bot, git_ref, &packages, &archs, None, &msg).await?;
                 return Ok(());
             }
@@ -289,7 +289,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 msg.chat.id,
                 format!(
                     "Got invalid job description: {arguments}. \n\n{}",
-                    Command::descriptions().to_string()
+                    Command::descriptions()
                 ),
             )
             .await?;
@@ -315,7 +315,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                     msg.chat.id,
                     format!(
                         "Got invalid job description: {arguments}. \n\n{}",
-                        Command::descriptions().to_string()
+                        Command::descriptions()
                     ),
                 )
                 .await?;
@@ -341,7 +341,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
 
             if (3..=5).contains(&parts.len()) {
                 let tags = if parts.len() >= 4 {
-                    if parts[3] == "" {
+                    if parts[3].is_empty() {
                         None
                     } else {
                         Some(
@@ -379,7 +379,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 msg.chat.id,
                 format!(
                     "Got invalid job description: {arguments}. \n\n{}",
-                    Command::descriptions().to_string()
+                    Command::descriptions()
                 ),
             )
             .await?;
@@ -427,7 +427,7 @@ async fn bot_send_message_handle_length(
 }
 
 fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
-    let mut parts = arguments.split(";");
+    let mut parts = arguments.split(';');
     let title = parts.next();
     let parts = parts.map(|x| x.trim()).collect::<Vec<_>>();
 

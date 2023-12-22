@@ -60,5 +60,5 @@ pub fn all_packages_is_noarch(pkgs: &[String], path: &Path) -> anyhow::Result<bo
         }
     }
 
-    return Ok(res.is_some());
+    Ok(res.is_some())
 }

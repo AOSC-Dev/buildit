@@ -47,17 +47,16 @@ pub async fn login_github(
     arguments: String,
 ) -> Result<reqwest::Response, reqwest::Error> {
     let client = reqwest::Client::new();
-    let resp = client
-        .get(format!("https://minzhengbu.aosc.io/login_from_telegram"))
+
+    client
+        .get("https://minzhengbu.aosc.io/login_from_telegram".to_string())
         .query(&[
             ("telegram_id", msg.chat.id.0.to_string()),
             ("rid", arguments),
         ])
         .send()
         .await
-        .and_then(|x| x.error_for_status());
-
-    resp
+        .and_then(|x| x.error_for_status())
 }
 
 pub async fn get_github_token(msg_chatid: &ChatId, secret: &str) -> anyhow::Result<GithubToken> {
@@ -107,12 +106,12 @@ pub async fn open_pr(
     let commits = task::spawn_blocking(move || get_commits(path)).await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
     let pkgs = parts[2]
-        .split(",")
+        .split(',')
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
 
     let pkg_affected =
-        task::spawn_blocking(move || find_version_by_packages(&pkgs, &path)).await??;
+        task::spawn_blocking(move || find_version_by_packages(&pkgs, path)).await??;
 
     let pr = open_pr_inner(OpenPR {
         access_token,
@@ -158,7 +157,7 @@ pub async fn open_pr(
 
                     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
                 }
-                _ => return Err(e.into()),
+                _ => Err(e.into()),
             }
         }
     }
@@ -255,7 +254,7 @@ struct Commit {
 
 fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     let mut res = vec![];
-    let repo = get_repo(&path)?;
+    let repo = get_repo(path)?;
     let commits = repo
         .head()?
         .try_into_peeled_id()?
@@ -267,8 +266,7 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     let branch = refrences
         .local_branches()?
         .filter_map(Result::ok)
-        .filter(|x| x.name().shorten() == "stable")
-        .next()
+        .find(|x| x.name().shorten() == "stable")
         .ok_or(anyhow!("failed to get stable branch"))?;
 
     for i in commits {
@@ -386,7 +384,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
             PR!(),
             desc,
             pkg_affected.join("\n"),
-            format!("#buildit {}", parts[2].replace(",", " ")),
+            format!("#buildit {}", parts[2].replace(',', " ")),
             format_archs(archs)
         ))
         .send()
@@ -450,7 +448,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
     ];
 
     for (k, v) in v {
-        if title.contains(&k) {
+        if title.contains(k) {
             labels.extend(v);
         }
     }
@@ -509,7 +507,7 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     info!("Running git reset FETCH_HEAD --head ...");
 
     process::Command::new("git")
-        .args(&["reset", "FETCH_HEAD", "--hard"])
+        .args(["reset", "FETCH_HEAD", "--hard"])
         .current_dir(abbs_path)
         .output()
         .await?;
@@ -554,7 +552,7 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     info!("Running git reset FETCH_HEAD --hard ...");
 
     process::Command::new("git")
-        .args(&["reset", "FETCH_HEAD", "--hard"])
+        .args(["reset", "FETCH_HEAD", "--hard"])
         .current_dir(abbs_path)
         .output()
         .await?;
