@@ -212,7 +212,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 body.lines()
                                     .filter(|line| line.starts_with("#buildit"))
                                     .map(|line| {
-                                        line.split(' ')
+                                        line.trim()
+                                            .split(' ')
                                             .map(str::to_string)
                                             .skip(1)
                                             .collect::<Vec<_>>()
