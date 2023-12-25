@@ -47,6 +47,7 @@ pub struct WorkerIdentifier {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerHeartbeat {
     pub identifier: WorkerIdentifier,
+    pub git_commit: Option<String>,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {
