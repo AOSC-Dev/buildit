@@ -169,7 +169,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
                 identifier.hostname,
                 identifier.arch,
                 match &status.git_commit {
-                    Some(git_commit) => format!(" {}", &git_commit[..6]),
+                    Some(git_commit) => format!(" {}", git_commit),
                     None => String::new(),
                 },
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
