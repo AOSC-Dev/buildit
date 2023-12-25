@@ -12,9 +12,15 @@ pub struct Job {
     pub packages: Vec<String>,
     pub git_ref: String,
     pub arch: String,
-    pub tg_chatid: ChatId,
+    pub source: JobSource,
     pub github_pr: Option<u64>,
     pub noarch: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum JobSource {
+    Telegram(ChatId),
+    Github(u64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

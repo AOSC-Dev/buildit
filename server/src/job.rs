@@ -3,7 +3,7 @@ use crate::{
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
     ARGS,
 };
-use common::{JobError, JobOk, JobResult};
+use common::{JobError, JobOk, JobResult, JobSource};
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
@@ -106,16 +106,18 @@ async fn handle_success_message(
                         .iter()
                         .all(|x| successful_packages.contains(x));
 
-                    let s = to_html_build_result(&job, success);
+                    if let JobSource::Telegram(id) = job_parent.source {
+                        let s = to_html_build_result(&job, success);
 
-                    if let Err(e) = bot
-                        .send_message(job.job.tg_chatid, &s)
-                        .parse_mode(ParseMode::Html)
-                        .disable_web_page_preview(true)
-                        .await
-                    {
-                        error!("{}", e);
-                        return update_retry(retry);
+                        if let Err(e) = bot
+                            .send_message(id, &s)
+                            .parse_mode(ParseMode::Html)
+                            .disable_web_page_preview(true)
+                            .await
+                        {
+                            error!("{}", e);
+                            return update_retry(retry);
+                        }
                     }
 
                     // if associated with github pr, update comments
@@ -245,19 +247,63 @@ async fn handle_success_message(
                     }
                 }
                 JobResult::Error(job) => {
-                    let JobError { job, worker, error } = job;
-                    if let Err(e) = bot
-                        .send_message(
-                            job.tg_chatid,
-                            format!(
-                                "{}({}) build packages: {:?} Got Error: {}",
-                                worker.hostname, job.arch, job.packages, error
-                            ),
-                        )
-                        .await
-                    {
-                        error!("{e}");
-                        return update_retry(retry);
+                    let JobError {
+                        job: job_parent,
+                        worker,
+                        error,
+                    } = job;
+
+                    match job_parent.source {
+                        JobSource::Telegram(id) => {
+                            if let Err(e) = bot
+                                .send_message(
+                                    id,
+                                    format!(
+                                        "{}({}) build packages: {:?} Got Error: {}",
+                                        worker.hostname,
+                                        job_parent.arch,
+                                        job_parent.packages,
+                                        error
+                                    ),
+                                )
+                                .await
+                            {
+                                error!("{e}");
+                                return update_retry(retry);
+                            }
+                        }
+                        JobSource::Github(num) => {
+                            if let Some(github_access_token) = &ARGS.github_access_token {
+                                let crab = match octocrab::Octocrab::builder()
+                                    .user_access_token(github_access_token.clone())
+                                    .build()
+                                {
+                                    Ok(crab) => crab,
+                                    Err(e) => {
+                                        error!("{e}");
+                                        return HandleSuccessResult::DoNotRetry;
+                                    }
+                                };
+
+                                if let Err(e) = crab
+                                    .issues("AOSC-Dev", "aosc-os-abbs")
+                                    .create_comment(
+                                        num,
+                                        format!(
+                                            "{}({}) build packages: {:?} Got Error: {}",
+                                            worker.hostname,
+                                            job_parent.arch,
+                                            job_parent.packages,
+                                            error
+                                        ),
+                                    )
+                                    .await
+                                {
+                                    error!("{e}");
+                                    return update_retry(retry);
+                                }
+                            }
+                        }
                     }
                 }
             }

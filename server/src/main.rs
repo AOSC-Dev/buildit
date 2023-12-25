@@ -18,11 +18,11 @@ async fn main() {
     tokio::spawn(heartbeat_worker(ARGS.amqp_addr.clone()));
     tokio::spawn(job_completion_worker(bot.clone(), ARGS.amqp_addr.clone()));
 
-    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default())
+    let send_request_conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default())
         .await
         .unwrap();
 
-    let channel = Arc::new(conn.create_channel().await.unwrap());
+    let channel = Arc::new(send_request_conn.create_channel().await.unwrap());
 
     let handler =
         Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(

@@ -7,7 +7,7 @@ use crate::{
     Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
-use common::{ensure_job_queue, Job};
+use common::{ensure_job_queue, Job, JobSource};
 use lapin::{options::BasicPublishOptions, BasicProperties, Channel, ConnectionProperties};
 use log::info;
 use teloxide::{
@@ -60,7 +60,7 @@ async fn build_inner(
             } else {
                 arch.to_string()
             },
-            tg_chatid: msg.chat.id,
+            source: JobSource::Telegram(msg.chat.id),
             github_pr,
             noarch: arch == &"noarch",
         };
@@ -82,6 +82,7 @@ async fn build_inner(
             .await?
             .await?;
     }
+
     Ok(())
 }
 
