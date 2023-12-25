@@ -165,9 +165,13 @@ async fn status(args: &Args) -> anyhow::Result<String> {
     if let Ok(lock) = WORKERS.lock() {
         for (identifier, status) in lock.iter() {
             res += &teloxide::utils::markdown::escape(&format!(
-                "{} ({}): Online as of {}\n",
+                "{} ({}{}): Online as of {}\n",
                 identifier.hostname,
                 identifier.arch,
+                match &status.git_commit {
+                    Some(git_commit) => format!(" {}", &git_commit[..6]),
+                    None => String::new(),
+                },
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
             ));
         }
@@ -175,7 +179,12 @@ async fn status(args: &Args) -> anyhow::Result<String> {
     Ok(res)
 }
 
-pub async fn answer(bot: Bot, msg: Message, cmd: Command, channel: Arc<Channel>) -> ResponseResult<()> {
+pub async fn answer(
+    bot: Bot,
+    msg: Message,
+    cmd: Command,
+    channel: Arc<Channel>,
+) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
         .await?;
     match cmd {
@@ -239,8 +248,6 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, channel: Arc<Channel>)
                             } else {
                                 parts[1].split(',').collect()
                             };
-
-
 
                             build(
                                 &bot,

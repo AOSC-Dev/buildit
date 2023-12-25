@@ -16,6 +16,7 @@ pub mod utils;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,
+    pub git_commit: Option<String>,
 }
 
 pub static WORKERS: Lazy<Arc<Mutex<BTreeMap<WorkerIdentifier, WorkerStatus>>>> =

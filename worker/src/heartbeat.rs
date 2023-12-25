@@ -21,7 +21,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                         arch: args.arch.clone(),
                         pid: std::process::id(),
                     },
-                    git_commit: option_env!("VERGEN_GIT_DESCRIBE").map(String::from),
+                    git_commit: option_env!("VERGEN_GIT_SHA").map(String::from),
                 })
                 .unwrap(),
                 BasicProperties::default(),
