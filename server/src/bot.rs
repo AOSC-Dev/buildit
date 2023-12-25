@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     github::{get_github_token, login_github, open_pr},
@@ -7,7 +7,7 @@ use crate::{
 };
 use chrono::Local;
 use common::{ensure_job_queue, Job};
-use lapin::{options::BasicPublishOptions, BasicProperties, ConnectionProperties};
+use lapin::{options::BasicPublishOptions, BasicProperties, Channel, ConnectionProperties};
 use log::info;
 use teloxide::{
     prelude::*,
@@ -47,10 +47,8 @@ async fn build_inner(
     archs: &Vec<&str>,
     github_pr: Option<u64>,
     msg: &Message,
+    channel: &Channel,
 ) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
-
-    let channel = conn.create_channel().await?;
     // for each arch, create a job
     for arch in archs {
         let job = Job {
@@ -93,6 +91,7 @@ async fn build(
     archs: &[&str],
     github_pr: Option<u64>,
     msg: &Message,
+    channel: &Channel,
 ) -> ResponseResult<()> {
     let mut archs = archs.to_owned();
     if archs.contains(&"mainline") {
@@ -103,7 +102,7 @@ async fn build(
     archs.sort();
     archs.dedup();
 
-    match build_inner(git_ref, packages, &archs, github_pr, msg).await {
+    match build_inner(git_ref, packages, &archs, github_pr, msg, channel).await {
         Ok(()) => {
             bot.send_message(
                             msg.chat.id,
@@ -176,7 +175,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
     Ok(res)
 }
 
-pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+pub async fn answer(bot: Bot, msg: Message, cmd: Command, channel: Arc<Channel>) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
         .await?;
     match cmd {
@@ -240,7 +239,18 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                                 parts[1].split(',').collect()
                             };
 
-                            build(&bot, git_ref, &packages, &archs, Some(pr_number), &msg).await?;
+
+
+                            build(
+                                &bot,
+                                git_ref,
+                                &packages,
+                                &archs,
+                                Some(pr_number),
+                                &msg,
+                                &channel,
+                            )
+                            .await?;
                         } else {
                             bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
                                 .await?;
@@ -272,7 +282,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> 
                 let git_ref = parts[0];
                 let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(',').collect();
-                build(&bot, git_ref, &packages, &archs, None, &msg).await?;
+                build(&bot, git_ref, &packages, &archs, None, &msg, &channel).await?;
                 return Ok(());
             }
 

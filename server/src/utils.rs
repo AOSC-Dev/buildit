@@ -82,7 +82,7 @@ pub fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> 
 
     abbs_meta_apml::parse(file, &mut context).map_err(|e| {
         let e: Vec<String> = e.iter().map(|e| e.to_string()).collect();
-        anyhow!(e.join(": "))
+        anyhow!(e.join("; "))
     })?;
 
     Ok(context)
