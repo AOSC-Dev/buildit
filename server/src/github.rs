@@ -387,9 +387,11 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         Cow::Owned(auto_add_label(parts[0]))
     };
 
-    crab.issues("AOSC-Dev", "aosc-os-abbs")
-        .add_labels(pr.number, &tags)
-        .await?;
+    if !tags.is_empty() {
+        crab.issues("AOSC-Dev", "aosc-os-abbs")
+            .add_labels(pr.number, &tags)
+            .await?;
+    }
 
     Ok(pr)
 }
