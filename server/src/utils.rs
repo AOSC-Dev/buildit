@@ -163,6 +163,7 @@ pub fn find_shorten_id(repo: &Path, git_commit: &str) -> Option<String> {
             if git_commit == commit.id.to_string() {
                 id =
                     Some(()).and_then(|_| Some(commit.object().ok()?.short_id().ok()?.to_string()));
+                return;
             }
         });
 
