@@ -3,7 +3,7 @@ use crate::{
     ARGS,
 };
 use anyhow::{anyhow, bail};
-use common::JobResult;
+use common::{JobError, JobOk, JobResult};
 use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
@@ -50,19 +50,20 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
 
         match serde_json::from_slice::<JobResult>(&delivery.data) {
             Ok(result) => {
-                let result_clone = result.clone();
                 match result {
-                    JobResult::Ok {
-                        job,
-                        successful_packages,
-                        failed_package,
-                        skipped_packages,
-                        log,
-                        worker,
-                        elapsed,
-                        git_commit,
-                    } => {
-                        info!("Processing job result {:?} ...", result_clone);
+                    JobResult::Ok(job) => {
+                        let JobOk {
+                            job,
+                            successful_packages,
+                            failed_package,
+                            skipped_packages,
+                            log,
+                            worker,
+                            elapsed,
+                            git_commit,
+                        } = job;
+
+                        info!("Processing job result {:?} ...", job);
                         let success = successful_packages == job.packages;
                         // Report job result to user
                         bot.send_message(
@@ -189,7 +190,8 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                             }
                         }
                     }
-                    JobResult::Error { job, worker, error } => {
+                    JobResult::Error(job) => {
+                        let JobError { job, worker, error } = job;
                         bot.send_message(
                             job.tg_chatid,
                             format!(

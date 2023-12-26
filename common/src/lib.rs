@@ -19,21 +19,28 @@ pub struct Job {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum JobResult {
-    Ok {
-        job: Job,
-        successful_packages: Vec<String>,
-        failed_package: Option<String>,
-        skipped_packages: Vec<String>,
-        log: Option<String>,
-        worker: WorkerIdentifier,
-        elapsed: Duration,
-        git_commit: Option<String>,
-    },
-    Error {
-        job: Job,
-        worker: WorkerIdentifier,
-        error: String,
-    },
+    Ok(JobOk),
+    Error(JobError),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobOk {
+    pub job: Job,
+    pub successful_packages: Vec<String>,
+    pub failed_package: Option<String>,
+    pub skipped_packages: Vec<String>,
+    pub log: Option<String>,
+    pub worker: WorkerIdentifier,
+    pub elapsed: Duration,
+    pub git_commit: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobError {
+    pub job: Job,
+    pub worker: WorkerIdentifier,
+    pub error: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
