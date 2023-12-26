@@ -554,7 +554,7 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn get_repo(path: &Path) -> anyhow::Result<Repository> {
+pub fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     let mut git_open_opts_map = sec::trust::Mapping::<gix::open::Options>::default();
 
     let config = gix::open::permissions::Config {

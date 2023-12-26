@@ -23,7 +23,7 @@ pub fn to_html_new_job_summary(
     )
 }
 
-pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
+pub fn to_html_build_result(job: &JobOk, success: bool, shorten_id: Option<&str>) -> String {
     let JobOk {
         job,
         successful_packages,
@@ -51,7 +51,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         worker.arch,
         &format!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
-            format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", git_commit, &git_commit[..8])
+            format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", git_commit, shorten_id.unwrap_or(git_commit))
         } else {
             String::new()
         },
@@ -72,7 +72,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
     )
 }
 
-pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
+pub fn to_markdown_build_result(job: &JobOk, success: bool, shorten_id: Option<&str>) -> String {
     let JobOk {
         job,
         successful_packages,
@@ -91,7 +91,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
         worker.arch,
         format_args!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
-            format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
+            format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", shorten_id.unwrap_or(git_commit), git_commit)
         } else {
             String::new()
         },
@@ -138,7 +138,7 @@ fn test_format_html_build_result() {
         git_commit: Some("34acef168fc5ec454d3825fc864964951b130b49".to_string()),
     };
 
-    let s = to_html_build_result(&job, true);
+    let s = to_html_build_result(&job, true, None);
 
-    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n \n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n \n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef168fc5ec454d3825fc864964951b130b49</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
 }
