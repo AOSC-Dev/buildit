@@ -1,7 +1,7 @@
 use crate::{
     formatter::{to_html_build_result, to_markdown_build_result},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
-    ARGS, utils::find_shorten_id,
+    ARGS,
 };
 use anyhow::{anyhow, bail};
 use common::{JobError, JobOk, JobResult};
@@ -58,17 +58,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                         let JobOk { job: job_parent, successful_packages, .. } = &job;
                         let success = &job_parent.packages == successful_packages;
 
-                        let shorten_id = if let Some(path) = ARGS.abbs_path.as_ref() {
-                            if let Some(ref commit) = job.git_commit {
-                                find_shorten_id(&path, commit)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
-                        let s = to_html_build_result(&job, success, shorten_id.as_deref());
+                        let s = to_html_build_result(&job, success);
 
                         bot.send_message(job.job.tg_chatid, &s)
                             .parse_mode(ParseMode::Html)
@@ -78,7 +68,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                         // if associated with github pr, update comments
                         if let Some(github_access_token) = &ARGS.github_access_token {
                             if let Some(pr) = job_parent.github_pr {
-                                let new_content = to_markdown_build_result(&job, success, shorten_id.as_deref());
+                                let new_content = to_markdown_build_result(&job, success);
 
                                 // update or create new comment
                                 let page = octocrab::instance()

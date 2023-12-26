@@ -4,7 +4,7 @@ use log::debug;
 use std::{collections::HashMap, path::Path};
 use walkdir::WalkDir;
 
-use crate::{github::get_repo, ALL_ARCH};
+use crate::ALL_ARCH;
 
 pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     let mut is_noarch = vec![];
@@ -145,26 +145,4 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
     }
 
     Ok(Regex::new(&regex)?)
-}
-
-pub fn find_shorten_id(repo: &Path, git_commit: &str) -> Option<String> {
-    let repo = get_repo(repo).ok()?;
-
-    let mut id = None;
-    repo.head()
-        .ok()?
-        .try_into_peeled_id()
-        .ok()??
-        .ancestors()
-        .all()
-        .ok()?
-        .map_while(Result::ok)
-        .for_each(|commit| {
-            if git_commit == commit.id.to_string() {
-                id =
-                    Some(()).and_then(|_| Some(commit.object().ok()?.short_id().ok()?.to_string()));
-            }
-        });
-
-    id
 }
