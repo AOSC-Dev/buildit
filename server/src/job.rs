@@ -1,4 +1,5 @@
 use crate::{
+    formatter::{to_html_build_result, to_markdown_build_result},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
     ARGS,
 };
@@ -52,69 +53,22 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             Ok(result) => {
                 match result {
                     JobResult::Ok(job) => {
-                        let JobOk {
-                            job,
-                            successful_packages,
-                            failed_package,
-                            skipped_packages,
-                            log,
-                            worker,
-                            elapsed,
-                            git_commit,
-                        } = job;
-
                         info!("Processing job result {:?} ...", job);
-                        let success = successful_packages == job.packages;
-                        // Report job result to user
-                        bot.send_message(
-                        job.tg_chatid,
-                        format!(
-                            "{} Job completed on {} \\({}\\)\n\n*Time elapsed*: {}\n{}{}*Architecture*: {}\n*Package\\(s\\) to build*: {}\n*Package\\(s\\) successfully built*: {}\n*Package\\(s\\) failed to build*: {}\n*Package\\(s\\) not built due to previous build failure*: {}\n\n[Build Log \\>\\>]({})\n",
-                            if success { "✅️" } else { "❌" },
-                            teloxide::utils::markdown::escape(&worker.hostname),
-                            worker.arch,
-                            teloxide::utils::markdown::escape(&format!("{:.2?}", elapsed)),
-                            if let Some(git_commit) = &git_commit {
-                                format!("*Git commit*: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
-                            } else {
-                                String::new()
-                            },
-                            if let Some(pr) = job.github_pr {
-                                format!("*GitHub PR*: [\\#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr)
-                            } else {
-                                String::new()
-                            },
-                            job.arch,
-                            teloxide::utils::markdown::escape(&job.packages.join(", ")),
-                            teloxide::utils::markdown::escape(&successful_packages.join(", ")),
-                            teloxide::utils::markdown::escape(&failed_package.clone().unwrap_or(String::from("None"))),
-                            teloxide::utils::markdown::escape(&skipped_packages.join(", ")),
-                            log.clone().unwrap_or(String::from("None")),
-                        ),
-                    ).parse_mode(ParseMode::MarkdownV2)
-                    .await?;
+
+                        let JobOk { job: job_parent, successful_packages, .. } = &job;
+                        let success = &job_parent.packages == successful_packages;
+
+                        let s = to_html_build_result(&job, success);
+
+                        bot.send_message(job.job.tg_chatid, &s)
+                            .parse_mode(ParseMode::Html)
+                            .disable_web_page_preview(true)
+                            .await?;
 
                         // if associated with github pr, update comments
                         if let Some(github_access_token) = &ARGS.github_access_token {
-                            if let Some(pr) = job.github_pr {
-                                let new_content = format!(
-                                "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n[Build Log \\>\\>]({})\n",
-                                if success { "✅️" } else { "❌" },
-                                worker.hostname,
-                                worker.arch,
-                                format_args!("{:.2?}", elapsed),
-                                if let Some(git_commit) = &git_commit {
-                                    format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
-                                } else {
-                                    String::new()
-                                },
-                                job.arch,
-                                teloxide::utils::markdown::escape(&job.packages.join(", ")),
-                                teloxide::utils::markdown::escape(&successful_packages.join(", ")),
-                                teloxide::utils::markdown::escape(&failed_package.clone().unwrap_or(String::from("None"))),
-                                teloxide::utils::markdown::escape(&skipped_packages.join(", ")),
-                                log.unwrap_or(String::from("None")),
-                            );
+                            if let Some(pr) = job_parent.github_pr {
+                                let new_content = to_markdown_build_result(&job, success);
 
                                 // update or create new comment
                                 let page = octocrab::instance()
@@ -165,8 +119,8 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                                         .body
                                         .ok_or_else(|| anyhow!("This PR has no body"))?;
 
-                                    let pr_arch = match job.arch.as_str() {
-                                        "amd64" if job.noarch => NOARCH,
+                                    let pr_arch = match job_parent.arch.as_str() {
+                                        "amd64" if job_parent.noarch => NOARCH,
                                         "amd64" => AMD64,
                                         "arm64" => ARM64,
                                         "loongson3" => LOONGSON3,

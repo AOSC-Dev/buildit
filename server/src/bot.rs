@@ -1,6 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
+    formatter::to_html_new_job_summary,
     github::{get_github_token, login_github, open_pr},
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
@@ -105,16 +106,12 @@ async fn build(
     match build_inner(git_ref, packages, &archs, github_pr, msg, channel).await {
         Ok(()) => {
             bot.send_message(
-                            msg.chat.id,
-                            format!(
-                                "\n__*New Job Summary*__\n\n*Git reference*: {}\n{}*Architecture\\(s\\)*: {}\n*Package\\(s\\)*: {}\n",
-                                teloxide::utils::markdown::escape(git_ref),
-                                if let Some(pr) = github_pr { format!("*GitHub PR*: [\\#{}](https://github.com/AOSC-Dev/aosc-os-abbs/pull/{})\n", pr, pr) } else { String::new() },
-                                archs.join(", "),
-                                teloxide::utils::markdown::escape(&packages.join(", ")),
-                            ),
-                        ).parse_mode(ParseMode::MarkdownV2)
-                        .await?;
+                msg.chat.id,
+                to_html_new_job_summary(git_ref, github_pr, &archs, packages),
+            )
+            .parse_mode(ParseMode::Html)
+            .disable_web_page_preview(true)
+            .await?;
         }
         Err(err) => {
             bot.send_message(msg.chat.id, format!("Failed to create job: {}", err))
