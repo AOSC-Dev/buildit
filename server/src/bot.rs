@@ -212,7 +212,13 @@ pub async fn answer(
                     .await
                 {
                     Ok(pr) => {
-                        let git_ref = &pr.head.ref_field;
+                        // If the pull request has been merged,
+                        // build and push packages based on stable
+                        let git_ref = if pr.merged_at.is_some() {
+                            "stable"
+                        } else {
+                            &pr.head.ref_field
+                        };
                         // find lines starting with #buildit
                         let packages: Vec<String> = pr
                             .body
@@ -221,7 +227,7 @@ pub async fn answer(
                                     .filter(|line| line.starts_with("#buildit"))
                                     .map(|line| {
                                         line.trim()
-                                            .split(' ')
+                                            .split_ascii_whitespace()
                                             .map(str::to_string)
                                             .skip(1)
                                             .collect::<Vec<_>>()
