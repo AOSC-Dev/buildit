@@ -246,7 +246,20 @@ pub async fn answer(
 
                                 get_archs(p, &packages)
                             } else {
-                                parts[1].split(',').collect()
+                                let archs = parts[1].split(',').collect();
+
+                                for a in &archs {
+                                    if !ALL_ARCH.contains(a) {
+                                        bot.send_message(
+                                            msg.chat.id,
+                                            "Architecture {a} does not support.",
+                                        )
+                                        .await?;
+                                        return Ok(());
+                                    }
+                                }
+
+                                archs
                             };
 
                             build(
