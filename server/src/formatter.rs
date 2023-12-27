@@ -57,7 +57,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         },
         if let Some(pr) = job.github_pr {
             format!(
-                "<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">{}</a>\n",
+                "<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>\n",
                 pr, pr
             )
         } else {
@@ -140,5 +140,5 @@ fn test_format_html_build_result() {
 
     let s = to_html_build_result(&job, true);
 
-    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n \n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n \n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
 }
