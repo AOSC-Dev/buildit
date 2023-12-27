@@ -69,7 +69,7 @@ async fn build_inner(
 
         // each arch has its own queue
         let queue_name = format!("job-{}", job.arch);
-        ensure_job_queue(&queue_name, &channel).await?;
+        ensure_job_queue(&queue_name, channel).await?;
 
         channel
             .basic_publish(
@@ -114,7 +114,7 @@ async fn build(
     Ok(())
 }
 
-fn handle_archs_args<'a>(archs: Vec<&str>) -> Vec<&str> {
+fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     let mut archs = archs;
     if archs.contains(&"mainline") {
         // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
@@ -406,7 +406,7 @@ pub async fn answer(
                     let archs = parts[4].split(',').collect::<Vec<_>>();
                     handle_archs_args(archs)
                 } else {
-                    get_archs(&path, &pkgs)
+                    get_archs(path, &pkgs)
                 };
 
                 match open_pr(parts, token, secret, msg.chat.id, tags.as_deref(), &archs).await {

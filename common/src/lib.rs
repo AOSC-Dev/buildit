@@ -23,7 +23,6 @@ pub enum JobResult {
     Error(JobError),
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobOk {
     pub job: Job,
