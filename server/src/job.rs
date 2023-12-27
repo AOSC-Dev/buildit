@@ -55,8 +55,16 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
                     JobResult::Ok(job) => {
                         info!("Processing job result {:?} ...", job);
 
-                        let JobOk { job: job_parent, successful_packages, .. } = &job;
-                        let success = &job_parent.packages == successful_packages;
+                        let JobOk {
+                            job: job_parent,
+                            successful_packages,
+                            ..
+                        } = &job;
+
+                        let success = job_parent
+                            .packages
+                            .iter()
+                            .all(|x| successful_packages.contains(x));
 
                         let s = to_html_build_result(&job, success);
 
