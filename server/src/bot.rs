@@ -94,14 +94,7 @@ async fn build(
     msg: &Message,
     channel: &Channel,
 ) -> ResponseResult<()> {
-    let mut archs = archs.to_owned();
-    if archs.contains(&"mainline") {
-        // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
-        archs.extend_from_slice(ALL_ARCH);
-        archs.retain(|arch| *arch != "mainline");
-    }
-    archs.sort();
-    archs.dedup();
+    let archs = handle_archs_args(archs.to_vec());
 
     match build_inner(git_ref, packages, &archs, github_pr, msg, channel).await {
         Ok(()) => {
@@ -119,6 +112,19 @@ async fn build(
         }
     }
     Ok(())
+}
+
+fn handle_archs_args<'a>(archs: Vec<&str>) -> Vec<&str> {
+    let mut archs = archs;
+    if archs.contains(&"mainline") {
+        // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
+        archs.extend_from_slice(ALL_ARCH);
+        archs.retain(|arch| *arch != "mainline");
+    }
+    archs.sort();
+    archs.dedup();
+
+    archs
 }
 
 async fn status(args: &Args) -> anyhow::Result<String> {
@@ -252,7 +258,7 @@ pub async fn answer(
                                 let archs = parts[1].split(',').collect();
 
                                 for a in &archs {
-                                    if !ALL_ARCH.contains(a) {
+                                    if !ALL_ARCH.contains(a) && a != &"mainline" {
                                         bot.send_message(
                                             msg.chat.id,
                                             format!("Architecture {a} does not support."),
@@ -397,7 +403,8 @@ pub async fn answer(
                     .collect::<Vec<_>>();
 
                 let archs = if parts.len() == 5 {
-                    parts[4].split(',').collect::<Vec<_>>()
+                    let archs = parts[4].split(',').collect::<Vec<_>>();
+                    handle_archs_args(archs)
                 } else {
                     get_archs(&path, &pkgs)
                 };
