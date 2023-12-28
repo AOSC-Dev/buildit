@@ -161,52 +161,46 @@ pub async fn open_pr(
                     {
                         Ok(pr) => pr,
                         Err(e) => {
-                            let err = match e {
-                                octocrab::Error::GitHub { ref source, .. } => {
-                                    let err = &source
-                                        .errors
-                                        .as_ref()
-                                        .filter(|errors| !errors.is_empty())
-                                        .and_then(|x| x.last())
-                                        .map(|x| x.to_string());
-
-                                    if let Some(e) = err {
-                                        let ser: Value = serde_json::from_str(e)?;
-                                        let msg = ser.get("message").and_then(|x| x.as_str());
-                                        if let Some(msg) = msg {
-                                            anyhow!("{} {}\n\nErrors:\n{}", FAILED, msg, e)
-                                        } else {
-                                            anyhow!("{e}")
-                                        }
-                                    } else {
-                                        anyhow!("{e}")
-                                    }
-                                }
-                                _ => e.into(),
-                            };
-
-                            return Err(err);
+                            let err = improve_error_message(&e).unwrap_or(e.to_string());
+                            return Err(anyhow!("{err}"));
                         }
                     };
 
                     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
                 }
-                _ => match e {
-                    octocrab::Error::GitHub { ref source, .. } => {
-                        let err = source
-                            .errors
-                            .as_ref()
-                            .and_then(|x| x.first())
-                            .and_then(|x| x.as_str())
-                            .unwrap_or(&source.message);
-
-                        bail!("{} {}\n\nErrors:\n{}", FAILED, err, e);
-                    }
-                    _ => return Err(e.into()),
-                },
+                _ => {
+                    let err = improve_error_message(&e).unwrap_or(e.to_string());
+                    return Err(anyhow!("{err}"));
+                }
             }
         }
     }
+}
+
+fn improve_error_message(e: &octocrab::Error) -> Option<String> {
+    match e {
+        octocrab::Error::GitHub { ref source, .. } => {
+            let err = &source
+                .errors
+                .as_ref()
+                .filter(|errors| !errors.is_empty())
+                .and_then(|x| x.last())
+                .map(|x| x.to_string());
+
+            if let Some(e) = err {
+                let ser: Option<Value> = serde_json::from_str(e).ok();
+                if let Some(ser) = ser {
+                    let msg = ser.get("message").and_then(|x| x.as_str());
+                    if let Some(msg) = msg {
+                        return Some(format!("{} {}\n\nErrors:\n{}", FAILED, msg, e));
+                    }
+                }
+            }
+        }
+        _ => (),
+    }
+
+    None
 }
 
 fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
