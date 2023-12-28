@@ -261,7 +261,7 @@ pub async fn answer(
                                     if !ALL_ARCH.contains(a) && a != &"mainline" {
                                         bot.send_message(
                                             msg.chat.id,
-                                            format!("Architecture {a} does not support."),
+                                            format!("Architecture {a} is not supported."),
                                         )
                                         .await?;
                                         return Ok(());
