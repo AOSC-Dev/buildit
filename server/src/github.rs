@@ -170,7 +170,7 @@ pub async fn open_pr(
                 }
                 _ => {
                     let err = improve_error_message(&e).unwrap_or(e.to_string());
-                    return Err(anyhow!("{err}"));
+                    Err(anyhow!("{err}"))
                 }
             }
         }
@@ -178,20 +178,17 @@ pub async fn open_pr(
 }
 
 fn improve_error_message(e: &octocrab::Error) -> Option<String> {
-    match e {
-        octocrab::Error::GitHub { ref source, .. } => {
-            let err = &source
-                .errors
-                .as_ref()
-                .filter(|errors| !errors.is_empty())
-                .and_then(|x| x.last())
-                .map(|x| x.to_string())?;
+    if let octocrab::Error::GitHub { ref source, .. } = e {
+        let err = &source
+            .errors
+            .as_ref()
+            .filter(|errors| !errors.is_empty())
+            .and_then(|x| x.last())
+            .map(|x| x.to_string())?;
 
-            let ser: Value = serde_json::from_str(&err).ok()?;
-            let msg = ser.get("message").and_then(|x| x.as_str())?;
-            return Some(format!("{} {}\n\nErrors:\n{}", FAILED, msg, e));
-        }
-        _ => (),
+        let ser: Value = serde_json::from_str(err).ok()?;
+        let msg = ser.get("message").and_then(|x| x.as_str())?;
+        return Some(format!("{} {}\n\nErrors:\n{}", FAILED, msg, e));
     }
 
     None
