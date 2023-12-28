@@ -415,7 +415,7 @@ pub async fn answer(
                             .await?
                     }
                     Err(e) => {
-                        bot_send_message_handle_length(&bot, &msg, &format!("Got Error: {e}"))
+                        bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
                             .await?
                     }
                 };

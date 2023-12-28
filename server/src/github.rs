@@ -146,7 +146,7 @@ pub async fn open_pr(
                         .and_then(|x| x.error_for_status())?;
 
                     let token = get_github_token(&msg_chatid, secret).await?;
-                    let pr = open_pr_inner(OpenPR {
+                    let pr = match open_pr_inner(OpenPR {
                         access_token: token.access_token,
                         parts: &parts,
                         id,
@@ -156,13 +156,33 @@ pub async fn open_pr(
                         tags,
                         archs,
                     })
-                    .await?;
+                    .await
+                    {
+                        Ok(pr) => pr,
+                        Err(e) => {
+                            let err = source
+                                .errors
+                                .as_ref()
+                                .and_then(|x| x.first())
+                                .and_then(|x| x.as_str())
+                                .unwrap_or(&source.message);
+
+                            bail!("{} {}\n\n Errors:\n{}", FAILED, err, e);
+                        }
+                    };
 
                     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
                 }
                 _ => match e {
                     octocrab::Error::GitHub { ref source, .. } => {
-                        bail!("{} {}\n\n Errors:\n{}", FAILED, source.message, e);
+                        let err = source
+                            .errors
+                            .as_ref()
+                            .and_then(|x| x.first())
+                            .and_then(|x| x.as_str())
+                            .unwrap_or(&source.message);
+
+                        bail!("{} {}\n\n Errors:\n{}", FAILED, err, e);
                     }
                     _ => return Err(e.into()),
                 },
