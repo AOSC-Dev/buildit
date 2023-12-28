@@ -458,14 +458,9 @@ pub async fn answer(
                 };
             }
         }
-        Command::Queue => match all_arch_queue(&channel).await {
-            Ok(m) => {
-                bot.send_message(msg.chat.id, m.join("\n")).await?;
-            }
-            Err(e) => {
-                bot.send_message(msg.chat.id, e.to_string()).await?;
-            }
-        },
+        Command::Queue =>  {
+            bot.send_message(msg.chat.id, all_arch_queue(&channel).await.join("\n")).await?;
+        }
     };
 
     Ok(())

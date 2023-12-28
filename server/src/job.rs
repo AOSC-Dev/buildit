@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail};
 use common::{JobError, JobOk, JobResult};
 use futures::StreamExt;
 use lapin::{
-    options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
+    options::{BasicAckOptions, BasicConsumeOptions, BasicGetOptions, QueueDeclareOptions},
     types::FieldTable,
     Channel, ConnectionProperties,
 };
@@ -16,32 +16,23 @@ use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
 
 /// All arch queue
-pub async fn all_arch_queue(channel: &Channel) -> anyhow::Result<Vec<String>> {
+pub async fn all_arch_queue(channel: &Channel) -> Vec<String> {
     let mut res = vec![];
     for i in ALL_ARCH {
         let queue = channel
-            .basic_consume(
-                &format!("job-{i}"),
-                "",
-                BasicConsumeOptions::default(),
-                FieldTable::default(),
-            )
-            .await;
+            .basic_get(&format!("job-{i}"), BasicGetOptions::default())
+            .await
+            .ok()
+            .and_then(|x| x);
 
-        let mut cons = queue?;
+        dbg!(&queue);
 
-        while let Some(de) = cons.next().await {
-            match de {
-                Ok(d) => res.push(String::from_utf8_lossy(&d.data).to_string()),
-                Err(e) => {
-                    error!("{e}");
-                    continue;
-                }
-            }
+        if let Some(msg) = queue {
+            res.push(String::from_utf8_lossy(&msg.data).to_string());
         }
     }
 
-    Ok(res)
+   res
 }
 
 /// Observe job completion messages
