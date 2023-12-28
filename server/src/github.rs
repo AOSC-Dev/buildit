@@ -185,17 +185,11 @@ fn improve_error_message(e: &octocrab::Error) -> Option<String> {
                 .as_ref()
                 .filter(|errors| !errors.is_empty())
                 .and_then(|x| x.last())
-                .map(|x| x.to_string());
+                .map(|x| x.to_string())?;
 
-            if let Some(e) = err {
-                let ser: Option<Value> = serde_json::from_str(e).ok();
-                if let Some(ser) = ser {
-                    let msg = ser.get("message").and_then(|x| x.as_str());
-                    if let Some(msg) = msg {
-                        return Some(format!("{} {}\n\nErrors:\n{}", FAILED, msg, e));
-                    }
-                }
-            }
+            let ser: Value = serde_json::from_str(&err).ok()?;
+            let msg = ser.get("message").and_then(|x| x.as_str())?;
+            return Some(format!("{} {}\n\nErrors:\n{}", FAILED, msg, e));
         }
         _ => (),
     }
