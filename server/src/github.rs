@@ -167,7 +167,7 @@ pub async fn open_pr(
                                         .errors
                                         .as_ref()
                                         .filter(|errors| !errors.is_empty())
-                                        .and_then(|x| x.first())
+                                        .and_then(|x| x.last())
                                         .map(|x| x.to_string());
 
                                     if let Some(e) = err {
