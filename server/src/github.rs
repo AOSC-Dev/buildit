@@ -15,6 +15,7 @@ use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
 
 use crate::{
+    formatter::FAILED,
     utils::{for_each_abbs, read_ab_with_apml},
     ARGS,
 };
@@ -159,7 +160,12 @@ pub async fn open_pr(
 
                     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
                 }
-                _ => Err(e.into()),
+                _ => match e {
+                    octocrab::Error::GitHub { ref source, .. } => {
+                        bail!("{} {}\n\n Errors:\n{}", FAILED, source.message, e);
+                    }
+                    _ => return Err(e.into()),
+                },
             }
         }
     }

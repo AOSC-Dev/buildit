@@ -1,5 +1,8 @@
 use common::JobOk;
 
+pub const SUCCESS: &str = "✅️";
+pub const FAILED: &str = "❌";
+
 pub fn to_html_new_job_summary(
     git_ref: &str,
     github_pr: Option<u64>,
@@ -46,7 +49,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
 <b>Package(s) not built due to previous build failure</b>: {}
 
 <a href="{}">Build Log >></a>"#,
-        if success { "✅️" } else { "❌" },
+        if success { SUCCESS } else { FAILED },
         &worker.hostname,
         worker.arch,
         &format!("{:.2?}", elapsed),
@@ -86,7 +89,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
 
     format!(
         "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n[Build Log \\>\\>]({})\n",
-        if success { "✅️" } else { "❌" },
+        if success { SUCCESS } else { FAILED },
         worker.hostname,
         worker.arch,
         format_args!("{:.2?}", elapsed),
