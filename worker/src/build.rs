@@ -240,61 +240,66 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
             }
         };
 
-        if let Ok(job) = serde_json::from_slice::<Job>(&delivery.data) {
-            info!("Processing job {:?}", job);
+        match serde_json::from_slice::<Job>(&delivery.data) {
+            Ok(job) => {
+                info!("Processing job {:?}", job);
 
-            match build(&job, &tree_path, args).await {
-                Ok(result) => {
-                    channel
-                        .basic_publish(
-                            "",
-                            "job-completion",
-                            BasicPublishOptions::default(),
-                            &serde_json::to_vec(&result).unwrap(),
-                            BasicProperties::default(),
-                        )
-                        .await?
-                        .await?;
+                match build(&job, &tree_path, args).await {
+                    Ok(result) => {
+                        channel
+                            .basic_publish(
+                                "",
+                                "job-completion",
+                                BasicPublishOptions::default(),
+                                &serde_json::to_vec(&result).unwrap(),
+                                BasicProperties::default(),
+                            )
+                            .await?
+                            .await?;
 
-                    // finish
-                    if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
-                        warn!("Failed to ack job {:?} with err {:?}", delivery, err);
-                    } else {
-                        info!("Finish ack-ing job {:?}", delivery.delivery_tag);
+                        // finish
+                        if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
+                            warn!("Failed to ack job {:?} with err {:?}", delivery, err);
+                        } else {
+                            info!("Finish ack-ing job {:?}", delivery.delivery_tag);
+                        }
+                    }
+                    Err(err) => {
+                        warn!("Failed to run job {:?} with err {:?}", delivery, err);
+
+                        channel
+                            .basic_publish(
+                                "",
+                                "job-completion",
+                                BasicPublishOptions::default(),
+                                &serde_json::to_vec(&JobResult::Error(JobError {
+                                    job,
+                                    worker: WorkerIdentifier {
+                                        hostname: gethostname::gethostname()
+                                            .to_string_lossy()
+                                            .to_string(),
+                                        arch: args.arch.clone(),
+                                        pid: std::process::id(),
+                                    },
+                                    error: err.to_string(),
+                                }))
+                                .unwrap(),
+                                BasicProperties::default(),
+                            )
+                            .await?
+                            .await?;
+
+                        // finish
+                        if let Err(err) = delivery.nack(BasicNackOptions::default()).await {
+                            warn!("Failed to nack job {:?} with err {:?}", delivery, err);
+                        } else {
+                            info!("Finish nack-ing job {:?}", delivery.delivery_tag);
+                        }
                     }
                 }
-                Err(err) => {
-                    warn!("Failed to run job {:?} with err {:?}", delivery, err);
-
-                    channel
-                        .basic_publish(
-                            "",
-                            "job-completion",
-                            BasicPublishOptions::default(),
-                            &serde_json::to_vec(&JobResult::Error(JobError {
-                                job,
-                                worker: WorkerIdentifier {
-                                    hostname: gethostname::gethostname()
-                                        .to_string_lossy()
-                                        .to_string(),
-                                    arch: args.arch.clone(),
-                                    pid: std::process::id(),
-                                },
-                                error: err.to_string(),
-                            }))
-                            .unwrap(),
-                            BasicProperties::default(),
-                        )
-                        .await?
-                        .await?;
-
-                    // finish
-                    if let Err(err) = delivery.nack(BasicNackOptions::default()).await {
-                        warn!("Failed to nack job {:?} with err {:?}", delivery, err);
-                    } else {
-                        info!("Finish nack-ing job {:?}", delivery.delivery_tag);
-                    }
-                }
+            }
+            Err(err) => {
+                warn!("Got invalid job description: {:?}", err);
             }
         }
     }
