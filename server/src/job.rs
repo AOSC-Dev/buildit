@@ -8,7 +8,7 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
     types::FieldTable,
-    ConnectionProperties,
+    ConnectionProperties, message::Delivery,
 };
 use log::{error, info, warn};
 use std::time::Duration;
@@ -67,7 +67,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
     Ok(())
 }
 
-async fn ack_delivery(delivery: lapin::message::Delivery) {
+pub async fn ack_delivery(delivery: Delivery) {
     if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
         warn!(
             "Failed to delete job result {:?}, error: {:?}",
@@ -85,7 +85,7 @@ enum HandleSuccessResult {
 }
 
 async fn handle_success_message(
-    delivery: &lapin::message::Delivery,
+    delivery: &Delivery,
     bot: &Bot,
     retry: Option<u8>,
 ) -> HandleSuccessResult {

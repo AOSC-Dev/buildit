@@ -42,12 +42,12 @@ pub enum Command {
     Start(String),
 }
 
-async fn build_inner(
+pub async fn build_inner(
     git_ref: &str,
     packages: &[String],
     archs: &Vec<&str>,
     github_pr: Option<u64>,
-    msg: &Message,
+    source: JobSource,
     channel: &Channel,
 ) -> anyhow::Result<()> {
     // for each arch, create a job
@@ -60,7 +60,7 @@ async fn build_inner(
             } else {
                 arch.to_string()
             },
-            source: JobSource::Telegram(msg.chat.id),
+            source: source.clone(),
             github_pr,
             noarch: arch == &"noarch",
         };
@@ -97,7 +97,7 @@ async fn build(
 ) -> ResponseResult<()> {
     let archs = handle_archs_args(archs.to_vec());
 
-    match build_inner(git_ref, packages, &archs, github_pr, msg, channel).await {
+    match build_inner(git_ref, packages, &archs, github_pr, JobSource::Telegram(msg.chat.id), channel).await {
         Ok(()) => {
             bot.send_message(
                 msg.chat.id,

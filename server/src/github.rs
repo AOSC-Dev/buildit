@@ -1,6 +1,8 @@
-use std::{borrow::Cow, collections::HashMap, path::Path};
+use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{anyhow, bail, Context};
+use common::JobSource;
+use futures::StreamExt;
 use gix::{
     prelude::ObjectIdExt,
     sec::{self, trust::DefaultForLevel},
@@ -8,6 +10,11 @@ use gix::{
 };
 
 use jsonwebtoken::EncodingKey;
+use lapin::{
+    options::{BasicConsumeOptions, QueueDeclareOptions},
+    types::FieldTable,
+    Channel,
+};
 use log::{debug, error, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
@@ -16,8 +23,10 @@ use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
 
 use crate::{
-    formatter::FAILED,
-    utils::{for_each_abbs, read_ab_with_apml},
+    bot::build_inner,
+    formatter::{to_html_new_job_summary, FAILED},
+    job::ack_delivery,
+    utils::{for_each_abbs, get_archs, read_ab_with_apml},
     ARGS,
 };
 
@@ -613,6 +622,156 @@ fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     let repository = shared_repo.to_thread_local();
 
     Ok(repository)
+}
+
+#[derive(Debug, Deserialize)]
+struct WebhookComment {
+    comment: Comment,
+}
+
+#[derive(Debug, Deserialize)]
+struct Comment {
+    issue_url: String,
+    user: User,
+    body: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct User {
+    login: String,
+}
+
+pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow::Result<()> {
+    let _queue = channel
+        .queue_declare(
+            "github-webhooks",
+            QueueDeclareOptions {
+                durable: true,
+                ..QueueDeclareOptions::default()
+            },
+            FieldTable::default(),
+        )
+        .await?;
+
+    let mut consumer = channel
+        .basic_consume(
+            "github-webhooks",
+            "",
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
+
+    while let Some(delivery) = consumer.next().await {
+        let delivery = match delivery {
+            Ok(delivery) => delivery,
+            Err(err) => {
+                error!("Got error in lapin delivery: {}", err);
+                continue;
+            }
+        };
+
+        if let Ok(comment) = serde_json::from_slice::<WebhookComment>(&delivery.data) {
+            if !comment.comment.body.starts_with("@aosc-buildit-bot") {
+                continue;
+            }
+
+            let body = comment
+                .comment
+                .body
+                .split_ascii_whitespace()
+                .skip(1)
+                .collect::<Vec<_>>();
+
+            if body[0] != "build" {
+                continue;
+            }
+
+            let num = comment
+                .comment
+                .issue_url
+                .split('/')
+                .last()
+                .and_then(|x| x.parse::<u64>().ok())
+                .ok_or_else(|| anyhow!("Failed to get pr number"))?;
+
+            let pr = octocrab::instance()
+                .pulls("AOSC-Dev", "aosc-os-abbs")
+                .get(num)
+                .await?;
+
+            let packages: Vec<String> = pr
+                .body
+                .and_then(|body| {
+                    body.lines()
+                        .filter(|line| line.starts_with("#buildit"))
+                        .map(|line| {
+                            line.trim()
+                                .split_ascii_whitespace()
+                                .map(str::to_string)
+                                .skip(1)
+                                .collect::<Vec<_>>()
+                        })
+                        .next()
+                })
+                .unwrap_or_else(Vec::new);
+
+            let archs = if let Some(archs) = body.get(1) {
+                archs.split(',').collect::<Vec<_>>()
+            } else {
+                get_archs(path, &packages)
+            };
+
+            let git_ref = pr.base.ref_field;
+
+            let client = reqwest::Client::new();
+            match client
+                .get(format!(
+                    "https://api.github.com/orgs/aosc-dev/public_members/@{}",
+                    comment.comment.user.login
+                ))
+                .send()
+                .await
+                .and_then(|x| x.error_for_status())
+            {
+                Ok(_) => {
+                    match build_inner(
+                        &git_ref,
+                        &packages,
+                        &archs,
+                        Some(num),
+                        JobSource::Github(num),
+                        &channel,
+                    )
+                    .await
+                    {
+                        Ok(()) => {
+                            if let Some(github_access_token) = &ARGS.github_access_token {
+                                let crab = octocrab::Octocrab::builder()
+                                    .user_access_token(github_access_token.clone())
+                                    .build()?;
+
+                                let s =
+                                    to_html_new_job_summary(&git_ref, Some(num), &archs, &packages);
+
+                                crab.issues("AOSC-Dev", "aosc-os-abbs")
+                                    .create_comment(num, s)
+                                    .await?;
+                            }
+                        }
+                        Err(e) => {
+                            error!("{e}");
+                        }
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        ack_delivery(delivery).await;
+    }
+
+    Ok(())
 }
 
 #[test]
