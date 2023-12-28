@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail};
 use common::{JobError, JobOk, JobResult};
 use futures::StreamExt;
 use lapin::{
-    options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
+    options::{BasicAckOptions, BasicConsumeOptions, BasicGetOptions, QueueDeclareOptions},
     types::FieldTable,
     Channel, ConnectionProperties,
 };
@@ -20,27 +20,16 @@ pub async fn all_arch_queue(channel: &Channel) -> Vec<String> {
     let mut res = vec![];
     for i in ALL_ARCH {
         let queue = channel
-            .basic_consume(
-                &format!("job-{i}"),
-                "backend_server",
-                BasicConsumeOptions::default(),
-                FieldTable::default(),
-            )
-            .await;
+            .basic_get(&format!("job-{i}"), BasicGetOptions::default())
+            .await
+            .ok()
+            .and_then(|x| x);
 
-        if let Ok(mut consumer) = queue {
-            while let Some(delivery) = consumer.next().await {
-                let delivery = match delivery {
-                    Ok(delivery) => delivery,
-                    Err(err) => {
-                        error!("Got error in lapin delivery: {}", err);
-                        continue;
-                    }
-                };
+        if let Some(queue) = queue {
+            let delivery = queue.delivery;
 
-                let s = String::from_utf8_lossy(&delivery.data).to_string();
-                res.push(s);
-            }
+            let s = String::from_utf8_lossy(&delivery.data).to_string();
+            res.push(s);
         }
     }
 
