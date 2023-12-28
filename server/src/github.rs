@@ -11,6 +11,7 @@ use jsonwebtoken::EncodingKey;
 use log::{debug, error, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
 
@@ -160,14 +161,31 @@ pub async fn open_pr(
                     {
                         Ok(pr) => pr,
                         Err(e) => {
-                            let err = source
-                                .errors
-                                .as_ref()
-                                .and_then(|x| x.first())
-                                .and_then(|x| x.as_str())
-                                .unwrap_or(&source.message);
+                            let err = match e {
+                                octocrab::Error::GitHub { ref source, .. } => {
+                                    let err = &source
+                                        .errors
+                                        .as_ref()
+                                        .filter(|errors| !errors.is_empty())
+                                        .and_then(|x| x.first())
+                                        .map(|x| x.to_string());
 
-                            bail!("{} {}\n\n Errors:\n{}", FAILED, err, e);
+                                    if let Some(e) = err {
+                                        let ser: Value = serde_json::from_str(e)?;
+                                        let msg = ser.get("message").and_then(|x| x.as_str());
+                                        if let Some(msg) = msg {
+                                            anyhow!("{} {}\n\nErrors:\n{}", FAILED, msg, e)
+                                        } else {
+                                            anyhow!("{e}")
+                                        }
+                                    } else {
+                                        anyhow!("{e}")
+                                    }
+                                }
+                                _ => e.into(),
+                            };
+
+                            return Err(err);
                         }
                     };
 
@@ -182,7 +200,7 @@ pub async fn open_pr(
                             .and_then(|x| x.as_str())
                             .unwrap_or(&source.message);
 
-                        bail!("{} {}\n\n Errors:\n{}", FAILED, err, e);
+                        bail!("{} {}\n\nErrors:\n{}", FAILED, err, e);
                     }
                     _ => return Err(e.into()),
                 },
