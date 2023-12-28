@@ -1,7 +1,7 @@
 use crate::{
     formatter::{to_html_build_result, to_markdown_build_result},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
-    ARGS,
+    ALL_ARCH, ARGS,
 };
 use anyhow::{anyhow, bail};
 use common::{JobError, JobOk, JobResult};
@@ -9,11 +9,43 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
     types::FieldTable,
-    ConnectionProperties,
+    Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
+
+/// All arch queue
+pub async fn all_arch_queue(channel: &Channel) -> Vec<String> {
+    let mut res = vec![];
+    for i in ALL_ARCH {
+        let queue = channel
+            .basic_consume(
+                &format!("job-{i}"),
+                "backend_server",
+                BasicConsumeOptions::default(),
+                FieldTable::default(),
+            )
+            .await;
+
+        if let Ok(mut consumer) = queue {
+            while let Some(delivery) = consumer.next().await {
+                let delivery = match delivery {
+                    Ok(delivery) => delivery,
+                    Err(err) => {
+                        error!("Got error in lapin delivery: {}", err);
+                        continue;
+                    }
+                };
+
+                let s = String::from_utf8_lossy(&delivery.data).to_string();
+                res.push(s);
+            }
+        }
+    }
+
+    res
+}
 
 /// Observe job completion messages
 pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::Result<()> {

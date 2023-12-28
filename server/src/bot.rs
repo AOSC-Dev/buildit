@@ -3,6 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     formatter::to_html_new_job_summary,
     github::{get_github_token, login_github, open_pr},
+    job::all_arch_queue,
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
 };
@@ -40,6 +41,8 @@ pub enum Command {
     Login,
     #[command(description = "Start bot")]
     Start(String),
+    #[command(description = "All queue entries")]
+    Queue,
 }
 
 async fn build_inner(
@@ -454,6 +457,10 @@ pub async fn answer(
                     }
                 };
             }
+        }
+        Command::Queue => {
+            bot.send_message(msg.chat.id, all_arch_queue(&channel).await.join("\n"))
+                .await?;
         }
     };
 
