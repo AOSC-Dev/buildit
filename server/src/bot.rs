@@ -445,11 +445,11 @@ pub async fn answer(
 
                 match resp {
                     Ok(_) => {
-                        bot.send_message(msg.chat.id, "Successful to login.")
+                        bot.send_message(msg.chat.id, "Login successful!")
                             .await?
                     }
                     Err(e) => {
-                        bot_send_message_handle_length(&bot, &msg, &format!("Got error: {e}"))
+                        bot_send_message_handle_length(&bot, &msg, &format!("Login failed with error: {e}"))
                             .await?
                     }
                 };
