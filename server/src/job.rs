@@ -197,11 +197,7 @@ async fn handle_success_message(
                                     Ok(pr) => pr,
                                     Err(e) => {
                                         error!("{e}");
-                                        if let Some(retry) = retry {
-                                            return HandleSuccessResult::Retry(retry + 1);
-                                        } else {
-                                            return HandleSuccessResult::Retry(1);
-                                        }
+                                        return update_retry(retry);
                                     }
                                 };
 
@@ -219,6 +215,10 @@ async fn handle_success_message(
                                     "mips64r6el" => MIPS64R6EL,
                                     "ppc64el" => PPC64EL,
                                     "riscv64" => RISCV64,
+                                    "loongarch64" => {
+                                        // FIXME: loongarch64 does not in mainline for now
+                                        return HandleSuccessResult::Ok;
+                                    }
                                     x => {
                                         error!("Unknown architecture: {x}");
                                         return HandleSuccessResult::DoNotRetry;

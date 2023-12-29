@@ -124,7 +124,9 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs.sort();
     archs.dedup();
 
-    archs
+    // FIXME: loongarch64 is not in mainline
+    // archs
+    archs.into_iter().filter(|x| x != &"loongarch64").collect()
 }
 
 async fn status(args: &Args) -> anyhow::Result<String> {
@@ -414,10 +416,7 @@ pub async fn answer(
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?
                     }
-                    Err(e) => {
-                        bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
-                            .await?
-                    }
+                    Err(e) => bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?,
                 };
 
                 return Ok(());
@@ -444,13 +443,14 @@ pub async fn answer(
                 let resp = login_github(&msg, arguments).await;
 
                 match resp {
-                    Ok(_) => {
-                        bot.send_message(msg.chat.id, "Login successful!")
-                            .await?
-                    }
+                    Ok(_) => bot.send_message(msg.chat.id, "Login successful!").await?,
                     Err(e) => {
-                        bot_send_message_handle_length(&bot, &msg, &format!("Login failed with error: {e}"))
-                            .await?
+                        bot_send_message_handle_length(
+                            &bot,
+                            &msg,
+                            &format!("Login failed with error: {e}"),
+                        )
+                        .await?
                     }
                 };
             }
