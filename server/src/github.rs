@@ -743,7 +743,8 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
 
             let git_ref = pr.base.ref_field;
 
-            let client = reqwest::Client::new();
+            let client = reqwest::Client::builder().user_agent("buildit").build()?;
+
             match client
                 .get(format!(
                     "https://api.github.com/orgs/aosc-dev/public_members/{}",
@@ -796,7 +797,8 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
                         }
                     }
                 }
-                Err(_) => {
+                Err(e) => {
+                    error!("{e}");
                     error!("{} is not a org user", comment.comment.user.login);
                     ack_delivery(delivery).await;
                     continue;
