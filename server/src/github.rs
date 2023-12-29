@@ -13,7 +13,7 @@ use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use teloxide::types::{ChatId, Message};
-use tokio::{process, task};
+use tokio::{fs, process, task};
 
 use crate::{
     formatter::FAILED,
@@ -492,66 +492,14 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow!("ABBS_PATH is not set"))?;
 
-    info!("Running git checkout -b stable ...");
-
-    process::Command::new("git")
-        .arg("checkout")
-        .arg("-b")
-        .arg("stable")
-        .current_dir(abbs_path)
-        .output()
-        .await?;
-
-    info!("Running git checkout stable ...");
-
-    let cmd = process::Command::new("git")
-        .arg("checkout")
-        .arg("stable")
-        .current_dir(abbs_path)
-        .output()
-        .await?;
-
-    if !cmd.status.success() {
-        bail!("Failed to checkout stable");
+    if abbs_path.exists() {
+        fs::remove_dir_all(abbs_path).await?;
     }
 
-    info!("Running git pull ...");
-
     process::Command::new("git")
-        .arg("pull")
-        .current_dir(abbs_path)
-        .output()
-        .await?;
-
-    info!("Running git reset FETCH_HEAD --head ...");
-
-    process::Command::new("git")
-        .args(["reset", "FETCH_HEAD", "--hard"])
-        .current_dir(abbs_path)
-        .output()
-        .await?;
-
-    info!("Running git fetch origin {git_ref} ...");
-
-    let cmd = process::Command::new("git")
-        .arg("fetch")
-        .arg("origin")
-        .arg(git_ref)
-        .current_dir(abbs_path)
-        .output()
-        .await?;
-
-    if !cmd.status.success() {
-        bail!("Failed to fetch origin git-ref: {git_ref}");
-    }
-
-    info!("Running git checkout -b {git_ref} ...");
-
-    process::Command::new("git")
-        .arg("checkout")
-        .arg("-b")
-        .arg(git_ref)
-        .current_dir(abbs_path)
+        .arg("clone")
+        .arg("https://github.com/aosc-dev/aosc-os-abbs")
+        .arg(abbs_path)
         .output()
         .await?;
 
@@ -567,14 +515,6 @@ async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     if !cmd.status.success() {
         bail!("Failed to checkout {git_ref}");
     }
-
-    info!("Running git reset FETCH_HEAD --hard ...");
-
-    process::Command::new("git")
-        .args(["reset", "FETCH_HEAD", "--hard"])
-        .current_dir(abbs_path)
-        .output()
-        .await?;
 
     Ok(())
 }
