@@ -230,7 +230,6 @@ async fn handle_webhook_comment(
         Err(e) => {
             error!("{e}");
             error!("{} is not a org user", comment.comment.user.login);
-            error!("{e}");
             return HandleSuccessResult::DoNotRetry;
         }
     }
