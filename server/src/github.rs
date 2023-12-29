@@ -746,7 +746,7 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
             let client = reqwest::Client::new();
             match client
                 .get(format!(
-                    "https://api.github.com/orgs/aosc-dev/public_members/@{}",
+                    "https://api.github.com/orgs/aosc-dev/public_members/{}",
                     comment.comment.user.login
                 ))
                 .send()
