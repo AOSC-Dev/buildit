@@ -6,9 +6,10 @@ use crate::{
 use common::{JobError, JobOk, JobResult, JobSource};
 use futures::StreamExt;
 use lapin::{
+    message::Delivery,
     options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
     types::FieldTable,
-    ConnectionProperties, message::Delivery,
+    ConnectionProperties,
 };
 use log::{error, info, warn};
 use std::time::Duration;

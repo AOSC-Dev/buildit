@@ -92,9 +92,9 @@ pub fn read_ab_with_apml(file: &str) -> HashMap<String, String> {
         Err(e) => {
             error!("{e}, buildit will use fallback method to parse file");
             for line in file.split('\n') {
-                let stmt = line.split_once("=");
+                let stmt = line.split_once('=');
                 if let Some((name, value)) = stmt {
-                    context.insert(name.to_string(), value.replace("\"", ""));
+                    context.insert(name.to_string(), value.replace('\"', ""));
                 }
             }
         }

@@ -97,7 +97,16 @@ async fn build(
 ) -> ResponseResult<()> {
     let archs = handle_archs_args(archs.to_vec());
 
-    match build_inner(git_ref, packages, &archs, github_pr, JobSource::Telegram(msg.chat.id), channel).await {
+    match build_inner(
+        git_ref,
+        packages,
+        &archs,
+        github_pr,
+        JobSource::Telegram(msg.chat.id),
+        channel,
+    )
+    .await
+    {
         Ok(()) => {
             bot.send_message(
                 msg.chat.id,

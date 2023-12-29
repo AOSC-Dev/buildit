@@ -42,7 +42,7 @@ async fn main() {
         .build();
 
     if let Err(e) = tokio::select! {
-        v = get_webhooks_message(channel, &path) => v,
+        v = get_webhooks_message(channel, path) => v,
         v = telegram.dispatch() => anyhow::Ok(v)
     } {
         error!("{e}")
