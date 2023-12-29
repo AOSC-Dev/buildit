@@ -3,13 +3,13 @@ use crate::{
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
     ARGS,
 };
-use common::{JobError, JobOk, JobResult, JobSource};
+use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, JobSource};
 use futures::StreamExt;
 use lapin::{
     message::Delivery,
-    options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
+    options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
     types::FieldTable,
-    ConnectionProperties,
+    BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
 use std::time::Duration;
@@ -288,4 +288,48 @@ pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Resul
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
+}
+
+pub async fn send_build_request(
+    git_ref: &str,
+    packages: &[String],
+    archs: &[&str],
+    github_pr: Option<u64>,
+    source: JobSource,
+    channel: &Channel,
+) -> anyhow::Result<()> {
+    // for each arch, create a job
+    for arch in archs {
+        let job = Job {
+            packages: packages.iter().map(|s| s.to_string()).collect(),
+            git_ref: git_ref.to_string(),
+            arch: if arch == &"noarch" {
+                "amd64".to_string()
+            } else {
+                arch.to_string()
+            },
+            source: source.clone(),
+            github_pr,
+            noarch: arch == &"noarch",
+        };
+
+        info!("Adding job to message queue {:?} ...", job);
+
+        // each arch has its own queue
+        let queue_name = format!("job-{}", job.arch);
+        ensure_job_queue(&queue_name, channel).await?;
+
+        channel
+            .basic_publish(
+                "",
+                &queue_name,
+                BasicPublishOptions::default(),
+                &serde_json::to_vec(&job)?,
+                BasicProperties::default(),
+            )
+            .await?
+            .await?;
+    }
+
+    Ok(())
 }

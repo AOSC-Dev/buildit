@@ -3,13 +3,13 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     formatter::to_html_new_job_summary,
     github::{get_github_token, login_github, open_pr},
+    job::send_build_request,
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
-use common::{ensure_job_queue, Job, JobSource};
-use lapin::{options::BasicPublishOptions, BasicProperties, Channel, ConnectionProperties};
-use log::info;
+use common::{ensure_job_queue, JobSource};
+use lapin::{Channel, ConnectionProperties};
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
@@ -42,51 +42,7 @@ pub enum Command {
     Start(String),
 }
 
-pub async fn build_inner(
-    git_ref: &str,
-    packages: &[String],
-    archs: &Vec<&str>,
-    github_pr: Option<u64>,
-    source: JobSource,
-    channel: &Channel,
-) -> anyhow::Result<()> {
-    // for each arch, create a job
-    for arch in archs {
-        let job = Job {
-            packages: packages.iter().map(|s| s.to_string()).collect(),
-            git_ref: git_ref.to_string(),
-            arch: if arch == &"noarch" {
-                "amd64".to_string()
-            } else {
-                arch.to_string()
-            },
-            source: source.clone(),
-            github_pr,
-            noarch: arch == &"noarch",
-        };
-
-        info!("Adding job to message queue {:?} ...", job);
-
-        // each arch has its own queue
-        let queue_name = format!("job-{}", job.arch);
-        ensure_job_queue(&queue_name, channel).await?;
-
-        channel
-            .basic_publish(
-                "",
-                &queue_name,
-                BasicPublishOptions::default(),
-                &serde_json::to_vec(&job)?,
-                BasicProperties::default(),
-            )
-            .await?
-            .await?;
-    }
-
-    Ok(())
-}
-
-async fn build(
+async fn telegram_send_build_request(
     bot: &Bot,
     git_ref: &str,
     packages: &[String],
@@ -97,7 +53,7 @@ async fn build(
 ) -> ResponseResult<()> {
     let archs = handle_archs_args(archs.to_vec());
 
-    match build_inner(
+    match send_build_request(
         git_ref,
         packages,
         &archs,
@@ -283,7 +239,7 @@ pub async fn answer(
                                 archs
                             };
 
-                            build(
+                            telegram_send_build_request(
                                 &bot,
                                 git_ref,
                                 &packages,
@@ -324,7 +280,7 @@ pub async fn answer(
                 let git_ref = parts[0];
                 let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(',').collect();
-                build(&bot, git_ref, &packages, &archs, None, &msg, &channel).await?;
+                telegram_send_build_request(&bot, git_ref, &packages, &archs, None, &msg, &channel).await?;
                 return Ok(());
             }
 

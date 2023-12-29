@@ -12,9 +12,8 @@ use log::{error, info};
 use serde::Deserialize;
 
 use crate::{
-    bot::build_inner,
     formatter::to_html_new_job_summary,
-    job::{ack_delivery, update_retry, HandleSuccessResult},
+    job::{ack_delivery, update_retry, HandleSuccessResult, send_build_request},
     utils::get_archs,
     ARGS,
 };
@@ -186,7 +185,7 @@ async fn handle_webhook_comment(
         .and_then(|x| x.error_for_status())
     {
         Ok(_) => {
-            match build_inner(
+            match send_build_request(
                 &git_ref,
                 &packages,
                 &archs,
