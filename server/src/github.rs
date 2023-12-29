@@ -23,7 +23,7 @@ use crate::{
 
 macro_rules! PR {
     () => {
-        "Topic Description\n-----------------\n\n{}Package(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
+        "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
     };
 }
 
@@ -247,10 +247,11 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
         if i == COMMITS_COUNT_LIMIT {
             let more = commits.len() - COMMITS_COUNT_LIMIT;
             if more > 0 {
-                s.push_str(&format!("\n... and {more} more commits\n"));
+                s.push_str(&format!("\n... and {more} more commits"));
             }
             break;
         }
+
         s.push_str(&format!("- {}\n", c.msg.0));
         if let Some(body) = &c.msg.1 {
             let body = body.split('\n');
@@ -258,6 +259,10 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
                 s.push_str(&format!("    {line}\n"));
             }
         }
+    }
+
+    while s.ends_with('\n') {
+        s.pop();
     }
 
     Ok(s)
@@ -575,4 +580,21 @@ fn test_auto_add_label() {
             "security".to_string()
         ]
     );
+}
+
+#[test]
+fn test_format_commit() {
+    let msgs = handle_commits(&[
+        Commit {
+            _id: "123".to_string(),
+            msg: ("abc".to_string(), None),
+        },
+        Commit {
+            _id: "456".to_string(),
+            msg: ("def".to_string(), None),
+        },
+    ])
+    .unwrap();
+
+    dbg!(msgs);
 }
