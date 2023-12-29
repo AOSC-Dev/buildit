@@ -25,6 +25,7 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
             FieldTable::default(),
         )
         .await?;
+
     while let Some(delivery) = consumer.next().await {
         let delivery = match delivery {
             Ok(delivery) => delivery,

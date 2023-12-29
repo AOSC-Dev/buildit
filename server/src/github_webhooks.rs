@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use common::JobSource;
 use futures::StreamExt;
 use lapin::{
@@ -9,11 +9,12 @@ use lapin::{
     Channel,
 };
 use log::{error, info};
+use reqwest::StatusCode;
 use serde::Deserialize;
 
 use crate::{
     formatter::to_html_new_job_summary,
-    job::{ack_delivery, update_retry, HandleSuccessResult, send_build_request},
+    job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
     utils::get_archs,
     ARGS,
 };
@@ -102,6 +103,7 @@ async fn handle_webhook_comment(
     let body = comment
         .comment
         .body
+        .trim()
         .split_ascii_whitespace()
         .skip(1)
         .collect::<Vec<_>>();
@@ -167,71 +169,92 @@ async fn handle_webhook_comment(
         &pr.head.ref_field
     };
 
-    let client = match reqwest::Client::builder().user_agent("buildit").build() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("{e}");
-            return HandleSuccessResult::DoNotRetry;
-        }
-    };
+    let is_org_user = is_org_user(&comment.comment.user.login).await;
 
-    match client
-        .get(format!(
-            "https://api.github.com/orgs/aosc-dev/public_members/{}",
-            comment.comment.user.login
-        ))
-        .send()
-        .await
-        .and_then(|x| x.error_for_status())
-    {
-        Ok(_) => {
-            match send_build_request(
-                &git_ref,
-                &packages,
-                &archs,
-                Some(num),
-                JobSource::Github(num),
-                &channel,
-            )
-            .await
-            {
-                Ok(()) => {
-                    if let Some(github_access_token) = &ARGS.github_access_token {
-                        let crab = match octocrab::Octocrab::builder()
-                            .user_access_token(github_access_token.clone())
-                            .build()
-                        {
-                            Ok(v) => v,
-                            Err(e) => {
-                                error!("{e}");
-                                return update_retry(retry);
-                            }
-                        };
-
-                        let s = to_html_new_job_summary(&git_ref, Some(num), &archs, &packages);
-
-                        if let Err(e) = crab
-                            .issues("AOSC-Dev", "aosc-os-abbs")
-                            .create_comment(num, s)
-                            .await
-                        {
-                            error!("{e}");
-                            return update_retry(retry);
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("{e}");
-                    return update_retry(retry);
-                }
-            }
-        }
-        Err(e) => {
-            error!("{e}");
+    match is_org_user {
+        Ok(true) => (),
+        Ok(false) => {
             error!("{} is not a org user", comment.comment.user.login);
             return HandleSuccessResult::DoNotRetry;
+        }
+        Err(e) => {
+            error!("{e}");
+            return update_retry(retry);
+        }
+    }
+
+    match send_build_request(
+        &git_ref,
+        &packages,
+        &archs,
+        Some(num),
+        JobSource::Github(num),
+        &channel,
+    )
+    .await
+    {
+        Ok(()) => create_github_comment(retry, git_ref, num, archs, &packages).await,
+        Err(e) => {
+            error!("{e}");
+            return update_retry(retry);
+        }
+    }
+}
+
+async fn create_github_comment(
+    retry: Option<u8>,
+    git_ref: &str,
+    num: u64,
+    archs: Vec<&str>,
+    packages: &[String],
+) -> HandleSuccessResult {
+    if let Some(github_access_token) = &ARGS.github_access_token {
+        let crab = match octocrab::Octocrab::builder()
+            .user_access_token(github_access_token.clone())
+            .build()
+        {
+            Ok(v) => v,
+            Err(e) => {
+                error!("{e}");
+                return HandleSuccessResult::DoNotRetry;
+            }
+        };
+
+        let s = to_html_new_job_summary(&git_ref, Some(num), &archs, &packages);
+
+        if let Err(e) = crab
+            .issues("AOSC-Dev", "aosc-os-abbs")
+            .create_comment(num, s)
+            .await
+        {
+            error!("{e}");
+            return update_retry(retry);
         }
     }
 
     HandleSuccessResult::Ok
+}
+
+async fn is_org_user(user: &str) -> anyhow::Result<bool> {
+    let client = reqwest::Client::builder().user_agent("buildit").build()?;
+
+    let resp = client
+        .get(format!(
+            "https://api.github.com/orgs/aosc-dev/public_members/{}",
+            user
+        ))
+        .send()
+        .await
+        .and_then(|x| x.error_for_status());
+
+    match resp {
+        Ok(_) => Ok(true),
+        Err(e) if e.is_status() => match e.status() {
+            Some(StatusCode::NOT_FOUND) => Ok(false),
+            _ => bail!("Network is not reachable: {e}"),
+        },
+        Err(e) => {
+            bail!("Network is not reachable: {e}")
+        }
+    }
 }
