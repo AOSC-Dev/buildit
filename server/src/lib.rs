@@ -11,10 +11,10 @@ use std::{
 pub mod bot;
 pub mod formatter;
 pub mod github;
+pub mod github_webhooks;
 pub mod heartbeat;
 pub mod job;
 pub mod utils;
-pub mod github_webhooks;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,

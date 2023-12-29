@@ -231,6 +231,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         )
         .await?;
 
+    info!("Receiving new messages");
     while let Some(delivery) = consumer.next().await {
         let delivery = match delivery {
             Ok(delivery) => delivery,
@@ -307,6 +308,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 }
 
 pub async fn build_worker(args: Args) -> ! {
+    info!("Starting build worker");
     loop {
         if let Err(err) = build_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);

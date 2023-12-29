@@ -1,7 +1,7 @@
 use crate::{ensure_channel, Args};
 use common::{ensure_job_queue, WorkerHeartbeat, WorkerIdentifier};
 use lapin::{options::BasicPublishOptions, BasicProperties};
-use log::warn;
+use log::{info, warn};
 use std::time::Duration;
 
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
@@ -10,6 +10,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     ensure_job_queue(queue_name, &channel).await?;
 
     loop {
+        info!("Sending heartbeat");
         channel
             .basic_publish(
                 "",
@@ -33,6 +34,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
 }
 
 pub async fn heartbeat_worker(args: Args) -> ! {
+    info!("Starting heartbeat worker");
     loop {
         if let Err(err) = heartbeat_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);
