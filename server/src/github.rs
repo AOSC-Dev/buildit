@@ -561,8 +561,7 @@ fn get_repo(path: &Path) -> anyhow::Result<Repository> {
 }
 
 pub fn get_packages_from_pr(pr: &PullRequest) -> Vec<String> {
-    pr
-        .body
+    pr.body
         .as_ref()
         .and_then(|body| {
             body.lines()
@@ -576,7 +575,7 @@ pub fn get_packages_from_pr(pr: &PullRequest) -> Vec<String> {
                 })
                 .next()
         })
-        .unwrap_or_else(Vec::new)
+        .unwrap_or_default()
 }
 
 #[test]

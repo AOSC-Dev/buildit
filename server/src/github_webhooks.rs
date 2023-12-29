@@ -171,19 +171,19 @@ async fn handle_webhook_comment(
     }
 
     match send_build_request(
-        &git_ref,
+        git_ref,
         &packages,
         &archs,
         Some(num),
         JobSource::Github(num),
-        &channel,
+        channel,
     )
     .await
     {
         Ok(()) => create_github_comment(retry, git_ref, num, archs, &packages).await,
         Err(e) => {
             error!("{e}");
-            return update_retry(retry);
+            update_retry(retry)
         }
     }
 }
@@ -207,7 +207,7 @@ async fn create_github_comment(
             }
         };
 
-        let s = to_html_new_job_summary(&git_ref, Some(num), &archs, &packages);
+        let s = to_html_new_job_summary(git_ref, Some(num), &archs, packages);
 
         if let Err(e) = crab
             .issues("AOSC-Dev", "aosc-os-abbs")

@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     formatter::to_html_new_job_summary,
-    github::{get_github_token, login_github, open_pr, get_packages_from_pr},
+    github::{get_github_token, get_packages_from_pr, login_github, open_pr},
     job::send_build_request,
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
@@ -266,7 +266,8 @@ pub async fn answer(
                 let git_ref = parts[0];
                 let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(',').collect();
-                telegram_send_build_request(&bot, git_ref, &packages, &archs, None, &msg, &channel).await?;
+                telegram_send_build_request(&bot, git_ref, &packages, &archs, None, &msg, &channel)
+                    .await?;
                 return Ok(());
             }
 
