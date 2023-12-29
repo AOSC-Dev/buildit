@@ -63,6 +63,7 @@ pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::R
             }
         } else {
             ack_delivery(delivery).await;
+            retry = None;
         }
     }
     Ok(())
@@ -79,7 +80,7 @@ pub async fn ack_delivery(delivery: Delivery) {
     }
 }
 
-enum HandleSuccessResult {
+pub enum HandleSuccessResult {
     Ok,
     Retry(u8),
     DoNotRetry,
@@ -272,7 +273,7 @@ async fn handle_success_message(
     HandleSuccessResult::Ok
 }
 
-fn update_retry(retry: Option<u8>) -> HandleSuccessResult {
+pub fn update_retry(retry: Option<u8>) -> HandleSuccessResult {
     match retry {
         Some(retry) => HandleSuccessResult::Retry(retry + 1),
         None => HandleSuccessResult::Retry(1),
