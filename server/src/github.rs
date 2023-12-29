@@ -560,6 +560,25 @@ fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     Ok(repository)
 }
 
+pub fn get_packages_from_pr(pr: &PullRequest) -> Vec<String> {
+    pr
+        .body
+        .as_ref()
+        .and_then(|body| {
+            body.lines()
+                .filter(|line| line.starts_with("#buildit"))
+                .map(|line| {
+                    line.trim()
+                        .split_ascii_whitespace()
+                        .map(str::to_string)
+                        .skip(1)
+                        .collect::<Vec<_>>()
+                })
+                .next()
+        })
+        .unwrap_or_else(Vec::new)
+}
+
 #[test]
 fn test_auto_add_label() {
     let title = "266: update to 114514";

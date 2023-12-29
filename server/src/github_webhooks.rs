@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 use crate::{
     formatter::to_html_new_job_summary,
+    github::get_packages_from_pr,
     job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
     utils::get_archs,
     ARGS,
@@ -141,21 +142,7 @@ async fn handle_webhook_comment(
         }
     };
 
-    let packages: Vec<String> = pr
-        .body
-        .and_then(|body| {
-            body.lines()
-                .filter(|line| line.starts_with("#buildit"))
-                .map(|line| {
-                    line.trim()
-                        .split_ascii_whitespace()
-                        .map(str::to_string)
-                        .skip(1)
-                        .collect::<Vec<_>>()
-                })
-                .next()
-        })
-        .unwrap_or_else(Vec::new);
+    let packages = get_packages_from_pr(&pr);
 
     let archs = if let Some(archs) = body.get(1) {
         archs.split(',').collect::<Vec<_>>()

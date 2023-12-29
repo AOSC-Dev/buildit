@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     formatter::to_html_new_job_summary,
-    github::{get_github_token, login_github, open_pr},
+    github::{get_github_token, login_github, open_pr, get_packages_from_pr},
     job::send_build_request,
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
@@ -191,21 +191,7 @@ pub async fn answer(
                             &pr.head.ref_field
                         };
                         // find lines starting with #buildit
-                        let packages: Vec<String> = pr
-                            .body
-                            .and_then(|body| {
-                                body.lines()
-                                    .filter(|line| line.starts_with("#buildit"))
-                                    .map(|line| {
-                                        line.trim()
-                                            .split_ascii_whitespace()
-                                            .map(str::to_string)
-                                            .skip(1)
-                                            .collect::<Vec<_>>()
-                                    })
-                                    .next()
-                            })
-                            .unwrap_or_else(Vec::new);
+                        let packages = get_packages_from_pr(&pr);
                         if !packages.is_empty() {
                             let archs = if parts.len() == 1 {
                                 let path = &ARGS.abbs_path;
