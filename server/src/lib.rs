@@ -14,6 +14,7 @@ pub mod github;
 pub mod heartbeat;
 pub mod job;
 pub mod utils;
+pub mod github_webhooks;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use lapin::{Channel, ConnectionProperties};
 use log::{error, info};
 use server::bot::Command;
-use server::github::get_webhooks_message;
+use server::github_webhooks::get_webhooks_message;
 use server::{bot::answer, heartbeat::heartbeat_worker, job::job_completion_worker, ARGS};
 use teloxide::prelude::*;
 
