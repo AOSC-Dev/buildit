@@ -672,7 +672,9 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
         };
 
         if let Ok(comment) = serde_json::from_slice::<WebhookComment>(&delivery.data) {
+            info!("Got comment in lapin delivery: {:?}", comment);
             if !comment.comment.body.starts_with("@aosc-buildit-bot") {
+                ack_delivery(delivery).await;
                 continue;
             }
 
@@ -683,22 +685,39 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
                 .skip(1)
                 .collect::<Vec<_>>();
 
+            info!("{body:?}");
+
             if body[0] != "build" {
+                ack_delivery(delivery).await;
                 continue;
             }
 
-            let num = comment
+            let num = match comment
                 .comment
                 .issue_url
                 .split('/')
                 .last()
                 .and_then(|x| x.parse::<u64>().ok())
-                .ok_or_else(|| anyhow!("Failed to get pr number"))?;
+                .ok_or_else(|| anyhow!("Failed to get pr number"))
+            {
+                Ok(num) => num,
+                Err(e) => {
+                    ack_delivery(delivery).await;
+                    return Err(e);
+                }
+            };
 
-            let pr = octocrab::instance()
+            let pr = match octocrab::instance()
                 .pulls("AOSC-Dev", "aosc-os-abbs")
                 .get(num)
-                .await?;
+                .await
+            {
+                Ok(pr) => pr,
+                Err(e) => {
+                    ack_delivery(delivery).await;
+                    return Err(e.into());
+                }
+            };
 
             let packages: Vec<String> = pr
                 .body
@@ -747,28 +766,43 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
                     {
                         Ok(()) => {
                             if let Some(github_access_token) = &ARGS.github_access_token {
-                                let crab = octocrab::Octocrab::builder()
+                                let crab = match octocrab::Octocrab::builder()
                                     .user_access_token(github_access_token.clone())
-                                    .build()?;
+                                    .build()
+                                {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        ack_delivery(delivery).await;
+                                        return Err(e.into());
+                                    }
+                                };
 
                                 let s =
                                     to_html_new_job_summary(&git_ref, Some(num), &archs, &packages);
 
-                                crab.issues("AOSC-Dev", "aosc-os-abbs")
+                                if let Err(e) = crab
+                                    .issues("AOSC-Dev", "aosc-os-abbs")
                                     .create_comment(num, s)
-                                    .await?;
+                                    .await
+                                {
+                                    ack_delivery(delivery).await;
+                                    return Err(e.into());
+                                }
                             }
                         }
                         Err(e) => {
+                            ack_delivery(delivery).await;
                             error!("{e}");
                         }
                     }
                 }
-                Err(_) => continue,
+                Err(_) => {
+                    error!("{} is not a org user", comment.comment.user.login);
+                    ack_delivery(delivery).await;
+                    continue;
+                }
             }
         }
-
-        ack_delivery(delivery).await;
     }
 
     Ok(())
