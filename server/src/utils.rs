@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use fancy_regex::Regex;
-use log::debug;
+use log::{debug, error};
 use std::{collections::HashMap, path::Path};
 use walkdir::WalkDir;
 
@@ -21,24 +21,30 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
         if let Ok(defines) = defines {
             let defines = read_ab_with_apml(&defines);
 
-            if let Ok(defines) = defines {
-                is_noarch.push(
-                    defines
-                        .get("ABHOST")
-                        .map(|x| x == "noarch")
-                        .unwrap_or(false),
-                );
+            is_noarch.push(
+                defines
+                    .get("ABHOST")
+                    .map(|x| x == "noarch")
+                    .unwrap_or(false),
+            );
 
-                if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                    fail_archs.push(fail_arch_regex(fail_arch).ok())
-                } else {
-                    fail_archs.push(None);
-                };
-            }
+            if let Some(fail_arch) = defines.get("FAIL_ARCH") {
+                fail_archs.push(fail_arch_regex(fail_arch).ok())
+            } else {
+                fail_archs.push(None);
+            };
         }
     });
 
     if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
+        if fail_archs.is_empty() {
+            return ALL_ARCH
+                .iter()
+                .filter(|x| x != &&"loongarch64")
+                .map(|x| x.to_owned())
+                .collect();
+        }
+
         // FIXME: loongarch64 is not in the mainline yet and should not be compiled automatically
         // let v = ALL_ARCH.to_vec();
         if fail_archs.iter().any(|x| x.is_none()) {
@@ -70,7 +76,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     }
 }
 
-pub fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> {
+pub fn read_ab_with_apml(file: &str) -> HashMap<String, String> {
     let mut context = HashMap::new();
 
     // Try to set some ab3 flags to reduce the chance of returning errors
@@ -78,12 +84,23 @@ pub fn read_ab_with_apml(file: &str) -> anyhow::Result<HashMap<String, String>> 
         context.insert(i.to_string(), "".to_string());
     }
 
-    abbs_meta_apml::parse(file, &mut context).map_err(|e| {
+    match abbs_meta_apml::parse(file, &mut context).map_err(|e| {
         let e: Vec<String> = e.iter().map(|e| e.to_string()).collect();
         anyhow!(e.join("; "))
-    })?;
+    }) {
+        Ok(()) => (),
+        Err(e) => {
+            error!("{e}, buildit will use fallback method to parse file");
+            for line in file.split('\n') {
+                let stmt = line.split_once("=");
+                if let Some((name, value)) = stmt {
+                    context.insert(name.to_string(), value.replace("\"", ""));
+                }
+            }
+        }
+    };
 
-    Ok(context)
+    context
 }
 
 pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {

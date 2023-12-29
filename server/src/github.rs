@@ -209,36 +209,32 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
 
         if let Ok(spec) = spec {
             let spec = read_ab_with_apml(&spec);
-            if let Ok(spec) = spec {
-                let ver = spec.get("VER");
-                let rel = spec.get("REL");
-                let defines = defines
-                    .ok()
-                    .and_then(|defines| read_ab_with_apml(&defines).ok());
+            let ver = spec.get("VER");
+            let rel = spec.get("REL");
+            let defines = defines.ok().map(|defines| read_ab_with_apml(&defines));
 
-                let epoch = if let Some(ref def) = defines {
-                    def.get("PKGEPOCH")
-                } else {
-                    None
-                };
+            let epoch = if let Some(ref def) = defines {
+                def.get("PKGEPOCH")
+            } else {
+                None
+            };
 
-                if ver.is_none() {
-                    debug!("{pkg} has no VER variable");
-                }
-
-                let mut final_version = String::new();
-                if let Some(epoch) = epoch {
-                    final_version.push_str(&format!("{epoch}:"));
-                }
-
-                final_version.push_str(ver.unwrap());
-
-                if let Some(rel) = rel {
-                    final_version.push_str(&format!("-{rel}"));
-                }
-
-                res.push(format!("- {pkg}: {final_version}"));
+            if ver.is_none() {
+                debug!("{pkg} has no VER variable");
             }
+
+            let mut final_version = String::new();
+            if let Some(epoch) = epoch {
+                final_version.push_str(&format!("{epoch}:"));
+            }
+
+            final_version.push_str(ver.unwrap());
+
+            if let Some(rel) = rel {
+                final_version.push_str(&format!("-{rel}"));
+            }
+
+            res.push(format!("- {pkg}: {final_version}"));
         }
     });
 
