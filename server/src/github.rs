@@ -741,7 +741,11 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
                 get_archs(path, &packages)
             };
 
-            let git_ref = pr.base.ref_field;
+            let git_ref = if pr.merged_at.is_some() {
+                "stable"
+            } else {
+                &pr.base.ref_field
+            };
 
             let client = reqwest::Client::builder().user_agent("buildit").build()?;
 
