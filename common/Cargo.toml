@@ -9,4 +9,3 @@ edition = "2021"
 anyhow = "1.0.75"
 lapin = "2.3.1"
 serde = { version = "1.0.193", features = ["derive"] }
-teloxide = { version = "0.12.2", features = ["macros"] }

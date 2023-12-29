@@ -5,7 +5,6 @@ use lapin::{
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use teloxide::types::ChatId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
@@ -19,7 +18,7 @@ pub struct Job {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum JobSource {
-    Telegram(ChatId),
+    Telegram(i64),
     Github(u64),
 }
 

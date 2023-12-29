@@ -102,7 +102,7 @@ async fn build(
         packages,
         &archs,
         github_pr,
-        JobSource::Telegram(msg.chat.id),
+        JobSource::Telegram(msg.chat.id.0),
         channel,
     )
     .await

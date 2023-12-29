@@ -111,7 +111,7 @@ async fn handle_success_message(
                         let s = to_html_build_result(&job, success);
 
                         if let Err(e) = bot
-                            .send_message(id, &s)
+                            .send_message(ChatId(id), &s)
                             .parse_mode(ParseMode::Html)
                             .disable_web_page_preview(true)
                             .await
@@ -213,7 +213,7 @@ async fn handle_success_message(
                         JobSource::Telegram(id) => {
                             if let Err(e) = bot
                                 .send_message(
-                                    id,
+                                    ChatId(id),
                                     format!(
                                         "{}({}) build packages: {:?} Got Error: {}",
                                         worker.hostname,

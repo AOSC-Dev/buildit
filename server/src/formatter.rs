@@ -117,14 +117,13 @@ fn test_format_html_new_job_summary() {
 fn test_format_html_build_result() {
     use common::{Job, JobOk, JobSource, WorkerIdentifier};
     use std::time::Duration;
-    use teloxide::types::ChatId;
 
     let job = JobOk {
         job: Job {
             packages: vec!["fd".to_string()],
             git_ref: "fd-9.0.0".to_string(),
             arch: "amd64".to_owned(),
-            source: JobSource::Telegram(ChatId(484493567)),
+            source: JobSource::Telegram(484493567),
             github_pr: Some(4992),
             noarch: false,
         },
