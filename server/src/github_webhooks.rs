@@ -185,6 +185,8 @@ pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow:
                                     return Err(e.into());
                                 }
                             }
+
+                            ack_delivery(delivery).await;
                         }
                         Err(e) => {
                             ack_delivery(delivery).await;
