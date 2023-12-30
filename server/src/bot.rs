@@ -120,13 +120,14 @@ async fn status(args: &Args) -> anyhow::Result<String> {
                 .and_then(|m| m.get("messages_unacknowledged"))
                 .and_then(|v| v.as_i64())
             {
-                unacknowledged_str = format!("{} job\\(s\\), ", unacknowledged);
+                unacknowledged_str = format!("{} job\\(s\\) running, ", unacknowledged);
             }
         }
         res += &format!(
-            "*{}*: {}{} available server\\(s\\)\n",
+            "*{}*: {}{} jobs\\(s\\) pending, {} available server\\(s\\)\n",
             teloxide::utils::markdown::escape(arch),
             unacknowledged_str,
+            queue.message_count(),
             queue.consumer_count()
         );
     }
