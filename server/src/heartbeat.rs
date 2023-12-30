@@ -52,6 +52,14 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
                         },
                     );
                 }
+
+                // garbage collect if no heartbeat in 3 hours
+                lock.retain(|_, value| {
+                    Local::now()
+                        .signed_duration_since(value.last_heartbeat)
+                        .num_hours()
+                        < 3
+                });
             }
 
             // finish
