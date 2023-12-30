@@ -3,7 +3,10 @@ use chrono::Local;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, WorkerIdentifier};
 use futures::StreamExt;
 use lapin::{
-    options::{BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions},
+    options::{
+        BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
+        BasicQosOptions,
+    },
     types::FieldTable,
     BasicProperties,
 };
@@ -222,10 +225,15 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
     let queue_name = format!("job-{}", &args.arch);
     ensure_job_queue(&queue_name, &channel).await?;
 
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
+
+    // set prefetch count to 1
+    channel.basic_qos(1, BasicQosOptions::default()).await?;
+
     let mut consumer = channel
         .basic_consume(
             &queue_name,
-            "worker",
+            &hostname,
             BasicConsumeOptions::default(),
             FieldTable::default(),
         )
@@ -276,9 +284,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                                 &serde_json::to_vec(&JobResult::Error(JobError {
                                     job,
                                     worker: WorkerIdentifier {
-                                        hostname: gethostname::gethostname()
-                                            .to_string_lossy()
-                                            .to_string(),
+                                        hostname: hostname.clone(),
                                         arch: args.arch.clone(),
                                         pid: std::process::id(),
                                     },
