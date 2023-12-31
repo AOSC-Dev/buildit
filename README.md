@@ -6,6 +6,7 @@ Build automation with Telegram and GitHub Integrations.
 
 Steps:
 
+0. Install git, ciel, pushpkg
 1. `mkdir -p /buildroots/buildit`
 2. `cd /buildroots/buildit && git clone https://github.com/AOSC-Dev/buildit`
 3. `cd /buildroots/buildit && ciel new`, making sure to create an instance named "main" when asked
@@ -13,3 +14,4 @@ Steps:
 5. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH and BUILDIT_AMQP_ADDR
 6. `systemctl enable --now buildit-worker`
 7. `chmod 600 /etc/systemd/system/buildit-worker.service`
+8. Setup SSH key of AOSC Maintainers
