@@ -163,3 +163,21 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
 
     Ok(Regex::new(&regex)?)
 }
+
+#[test]
+fn test_get_archs() {
+    let binding = ["autobuild3".to_owned(), "autobuild4".to_owned()];
+    let a = get_archs(Path::new("/home/saki/aosc-os-abbs"), &binding);
+
+    assert_eq!(
+        a,
+        vec![
+            "amd64",
+            "arm64",
+            "loongson3",
+            "mips64r6el",
+            "ppc64el",
+            "riscv64",
+        ]
+    );
+}

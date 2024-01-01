@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     formatter::to_html_new_job_summary,
-    github::{get_github_token, get_packages_from_pr, login_github, open_pr},
+    github::{get_github_token, get_packages_from_pr, login_github, open_pr, update_abbs},
     job::send_build_request,
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
@@ -189,8 +189,13 @@ pub async fn answer(
                         let git_ref = if pr.merged_at.is_some() {
                             "stable"
                         } else {
-                            &pr.head.ref_field
+                            &pr.head.sha
                         };
+
+                        if let Err(e) = update_abbs(git_ref).await {
+                            bot.send_message(msg.chat.id, e.to_string()).await?;
+                        }
+
                         // find lines starting with #buildit
                         let packages = get_packages_from_pr(&pr);
                         if !packages.is_empty() {

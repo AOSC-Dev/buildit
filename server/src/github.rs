@@ -491,7 +491,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
 }
 
 /// Update ABBS tree commit logs
-async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
+pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     let abbs_path = ARGS
         .abbs_path
         .as_ref()

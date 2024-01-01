@@ -14,7 +14,7 @@ use serde::Deserialize;
 
 use crate::{
     formatter::to_html_new_job_summary,
-    github::get_packages_from_pr,
+    github::{get_packages_from_pr, update_abbs},
     job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
     utils::get_archs,
     ARGS,
@@ -162,7 +162,7 @@ async fn handle_webhook_comment(
     let git_ref = if pr.merged_at.is_some() {
         "stable"
     } else {
-        &pr.head.ref_field
+        &pr.head.sha
     };
 
     let is_org_user = is_org_user(&comment.comment.user.login).await;
@@ -179,6 +179,12 @@ async fn handle_webhook_comment(
         }
     }
 
+    if let Err(e) = update_abbs(git_ref).await {
+        create_github_comment(retry, num, &e.to_string()).await;
+    }
+
+    let s = to_html_new_job_summary(git_ref, Some(num), &archs, &packages);
+
     match send_build_request(
         git_ref,
         &packages,
@@ -189,7 +195,7 @@ async fn handle_webhook_comment(
     )
     .await
     {
-        Ok(()) => create_github_comment(retry, git_ref, num, archs, &packages).await,
+        Ok(()) => create_github_comment(retry, num, &s).await,
         Err(e) => {
             error!("{e}");
             update_retry(retry)
@@ -197,13 +203,7 @@ async fn handle_webhook_comment(
     }
 }
 
-async fn create_github_comment(
-    retry: Option<u8>,
-    git_ref: &str,
-    num: u64,
-    archs: Vec<&str>,
-    packages: &[String],
-) -> HandleSuccessResult {
+async fn create_github_comment(retry: Option<u8>, num: u64, s: &str) -> HandleSuccessResult {
     if let Some(github_access_token) = &ARGS.github_access_token {
         let crab = match octocrab::Octocrab::builder()
             .user_access_token(github_access_token.clone())
@@ -215,8 +215,6 @@ async fn create_github_comment(
                 return HandleSuccessResult::DoNotRetry;
             }
         };
-
-        let s = to_html_new_job_summary(git_ref, Some(num), &archs, packages);
 
         if let Err(e) = crab
             .issues("AOSC-Dev", "aosc-os-abbs")
