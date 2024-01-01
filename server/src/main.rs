@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use lapin::{Channel, ConnectionProperties};
-use log::{error, info};
+use log::info;
 use server::bot::Command;
 use server::github_webhooks::get_webhooks_message;
 use server::{bot::answer, heartbeat::heartbeat_worker, job::job_completion_worker, ARGS};
@@ -41,10 +41,8 @@ async fn main() {
         .enable_ctrlc_handler()
         .build();
 
-    if let Err(e) = tokio::select! {
+    tokio::select! {
         v = get_webhooks_message(channel, path) => v,
-        v = telegram.dispatch() => anyhow::Ok(v)
-    } {
-        error!("{e}")
+        v = telegram.dispatch() => v,
     };
 }

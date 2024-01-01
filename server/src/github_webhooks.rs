@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail};
 use common::JobSource;
@@ -37,7 +37,16 @@ struct User {
     login: String,
 }
 
-pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) -> anyhow::Result<()> {
+pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) {
+    loop {
+        if let Err(e) = get_webhooks_message_inner(channel.clone(), path).await {
+            error!("Error getting webhooks message: {e}");
+        }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+async fn get_webhooks_message_inner(channel: Arc<Channel>, path: &Path) -> anyhow::Result<()> {
     let _queue = channel
         .queue_declare(
             "github-webhooks",
@@ -236,12 +245,9 @@ async fn is_org_user(user: &str) -> anyhow::Result<bool> {
 
     match resp {
         Ok(_) => Ok(true),
-        Err(e) if e.is_status() => match e.status() {
+        Err(e) => match e.status() {
             Some(StatusCode::NOT_FOUND) => Ok(false),
             _ => bail!("Network is not reachable: {e}"),
         },
-        Err(e) => {
-            bail!("Network is not reachable: {e}")
-        }
     }
 }
