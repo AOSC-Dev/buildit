@@ -2,7 +2,7 @@
 
 Build automation with Telegram and GitHub Integrations.
 
-## Setup Worker on a new Buildbot
+## Setting Up a BuildIt! Worker
 
 Steps:
 
