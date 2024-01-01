@@ -38,6 +38,7 @@ pub struct JobOk {
     pub worker: WorkerIdentifier,
     pub elapsed: Duration,
     pub git_commit: Option<String>,
+    pub pushpkg_success: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

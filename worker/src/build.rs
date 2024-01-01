@@ -169,6 +169,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     }
 
     // upload to repo if succeeded
+    let mut pushpkg_success = false;
     if let Some(upload_ssh_key) = &args.upload_ssh_key {
         if failed_package.is_none() {
             get_output_logged(
@@ -178,7 +179,13 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                 &mut logs,
             )
             .await?;
+        pushpkg_success = true;
         }
+    } else {
+        logs.extend(format!(
+            "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
+            gethostname::gethostname().to_string_lossy().to_string()
+        ).as_bytes());
     }
 
     // update logs to pastebin
@@ -212,6 +219,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         },
         elapsed: begin.elapsed(),
         git_commit,
+        pushpkg_success
     });
 
     Ok(result)

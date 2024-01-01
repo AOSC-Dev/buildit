@@ -100,13 +100,15 @@ async fn handle_success_message(
                     let JobOk {
                         job: job_parent,
                         successful_packages,
+                        pushpkg_success,
                         ..
                     } = &job;
 
                     let success = job_parent
                         .packages
                         .iter()
-                        .all(|x| successful_packages.contains(x));
+                        .all(|x| successful_packages.contains(x))
+                        && *pushpkg_success;
 
                     if let JobSource::Telegram(id) = job_parent.source {
                         let s = to_html_build_result(&job, success);

@@ -36,6 +36,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         worker,
         elapsed,
         git_commit,
+        ..
     } = job;
 
     format!(
@@ -85,6 +86,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
         worker,
         elapsed,
         git_commit,
+        ..
     } = job;
 
     format!(
@@ -138,6 +140,7 @@ fn test_format_html_build_result() {
         },
         elapsed: Duration::from_secs_f64(888.85),
         git_commit: Some("34acef168fc5ec454d3825fc864964951b130b49".to_string()),
+        pushpkg_success: true,
     };
 
     let s = to_html_build_result(&job, true);
