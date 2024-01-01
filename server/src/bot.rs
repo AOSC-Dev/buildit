@@ -201,19 +201,8 @@ pub async fn answer(
                         if !packages.is_empty() {
                             let archs = if parts.len() == 1 {
                                 let path = &ARGS.abbs_path;
-                                let p = match path {
-                                    Some(p) => p,
-                                    None => {
-                                        bot.send_message(
-                                            msg.chat.id,
-                                            "Got Error: ABBS_PATH is not set",
-                                        )
-                                        .await?;
-                                        return Ok(());
-                                    }
-                                };
 
-                                get_archs(p, &packages)
+                                get_archs(path, &packages)
                             } else {
                                 let archs = parts[1].split(',').collect();
 
@@ -349,14 +338,6 @@ pub async fn answer(
 
                 let path = ARGS.abbs_path.as_ref();
 
-                let path = match path {
-                    Some(path) => path,
-                    None => {
-                        bot.send_message(msg.chat.id, "ABBS_PATH_PEM_PATH is not set")
-                            .await?;
-                        return Ok(());
-                    }
-                };
 
                 let pkgs = parts[2]
                     .split(',')

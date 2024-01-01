@@ -50,7 +50,7 @@ pub struct Args {
     pub github_app_key: Option<PathBuf>,
 
     #[arg(env = "ABBS_PATH")]
-    pub abbs_path: Option<PathBuf>,
+    pub abbs_path: PathBuf,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);

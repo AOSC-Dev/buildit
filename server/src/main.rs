@@ -33,8 +33,6 @@ async fn main() {
             },
         ));
 
-    let path = ARGS.abbs_path.as_ref().unwrap();
-
     let mut telegram = Dispatcher::builder(bot, handler)
         // Pass the shared state to the handler as a dependency.
         .dependencies(dptree::deps![channel.clone()])
@@ -42,7 +40,7 @@ async fn main() {
         .build();
 
     tokio::select! {
-        v = get_webhooks_message(channel, path) => v,
+        v = get_webhooks_message(channel, &ARGS.abbs_path) => v,
         v = telegram.dispatch() => v,
     };
 }

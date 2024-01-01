@@ -102,10 +102,7 @@ pub async fn open_pr(
         .await??;
 
     update_abbs(parts[1]).await?;
-    let path = ARGS
-        .abbs_path
-        .as_ref()
-        .ok_or_else(|| anyhow!("ABBS_PATH_PEM_PATH is not set"))?;
+    let path = &ARGS.abbs_path;
 
     let commits = task::spawn_blocking(move || get_commits(path)).await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
@@ -492,10 +489,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
 
 /// Update ABBS tree commit logs
 pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
-    let abbs_path = ARGS
-        .abbs_path
-        .as_ref()
-        .ok_or_else(|| anyhow!("ABBS_PATH is not set"))?;
+    let abbs_path = &ARGS.abbs_path;
 
     if abbs_path.exists() {
         fs::remove_dir_all(abbs_path).await?;
