@@ -204,7 +204,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         successful_packages,
         failed_package,
         skipped_packages,
-        log: log_url.map(String::from),
+        log: log_url.map(|x| format!("{x}/raw")),
         worker: WorkerIdentifier {
             hostname: gethostname::gethostname().to_string_lossy().to_string(),
             arch: args.arch.clone(),
