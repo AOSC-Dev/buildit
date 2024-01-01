@@ -1,8 +1,10 @@
 use crate::{
+    bot::http_rabbitmq_api,
     formatter::{to_html_build_result, to_markdown_build_result},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
-    ARGS,
+    ALL_ARCH, ARGS,
 };
+use anyhow::anyhow;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, JobSource};
 use futures::StreamExt;
 use lapin::{
@@ -12,7 +14,8 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
-use std::time::Duration;
+use serde::Serialize;
+use std::{collections::HashMap, time::Duration};
 use teloxide::{prelude::*, types::ParseMode};
 
 /// Observe job completion messages
@@ -273,6 +276,57 @@ async fn handle_success_message(
     }
 
     HandleSuccessResult::Ok
+}
+
+#[derive(Serialize)]
+struct GetMessages {
+    count: u64,
+    requeue: bool,
+    encoding: String,
+    truncate: u64,
+    ackmode: String,
+}
+
+pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<HashMap<String, String>> {
+    let mut res = HashMap::new();
+    let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
+
+    for i in ALL_ARCH {
+        ensure_job_queue(&format!("job-{i}"), &channel).await?;
+        let api = ARGS
+            .rabbitmq_queue_api
+            .as_ref()
+            .ok_or_else(|| anyhow!("rabbitmq_queue_api is not set"))?;
+        let api_root = http_rabbitmq_api(&api, format!("job-{i}")).await?;
+        let ready = api_root
+            .get("messages_ready")
+            .and_then(|x| x.as_u64())
+            .ok_or_else(|| anyhow!("Failed to get ready message count"))?;
+
+        if ready > 0 {
+            let client = reqwest::Client::new();
+            let msg = client
+                .post(format!("{api}job-{i}/get"))
+                .header("Content-type", "application/json")
+                .json(&GetMessages {
+                    count: ready,
+                    requeue: true,
+                    encoding: "auto".to_string(),
+                    truncate: 50000,
+                    ackmode: "ack_requeue_true".to_string(),
+                })
+                .send()
+                .await?
+                .error_for_status()?
+                .text()
+                .await?;
+
+            res.insert(i.to_string(), msg);
+        }
+    }
+
+    Ok(res)
 }
 
 pub fn update_retry(retry: Option<u8>) -> HandleSuccessResult {

@@ -3,13 +3,14 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     formatter::to_html_new_job_summary,
     github::{get_github_token, get_packages_from_pr, login_github, open_pr, update_abbs},
-    job::send_build_request,
+    job::{get_ready_message, send_build_request},
     utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
 };
 use chrono::Local;
 use common::{ensure_job_queue, JobSource};
 use lapin::{Channel, ConnectionProperties};
+use serde_json::Value;
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
@@ -40,6 +41,8 @@ pub enum Command {
     Login,
     #[command(description = "Start bot")]
     Start(String),
+    #[command(description = "Queue all ready messages")]
+    Queue,
 }
 
 async fn telegram_send_build_request(
@@ -98,8 +101,8 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
 async fn status(args: &Args) -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
-
     let channel = conn.create_channel().await?;
+
     for arch in ALL_ARCH {
         let queue_name = format!("job-{}", arch);
 
@@ -108,13 +111,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
         // read unacknowledged job count
         let mut unacknowledged_str = String::new();
         if let Some(api) = &args.rabbitmq_queue_api {
-            let client = reqwest::Client::new();
-            let res = client
-                .get(format!("{}{}", api, queue_name))
-                .send()
-                .await?
-                .json::<serde_json::Value>()
-                .await?;
+            let res = http_rabbitmq_api(api, queue_name).await?;
             if let Some(unacknowledged) = res
                 .as_object()
                 .and_then(|m| m.get("messages_unacknowledged"))
@@ -148,6 +145,19 @@ async fn status(args: &Args) -> anyhow::Result<String> {
             ));
         }
     }
+    Ok(res)
+}
+
+pub async fn http_rabbitmq_api(api: &str, queue_name: String) -> anyhow::Result<Value> {
+    let client = reqwest::Client::new();
+
+    let res = client
+        .get(format!("{}{}", api, queue_name))
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
     Ok(res)
 }
 
@@ -338,7 +348,6 @@ pub async fn answer(
 
                 let path = ARGS.abbs_path.as_ref();
 
-
                 let pkgs = parts[2]
                     .split(',')
                     .map(|x| x.to_string())
@@ -395,6 +404,23 @@ pub async fn answer(
                 };
             }
         }
+        Command::Queue => match get_ready_message(&ARGS.amqp_addr).await {
+            Ok(map) => {
+                let mut res = String::new();
+                for (k, v) in map {
+                    res.push_str(&format!("{k}: {v}\n"));
+                }
+
+                if res.is_empty() {
+                    bot.send_message(msg.chat.id, "Queue is empty").await?;
+                } else {
+                    bot.send_message(msg.chat.id, res).await?;
+                }
+            }
+            Err(e) => {
+                bot.send_message(msg.chat.id, e.to_string()).await?;
+            }
+        },
     };
 
     Ok(())
