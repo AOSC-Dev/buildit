@@ -10,6 +10,7 @@ use std::time::Duration;
 pub struct Job {
     pub packages: Vec<String>,
     pub git_ref: String,
+    pub sha: String,
     pub arch: String,
     pub source: JobSource,
     pub github_pr: Option<u64>,

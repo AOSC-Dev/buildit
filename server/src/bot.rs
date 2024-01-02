@@ -45,15 +45,28 @@ pub enum Command {
     Queue,
 }
 
+pub struct BuildRequest<'a> {
+    pub git_ref: &'a str,
+    pub packages: &'a [String],
+    pub archs: &'a [&'a str],
+    pub github_pr: Option<u64>,
+    pub sha: &'a str,
+}
+
 async fn telegram_send_build_request(
     bot: &Bot,
-    git_ref: &str,
-    packages: &[String],
-    archs: &[&str],
-    github_pr: Option<u64>,
+    build_request: BuildRequest<'_>,
     msg: &Message,
     channel: &Channel,
 ) -> ResponseResult<()> {
+    let BuildRequest {
+        git_ref,
+        packages,
+        archs,
+        github_pr,
+        sha,
+    } = build_request;
+
     let archs = handle_archs_args(archs.to_vec());
 
     match send_build_request(
@@ -62,6 +75,7 @@ async fn telegram_send_build_request(
         &archs,
         github_pr,
         JobSource::Telegram(msg.chat.id.0),
+        sha,
         channel,
     )
     .await
@@ -199,7 +213,7 @@ pub async fn answer(
                         let git_ref = if pr.merged_at.is_some() {
                             "stable"
                         } else {
-                            &pr.head.sha
+                            &pr.head.ref_field
                         };
 
                         if let Err(e) = update_abbs(git_ref).await {
@@ -230,16 +244,16 @@ pub async fn answer(
                                 archs
                             };
 
-                            telegram_send_build_request(
-                                &bot,
+                            let build_request = BuildRequest {
                                 git_ref,
-                                &packages,
-                                &archs,
-                                Some(pr_number),
-                                &msg,
-                                &channel,
-                            )
-                            .await?;
+                                packages: &packages,
+                                archs: &archs,
+                                github_pr: Some(pr_number),
+                                sha: &pr.head.sha,
+                            };
+
+                            telegram_send_build_request(&bot, build_request, &msg, &channel)
+                                .await?;
                         } else {
                             bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
                                 .await?;
@@ -271,8 +285,15 @@ pub async fn answer(
                 let git_ref = parts[0];
                 let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(',').collect();
-                telegram_send_build_request(&bot, git_ref, &packages, &archs, None, &msg, &channel)
-                    .await?;
+                let build_request = BuildRequest {
+                    git_ref,
+                    packages: &packages,
+                    archs: &archs,
+                    github_pr: None,
+                    sha: git_ref,
+                };
+
+                telegram_send_build_request(&bot, build_request, &msg, &channel).await?;
                 return Ok(());
             }
 

@@ -14,8 +14,7 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
-use serde::Serialize;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
 
 /// Observe job completion messages
@@ -278,17 +277,8 @@ async fn handle_success_message(
     HandleSuccessResult::Ok
 }
 
-#[derive(Serialize)]
-struct GetMessages {
-    count: u64,
-    requeue: bool,
-    encoding: String,
-    truncate: u64,
-    ackmode: String,
-}
-
-pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<HashMap<String, String>> {
-    let mut res = HashMap::new();
+pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<Vec<(String, String)>> {
+    let mut res = vec![];
     let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
     let channel = conn.create_channel().await?;
 
@@ -309,20 +299,20 @@ pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<HashMap<String
             let msg = client
                 .post(format!("{api}job-{i}/get"))
                 .header("Content-type", "application/json")
-                .json(&GetMessages {
-                    count: ready,
-                    requeue: true,
-                    encoding: "auto".to_string(),
-                    truncate: 50000,
-                    ackmode: "ack_requeue_true".to_string(),
-                })
+                .json(&serde_json::json!({
+                    "count": ready,
+                    "requeue": "true",
+                    "encoding": "auto",
+                    "truncate": "50000",
+                    "ackmode": "ack_requeue_true",
+                }))
                 .send()
                 .await?
                 .error_for_status()?
                 .text()
                 .await?;
 
-            res.insert(i.to_string(), msg);
+            res.push((i.to_string(), msg));
         }
     }
 
@@ -352,6 +342,7 @@ pub async fn send_build_request(
     archs: &[&str],
     github_pr: Option<u64>,
     source: JobSource,
+    sha: &str,
     channel: &Channel,
 ) -> anyhow::Result<()> {
     // for each arch, create a job
@@ -367,6 +358,7 @@ pub async fn send_build_request(
             source: source.clone(),
             github_pr,
             noarch: arch == &"noarch",
+            sha: sha.to_string(),
         };
 
         info!("Adding job to message queue {:?} ...", job);

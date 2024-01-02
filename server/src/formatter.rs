@@ -124,6 +124,7 @@ fn test_format_html_build_result() {
         job: Job {
             packages: vec!["fd".to_string()],
             git_ref: "fd-9.0.0".to_string(),
+            sha: "12345".to_string(),
             arch: "amd64".to_owned(),
             source: JobSource::Telegram(484493567),
             github_pr: Some(4992),

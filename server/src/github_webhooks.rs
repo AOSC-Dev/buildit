@@ -162,7 +162,7 @@ async fn handle_webhook_comment(
     let git_ref = if pr.merged_at.is_some() {
         "stable"
     } else {
-        &pr.head.sha
+        &pr.head.ref_field
     };
 
     let is_org_user = is_org_user(&comment.comment.user.login).await;
@@ -191,6 +191,7 @@ async fn handle_webhook_comment(
         &archs,
         Some(num),
         JobSource::Github(num),
+        &pr.head.sha,
         channel,
     )
     .await
