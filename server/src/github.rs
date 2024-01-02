@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, path::Path};
+use std::{borrow::Cow, collections::HashMap, path::Path, process::Output};
 
 use anyhow::{anyhow, bail, Context};
 use gix::{
@@ -13,7 +13,7 @@ use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use teloxide::types::{ChatId, Message};
-use tokio::{fs, process, task};
+use tokio::{process, task};
 
 use crate::{
     formatter::FAILED,
@@ -491,16 +491,66 @@ fn auto_add_label(title: &str) -> Vec<String> {
 pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
     let abbs_path = &ARGS.abbs_path;
 
-    if abbs_path.exists() {
-        fs::remove_dir_all(abbs_path).await?;
-    }
+    info!("Running git checkout -b stable ...");
 
-    process::Command::new("git")
-        .arg("clone")
-        .arg("https://github.com/aosc-dev/aosc-os-abbs")
-        .arg(abbs_path)
+    let output = process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg("stable")
+        .current_dir(abbs_path)
         .output()
         .await?;
+
+    print_stdout_and_stderr(&output);
+
+    info!("Running git checkout stable ...");
+
+    let output = process::Command::new("git")
+        .arg("checkout")
+        .arg("stable")
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    info!("Running git pull ...");
+
+    process::Command::new("git")
+        .arg("pull")
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    info!("Running git fetch origin {git_ref} ...");
+
+    let cmd = process::Command::new("git")
+        .arg("fetch")
+        .arg("origin")
+        .arg(git_ref)
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    if !cmd.status.success() {
+        bail!("Failed to fetch origin git-ref: {git_ref}");
+    }
+
+    info!("Running git checkout -b {git_ref} ...");
+
+    process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg(git_ref)
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    print_stdout_and_stderr(&output);
 
     info!("Running git checkout {git_ref} ...");
 
@@ -511,11 +561,35 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
         .output()
         .await?;
 
+    print_stdout_and_stderr(&output);
+
     if !cmd.status.success() {
         bail!("Failed to checkout {git_ref}");
     }
 
+    info!("Running git reset FETCH_HEAD --hard ...");
+
+    process::Command::new("git")
+        .args(["reset", "FETCH_HEAD", "--hard"])
+        .current_dir(abbs_path)
+        .output()
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    if !output.status.success() {
+        bail!("Failed to checkout {git_ref}");
+    }
+
     Ok(())
+}
+
+fn print_stdout_and_stderr(output: &Output) {
+    info!("Output:");
+    info!("  Stdout:");
+    info!(" {}", String::from_utf8_lossy(&output.stdout));
+    info!("  Stderr:");
+    info!(" {}", String::from_utf8_lossy(&output.stderr));
 }
 
 fn get_repo(path: &Path) -> anyhow::Result<Repository> {
