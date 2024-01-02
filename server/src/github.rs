@@ -516,7 +516,7 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
 
     info!("Running git pull ...");
 
-    process::Command::new("git")
+    let output = process::Command::new("git")
         .arg("pull")
         .current_dir(abbs_path)
         .output()
@@ -526,7 +526,7 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
 
     info!("Running git fetch origin {git_ref} ...");
 
-    let cmd = process::Command::new("git")
+    let output = process::Command::new("git")
         .arg("fetch")
         .arg("origin")
         .arg(git_ref)
@@ -536,13 +536,13 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
 
     print_stdout_and_stderr(&output);
 
-    if !cmd.status.success() {
+    if !output.status.success() {
         bail!("Failed to fetch origin git-ref: {git_ref}");
     }
 
     info!("Running git checkout -b {git_ref} ...");
 
-    process::Command::new("git")
+    let output = process::Command::new("git")
         .arg("checkout")
         .arg("-b")
         .arg(git_ref)
@@ -554,7 +554,7 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
 
     info!("Running git checkout {git_ref} ...");
 
-    let cmd = process::Command::new("git")
+    let output = process::Command::new("git")
         .arg("checkout")
         .arg(git_ref)
         .current_dir(abbs_path)
@@ -563,13 +563,13 @@ pub async fn update_abbs(git_ref: &str) -> anyhow::Result<()> {
 
     print_stdout_and_stderr(&output);
 
-    if !cmd.status.success() {
+    if !output.status.success() {
         bail!("Failed to checkout {git_ref}");
     }
 
     info!("Running git reset FETCH_HEAD --hard ...");
 
-    process::Command::new("git")
+    let output = process::Command::new("git")
         .args(["reset", "FETCH_HEAD", "--hard"])
         .current_dir(abbs_path)
         .output()
