@@ -1,6 +1,6 @@
 use crate::{
     bot::http_rabbitmq_api,
-    formatter::{to_html_build_result, to_markdown_build_result},
+    formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
     ALL_ARCH, ARGS,
 };
@@ -141,6 +141,48 @@ async fn handle_success_message(
                                     return HandleSuccessResult::DoNotRetry;
                                 }
                             };
+
+                            let comments = crab
+                                .issues("AOSC-Dev", "aosc-os-abbs")
+                                .list_comments(pr_num)
+                                .send()
+                                .await;
+
+                            let comments = match comments {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    error!("{e}");
+                                    return update_retry(retry);
+                                }
+                            };
+
+                            for c in comments {
+                                if c.user.login == "aosc-buildit-bot" {
+                                    let body = c.body.unwrap_or_else(String::new);
+                                    if !body
+                                        .split_ascii_whitespace()
+                                        .next()
+                                        .map(|x| x == SUCCESS || x == FAILED)
+                                        .unwrap_or(false)
+                                    {
+                                        continue;
+                                    }
+
+                                    for line in body.split('\n') {
+                                        let arch = line.strip_prefix("Architecture:").map(|x| x.trim());
+                                        if arch.map(|x| x == job_parent.arch).unwrap_or(false) {
+                                            if let Err(e) = crab
+                                                .issues("AOSC-Dev", "aosc-os-abbs")
+                                                .delete_comment(c.id)
+                                                .await
+                                            {
+                                                error!("{e}");
+                                                return update_retry(retry);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             if let Err(e) = crab
                                 .issues("AOSC-Dev", "aosc-os-abbs")
@@ -288,6 +330,7 @@ pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<Vec<(String, S
             .rabbitmq_queue_api
             .as_ref()
             .ok_or_else(|| anyhow!("rabbitmq_queue_api is not set"))?;
+
         let api_root = http_rabbitmq_api(api, format!("job-{i}")).await?;
         let ready = api_root
             .get("messages_ready")
