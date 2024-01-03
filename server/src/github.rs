@@ -256,7 +256,9 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
         if let Some(body) = &c.msg.1 {
             let body = body.split('\n');
             for line in body {
-                s.push_str(&format!("    {line}\n"));
+                if !line.trim().is_empty() {
+                    s.push_str(&format!("    {line}\n"));
+                }
             }
         }
     }
