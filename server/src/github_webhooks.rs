@@ -9,6 +9,7 @@ use lapin::{
     Channel,
 };
 use log::{error, info};
+use octocrab::Octocrab;
 use reqwest::StatusCode;
 use serde::Deserialize;
 
@@ -179,8 +180,19 @@ async fn handle_webhook_comment(
         }
     }
 
+    let crab = match octocrab::Octocrab::builder()
+        .user_access_token(ARGS.github_access_token.clone())
+        .build()
+    {
+        Ok(v) => v,
+        Err(e) => {
+            error!("{e}");
+            return HandleSuccessResult::DoNotRetry;
+        }
+    };
+
     if let Err(e) = update_abbs(git_ref).await {
-        create_github_comment(retry, num, &e.to_string()).await;
+        create_github_comment(&crab, retry, num, &e.to_string()).await;
     }
 
     let s = to_html_new_job_summary(git_ref, Some(num), &archs, &packages);
@@ -197,9 +209,35 @@ async fn handle_webhook_comment(
     .await
     {
         Ok(()) => {
+            let comments = crab
+                .issues("AOSC-Dev", "aosc-os-abbs")
+                .list_comments(num)
+                .send()
+                .await;
 
-            create_github_comment(retry, num, &s).await
-        },
+            let comments = match comments {
+                Ok(c) => c,
+                Err(e) => {
+                    error!("{e}");
+                    return update_retry(retry);
+                }
+            };
+
+            for c in comments {
+                if c.user.login == "aosc-buildit-bot" {
+                    if let Err(e) = crab
+                        .issues("AOSC-Dev", "aosc-os-abbs")
+                        .delete_comment(c.id)
+                        .await
+                    {
+                        error!("{e}");
+                        return update_retry(retry);
+                    }
+                }
+            }
+
+            create_github_comment(&crab, retry, num, &s).await
+        }
         Err(e) => {
             error!("{e}");
             update_retry(retry)
@@ -207,27 +245,20 @@ async fn handle_webhook_comment(
     }
 }
 
-async fn create_github_comment(retry: Option<u8>, num: u64, s: &str) -> HandleSuccessResult {
-        let crab = match octocrab::Octocrab::builder()
-            .user_access_token(ARGS.github_access_token.clone())
-            .build()
-        {
-            Ok(v) => v,
-            Err(e) => {
-                error!("{e}");
-                return HandleSuccessResult::DoNotRetry;
-            }
-        };
-
-        if let Err(e) = crab
-            .issues("AOSC-Dev", "aosc-os-abbs")
-            .create_comment(num, s)
-            .await
-        {
-            error!("{e}");
-            return update_retry(retry);
-        }
-
+async fn create_github_comment(
+    crab: &Octocrab,
+    retry: Option<u8>,
+    num: u64,
+    s: &str,
+) -> HandleSuccessResult {
+    if let Err(e) = crab
+        .issues("AOSC-Dev", "aosc-os-abbs")
+        .create_comment(num, s)
+        .await
+    {
+        error!("{e}");
+        return update_retry(retry);
+    }
 
     HandleSuccessResult::Ok
 }
