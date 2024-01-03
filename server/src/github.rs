@@ -14,7 +14,12 @@ use log::{debug, error, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, collections::HashMap, path::Path, process::Output};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    path::Path,
+    process::Output,
+};
 use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
 
@@ -280,20 +285,37 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
         .all()?;
 
     let refrences = repo.references()?;
-    let branch = refrences
+    let stable_branch = refrences
         .local_branches()?
         .filter_map(Result::ok)
         .find(|x| x.name().shorten() == "stable")
         .ok_or(anyhow!("failed to get stable branch"))?;
 
+    // Collect commits on stable branch
+    let commits_on_stable = stable_branch
+        .into_fully_peeled_id()?
+        .object()?
+        .into_commit()
+        .ancestors()
+        .all()?;
+
+    let mut commits_on_stable_set = HashSet::new();
+    for i in commits_on_stable {
+        let id = i?.id;
+        commits_on_stable_set.insert(id);
+    }
+
+    // Collect commits on new branch, but not on stable branch
+    // Mimic git log stable..HEAD
     for i in commits {
-        let o = i?.id.attach(&repo).object()?;
+        let id = i?.id;
+        if commits_on_stable_set.contains(&id) {
+            continue;
+        }
+
+        let o = id.attach(&repo).object()?;
         let commit = o.into_commit();
         let commit_str = commit.id.to_string();
-
-        if commit_in_stable(branch.clone(), &commit_str).unwrap_or(false) {
-            break;
-        }
 
         let msg = commit.message()?;
 
@@ -302,19 +324,6 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
             msg: (msg.title.to_string(), msg.body.map(|x| x.to_string())),
         })
     }
-
-    Ok(res)
-}
-
-/// Check if the commit is the HEAD of stable branch
-fn commit_in_stable(branch: gix::Reference<'_>, commit: &str) -> anyhow::Result<bool> {
-    let res = branch
-        .into_fully_peeled_id()?
-        .object()?
-        .into_commit()
-        .id
-        .to_string()
-        == commit;
 
     Ok(res)
 }
