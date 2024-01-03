@@ -436,7 +436,9 @@ pub async fn answer(
                 if res.is_empty() {
                     bot.send_message(msg.chat.id, "Queue is empty").await?;
                 } else {
-                    bot.send_message(msg.chat.id, res).await?;
+                    bot.send_message(msg.chat.id, res)
+                        .parse_mode(ParseMode::Html)
+                        .await?;
                 }
             }
             Err(e) => {
