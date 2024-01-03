@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    formatter::to_html_new_job_summary,
+    formatter::{code_repr_string, to_html_new_job_summary},
     github::{get_github_token, get_packages_from_pr, login_github, open_pr, update_abbs},
     job::{get_ready_message, send_build_request},
     utils::get_archs,
@@ -429,7 +429,8 @@ pub async fn answer(
             Ok(map) => {
                 let mut res = String::new();
                 for (k, v) in map {
-                    res.push_str(&format!("{k}: {v}\n"));
+                    res.push_str(&format!("{k}:\n"));
+                    res.push_str(&format!("{}\n", code_repr_string(&v)));
                 }
 
                 if res.is_empty() {

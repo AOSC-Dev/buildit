@@ -109,6 +109,10 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
     )
 }
 
+pub fn code_repr_string(s: &str) -> String {
+    format!("<code>{s}</code>")
+}
+
 #[test]
 fn test_format_html_new_job_summary() {
     let s = to_html_new_job_summary("fd-9.0.0", Some(4992), &["amd64"], &["fd".to_string()]);
