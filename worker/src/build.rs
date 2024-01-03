@@ -179,13 +179,16 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                 &mut logs,
             )
             .await?;
-        pushpkg_success = true;
+            pushpkg_success = true;
         }
     } else {
-        logs.extend(format!(
-            "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
-            gethostname::gethostname().to_string_lossy().to_string()
-        ).as_bytes());
+        logs.extend(
+            format!(
+                "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
+                gethostname::gethostname().to_string_lossy()
+            )
+            .as_bytes(),
+        );
     }
 
     // update logs to pastebin
@@ -219,7 +222,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         },
         elapsed: begin.elapsed(),
         git_commit,
-        pushpkg_success
+        pushpkg_success,
     });
 
     Ok(result)

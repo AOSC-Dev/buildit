@@ -288,7 +288,7 @@ pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<Vec<(String, S
             .rabbitmq_queue_api
             .as_ref()
             .ok_or_else(|| anyhow!("rabbitmq_queue_api is not set"))?;
-        let api_root = http_rabbitmq_api(&api, format!("job-{i}")).await?;
+        let api_root = http_rabbitmq_api(api, format!("job-{i}")).await?;
         let ready = api_root
             .get("messages_ready")
             .and_then(|x| x.as_u64())

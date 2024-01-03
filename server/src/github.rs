@@ -1,25 +1,22 @@
-use std::{borrow::Cow, collections::HashMap, path::Path, process::Output};
-
+use crate::{
+    formatter::FAILED,
+    utils::{for_each_abbs, read_ab_with_apml},
+    ARGS,
+};
 use anyhow::{anyhow, bail, Context};
 use gix::{
     prelude::ObjectIdExt,
     sec::{self, trust::DefaultForLevel},
     Repository, ThreadSafeRepository,
 };
-
 use jsonwebtoken::EncodingKey;
 use log::{debug, error, info};
 use octocrab::models::pulls::PullRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::{borrow::Cow, collections::HashMap, path::Path, process::Output};
 use teloxide::types::{ChatId, Message};
 use tokio::{process, task};
-
-use crate::{
-    formatter::FAILED,
-    utils::{for_each_abbs, read_ab_with_apml},
-    ARGS,
-};
 
 macro_rules! PR {
     () => {
@@ -238,6 +235,7 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
     Ok(res)
 }
 
+/// Describe new commits for pull request
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     let mut s = String::new();
     for (i, c) in commits.iter().enumerate() {
@@ -270,6 +268,7 @@ struct Commit {
     msg: (String, Option<String>),
 }
 
+/// Compute new commits on top of stable
 fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     let mut res = vec![];
     let repo = get_repo(path)?;
@@ -307,6 +306,7 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     Ok(res)
 }
 
+/// Check if the commit is the HEAD of stable branch
 fn commit_in_stable(branch: gix::Reference<'_>, commit: &str) -> anyhow::Result<bool> {
     let res = branch
         .into_fully_peeled_id()?
@@ -342,6 +342,7 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("ppc64el", PPC64EL);
     map.insert("riscv64", RISCV64);
 
+    // Primary Architectures
     let mut primary = false;
 
     if archs.contains(&"amd64") || archs.contains(&"arm64") || archs.contains(&"noarch") {
@@ -355,6 +356,7 @@ fn format_archs(archs: &[&str]) -> String {
         }
     }
 
+    // Secondary Architectures
     if archs.contains(&"loongson3")
         || archs.contains(&"mips64r6el")
         || archs.contains(&"ppc64el")
@@ -363,7 +365,7 @@ fn format_archs(archs: &[&str]) -> String {
         if primary {
             s.push('\n');
         }
-        s.push_str("**Second Architectures**\n\n");
+        s.push_str("**Secondary Architectures**\n\n");
     }
 
     for i in ["loongson3", "mips64r6el", "ppc64el", "riscv64"] {
@@ -423,6 +425,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
     Ok(pr)
 }
 
+/// Add labels based on pull request title
 fn auto_add_label(title: &str) -> Vec<String> {
     let mut labels = vec![];
     let title = title
@@ -628,6 +631,7 @@ fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     Ok(repository)
 }
 
+/// Collect packages to build from pull request
 pub fn get_packages_from_pr(pr: &PullRequest) -> Vec<String> {
     pr.body
         .as_ref()
