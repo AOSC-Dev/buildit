@@ -196,7 +196,10 @@ async fn handle_webhook_comment(
     )
     .await
     {
-        Ok(()) => create_github_comment(retry, num, &s).await,
+        Ok(()) => {
+
+            create_github_comment(retry, num, &s).await
+        },
         Err(e) => {
             error!("{e}");
             update_retry(retry)
@@ -205,9 +208,8 @@ async fn handle_webhook_comment(
 }
 
 async fn create_github_comment(retry: Option<u8>, num: u64, s: &str) -> HandleSuccessResult {
-    if let Some(github_access_token) = &ARGS.github_access_token {
         let crab = match octocrab::Octocrab::builder()
-            .user_access_token(github_access_token.clone())
+            .user_access_token(ARGS.github_access_token.clone())
             .build()
         {
             Ok(v) => v,
@@ -225,7 +227,7 @@ async fn create_github_comment(retry: Option<u8>, num: u64, s: &str) -> HandleSu
             error!("{e}");
             return update_retry(retry);
         }
-    }
+
 
     HandleSuccessResult::Ok
 }

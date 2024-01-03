@@ -127,124 +127,117 @@ async fn handle_success_message(
                     }
 
                     // if associated with github pr, update comments
-                    if let Some(github_access_token) = &ARGS.github_access_token {
-                        if let Some(pr_num) = job_parent.github_pr {
-                            let new_content = to_markdown_build_result(&job, success);
+                    if let Some(pr_num) = job_parent.github_pr {
+                        let new_content = to_markdown_build_result(&job, success);
 
-                            let crab = match octocrab::Octocrab::builder()
-                                .user_access_token(github_access_token.clone())
-                                .build()
-                            {
-                                Ok(crab) => crab,
-                                Err(e) => {
-                                    error!("{e}");
-                                    return HandleSuccessResult::DoNotRetry;
+                        let crab = match octocrab::Octocrab::builder()
+                            .user_access_token(ARGS.github_access_token.clone())
+                            .build()
+                        {
+                            Ok(crab) => crab,
+                            Err(e) => {
+                                error!("{e}");
+                                return HandleSuccessResult::DoNotRetry;
+                            }
+                        };
+
+                        let comments = crab
+                            .issues("AOSC-Dev", "aosc-os-abbs")
+                            .list_comments(pr_num)
+                            .send()
+                            .await;
+
+                        let comments = match comments {
+                            Ok(c) => c,
+                            Err(e) => {
+                                error!("{e}");
+                                return update_retry(retry);
+                            }
+                        };
+
+                        for c in comments {
+                            if c.user.login == "aosc-buildit-bot" {
+                                let body = c.body.unwrap_or_else(String::new);
+                                if !body
+                                    .split_ascii_whitespace()
+                                    .next()
+                                    .map(|x| x == SUCCESS || x == FAILED)
+                                    .unwrap_or(false)
+                                {
+                                    continue;
                                 }
-                            };
 
-                            let comments = crab
-                                .issues("AOSC-Dev", "aosc-os-abbs")
-                                .list_comments(pr_num)
-                                .send()
-                                .await;
-
-                            let comments = match comments {
-                                Ok(c) => c,
-                                Err(e) => {
-                                    error!("{e}");
-                                    return update_retry(retry);
-                                }
-                            };
-
-                            for c in comments {
-                                if c.user.login == "aosc-buildit-bot" {
-                                    let body = c.body.unwrap_or_else(String::new);
-                                    if !body
-                                        .split_ascii_whitespace()
-                                        .next()
-                                        .map(|x| x == SUCCESS || x == FAILED)
-                                        .unwrap_or(false)
-                                    {
-                                        continue;
-                                    }
-
-                                    for line in body.split('\n') {
-                                        let arch = line.strip_prefix("Architecture:").map(|x| x.trim());
-                                        if arch.map(|x| x == job_parent.arch).unwrap_or(false) {
-                                            if let Err(e) = crab
-                                                .issues("AOSC-Dev", "aosc-os-abbs")
-                                                .delete_comment(c.id)
-                                                .await
-                                            {
-                                                error!("{e}");
-                                                return update_retry(retry);
-                                            }
+                                for line in body.split('\n') {
+                                    let arch = line.strip_prefix("Architecture:").map(|x| x.trim());
+                                    if arch.map(|x| x == job_parent.arch).unwrap_or(false) {
+                                        if let Err(e) = crab
+                                            .issues("AOSC-Dev", "aosc-os-abbs")
+                                            .delete_comment(c.id)
+                                            .await
+                                        {
+                                            error!("{e}");
+                                            return update_retry(retry);
                                         }
                                     }
                                 }
                             }
+                        }
+
+                        if let Err(e) = crab
+                            .issues("AOSC-Dev", "aosc-os-abbs")
+                            .create_comment(pr_num, new_content)
+                            .await
+                        {
+                            error!("{e}");
+                            return update_retry(retry);
+                        }
+
+                        if success {
+                            let pr = match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_num).await
+                            {
+                                Ok(pr) => pr,
+                                Err(e) => {
+                                    error!("{e}");
+                                    return update_retry(retry);
+                                }
+                            };
+
+                            let body = if let Some(body) = pr.body {
+                                body
+                            } else {
+                                return HandleSuccessResult::DoNotRetry;
+                            };
+
+                            let pr_arch = match job_parent.arch.as_str() {
+                                "amd64" if job_parent.noarch => NOARCH,
+                                "amd64" => AMD64,
+                                "arm64" => ARM64,
+                                "loongson3" => LOONGSON3,
+                                "mips64r6el" => MIPS64R6EL,
+                                "ppc64el" => PPC64EL,
+                                "riscv64" => RISCV64,
+                                "loongarch64" => {
+                                    // FIXME: loongarch64 does not in mainline for now
+                                    return HandleSuccessResult::Ok;
+                                }
+                                x => {
+                                    error!("Unknown architecture: {x}");
+                                    return HandleSuccessResult::DoNotRetry;
+                                }
+                            };
+
+                            let body = body
+                                .replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"));
 
                             if let Err(e) = crab
-                                .issues("AOSC-Dev", "aosc-os-abbs")
-                                .create_comment(pr_num, new_content)
+                                .pulls("AOSC-Dev", "aosc-os-abbs")
+                                .update(pr_num)
+                                .body(body)
+                                .send()
                                 .await
                             {
                                 error!("{e}");
                                 return update_retry(retry);
-                            }
-
-                            if success {
-                                let pr = match crab
-                                    .pulls("AOSC-Dev", "aosc-os-abbs")
-                                    .get(pr_num)
-                                    .await
-                                {
-                                    Ok(pr) => pr,
-                                    Err(e) => {
-                                        error!("{e}");
-                                        return update_retry(retry);
-                                    }
-                                };
-
-                                let body = if let Some(body) = pr.body {
-                                    body
-                                } else {
-                                    return HandleSuccessResult::DoNotRetry;
-                                };
-
-                                let pr_arch = match job_parent.arch.as_str() {
-                                    "amd64" if job_parent.noarch => NOARCH,
-                                    "amd64" => AMD64,
-                                    "arm64" => ARM64,
-                                    "loongson3" => LOONGSON3,
-                                    "mips64r6el" => MIPS64R6EL,
-                                    "ppc64el" => PPC64EL,
-                                    "riscv64" => RISCV64,
-                                    "loongarch64" => {
-                                        // FIXME: loongarch64 does not in mainline for now
-                                        return HandleSuccessResult::Ok;
-                                    }
-                                    x => {
-                                        error!("Unknown architecture: {x}");
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
-                                };
-
-                                let body = body.replace(
-                                    &format!("- [ ] {pr_arch}"),
-                                    &format!("- [x] {pr_arch}"),
-                                );
-
-                                if let Err(e) = crab
-                                    .pulls("AOSC-Dev", "aosc-os-abbs")
-                                    .update(pr_num)
-                                    .body(body)
-                                    .send()
-                                    .await
-                                {
-                                    error!("{e}");
-                                    return update_retry(retry);
-                                }
                             }
                         }
                     }
@@ -276,35 +269,33 @@ async fn handle_success_message(
                             }
                         }
                         JobSource::Github(num) => {
-                            if let Some(github_access_token) = &ARGS.github_access_token {
-                                let crab = match octocrab::Octocrab::builder()
-                                    .user_access_token(github_access_token.clone())
-                                    .build()
-                                {
-                                    Ok(crab) => crab,
-                                    Err(e) => {
-                                        error!("{e}");
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
-                                };
-
-                                if let Err(e) = crab
-                                    .issues("AOSC-Dev", "aosc-os-abbs")
-                                    .create_comment(
-                                        num,
-                                        format!(
-                                            "{}({}) build packages: {:?} Got Error: {}",
-                                            worker.hostname,
-                                            job_parent.arch,
-                                            job_parent.packages,
-                                            error
-                                        ),
-                                    )
-                                    .await
-                                {
+                            let crab = match octocrab::Octocrab::builder()
+                                .user_access_token(ARGS.github_access_token.clone())
+                                .build()
+                            {
+                                Ok(crab) => crab,
+                                Err(e) => {
                                     error!("{e}");
-                                    return update_retry(retry);
+                                    return HandleSuccessResult::DoNotRetry;
                                 }
+                            };
+
+                            if let Err(e) = crab
+                                .issues("AOSC-Dev", "aosc-os-abbs")
+                                .create_comment(
+                                    num,
+                                    format!(
+                                        "{}({}) build packages: {:?} Got Error: {}",
+                                        worker.hostname,
+                                        job_parent.arch,
+                                        job_parent.packages,
+                                        error
+                                    ),
+                                )
+                                .await
+                            {
+                                error!("{e}");
+                                return update_retry(retry);
                             }
                         }
                     }

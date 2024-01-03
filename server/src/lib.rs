@@ -37,7 +37,7 @@ pub struct Args {
 
     /// GitHub access token
     #[arg(env = "BUILDIT_GITHUB_ACCESS_TOKEN")]
-    pub github_access_token: Option<String>,
+    pub github_access_token: String,
 
     /// Secret
     #[arg(env = "SECRET")]
