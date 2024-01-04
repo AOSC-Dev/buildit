@@ -4,7 +4,7 @@ Build automation with Telegram and GitHub Integrations.
 
 ## Setting Up a BuildIt! Worker
 
-Steps:
+Steps (as root):
 
 0. Install git, ciel, pushpkg
 1. `mkdir -p /buildroots/buildit`
@@ -15,3 +15,4 @@ Steps:
 6. `systemctl enable --now buildit-worker`
 7. `chmod 600 /etc/systemd/system/buildit-worker.service`
 8. Setup SSH key of AOSC Maintainers at the location of BUILDIT_SSH_KEY
+9. Add SSH know hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known-hosts && ssh-keyscan githb.com >> ~/.ssh/known-hosts`
