@@ -79,8 +79,8 @@ async fn get_webhooks_message_inner(channel: Arc<Channel>, path: &Path) -> anyho
             }
         };
 
-        if let Ok(comment) = serde_json::from_slice::<WebhookComment>(&delivery.data) {
-            match handle_webhook_comment(&comment, path, retry, &channel).await {
+        match serde_json::from_slice::<WebhookComment>(&delivery.data) {
+            Ok(comment) => match handle_webhook_comment(&comment, path, retry, &channel).await {
                 HandleSuccessResult::Ok | HandleSuccessResult::DoNotRetry => {
                     ack_delivery(delivery).await
                 }
@@ -93,6 +93,10 @@ async fn get_webhooks_message_inner(channel: Arc<Channel>, path: &Path) -> anyho
 
                     retry = Some(r);
                 }
+            },
+            Err(e) => {
+                error!("{e}");
+                ack_delivery(delivery).await
             }
         }
     }
