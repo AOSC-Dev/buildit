@@ -172,14 +172,15 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let mut pushpkg_success = false;
     if let Some(upload_ssh_key) = &args.upload_ssh_key {
         if failed_package.is_none() {
-            get_output_logged(
+            let output = get_output_logged(
                 "pushpkg",
                 &["-i", &upload_ssh_key, "maintainers", &job.git_ref],
                 &output_path,
                 &mut logs,
             )
             .await?;
-            pushpkg_success = true;
+
+            pushpkg_success = output.status.success()
         }
     } else {
         logs.extend(
