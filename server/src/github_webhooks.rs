@@ -121,7 +121,7 @@ async fn handle_webhook_comment(
 
     info!("{body:?}");
 
-    if body[0] != "build" {
+    if body.first().map(|x| x != &"build").unwrap_or(true) {
         return HandleSuccessResult::DoNotRetry;
     }
 
