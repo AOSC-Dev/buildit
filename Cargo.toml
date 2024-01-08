@@ -1,8 +1,4 @@
 [workspace]
 resolver = "2"
 
-members = [
-    "worker",
-    "server",
-    "common",
-]
+members = ["worker", "server", "common", "buildit-utils", "cli"]

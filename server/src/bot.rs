@@ -2,11 +2,11 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     formatter::{code_repr_string, to_html_new_job_summary},
-    github::{get_github_token, get_packages_from_pr, login_github, open_pr, update_abbs},
+    github::{get_github_token, get_packages_from_pr, login_github},
     job::{get_ready_message, send_build_request},
-    utils::get_archs,
     Args, ALL_ARCH, ARGS, WORKERS,
 };
+use buildit_utils::github::{OpenPRError, OpenPRRequest, update_abbs, get_archs};
 use chrono::Local;
 use common::{ensure_job_queue, JobSource};
 use lapin::{Channel, ConnectionProperties};
@@ -216,7 +216,9 @@ pub async fn answer(
                             &pr.head.ref_field
                         };
 
-                        if let Err(e) = update_abbs(git_ref).await {
+                        let path = &ARGS.abbs_path;
+
+                        if let Err(e) = update_abbs(git_ref, path).await {
                             bot.send_message(msg.chat.id, e.to_string()).await?;
                         }
 
@@ -381,15 +383,95 @@ pub async fn answer(
                     get_archs(path, &pkgs)
                 };
 
-                match open_pr(parts, token, secret, msg.chat.id, tags.as_deref(), &archs).await {
-                    Ok(url) => {
-                        bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
-                            .await?
+                let id = match ARGS
+                    .github_app_id
+                    .as_ref()
+                    .and_then(|x| x.parse::<u64>().ok())
+                {
+                    Some(id) => id,
+                    None => {
+                        bot.send_message(msg.chat.id, "Got Error: GITHUB_APP_ID is not set")
+                            .await?;
+                        return Ok(());
                     }
-                    Err(e) => bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?,
                 };
 
-                return Ok(());
+                let app_private_key = match ARGS.github_app_key.as_ref() {
+                    Some(p) => p,
+                    None => {
+                        bot.send_message(msg.chat.id, "Got Error: GITHUB_APP_ID is not set")
+                            .await?;
+                        return Ok(());
+                    }
+                };
+
+                match buildit_utils::github::open_pr(
+                    &app_private_key,
+                    &token,
+                    id,
+                    OpenPRRequest {
+                        git_ref: parts[1].to_owned(),
+                        abbs_path: ARGS.abbs_path.clone(),
+                        packages: parts[2].to_owned(),
+                        title: parts[0].to_string(),
+                        tags: tags.clone(),
+                        archs: archs.clone(),
+                    },
+                )
+                .await
+                {
+                    Ok(url) => {
+                        bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
+                            .await?;
+                    }
+                    Err(e) => match e {
+                        OpenPRError::Github(e) => match e {
+                            octocrab::Error::GitHub { source, .. }
+                                if source.message.contains("Bad credentials") =>
+                            {
+                                let client = reqwest::Client::new();
+                                client
+                                    .get("https://minzhengbu.aosc.io/refresh_token")
+                                    .header("secret", secret)
+                                    .query(&[("id", msg.chat.id.0.to_string())])
+                                    .send()
+                                    .await
+                                    .and_then(|x| x.error_for_status())?;
+
+                                let token = match get_github_token(&msg.chat.id, secret).await {
+                                    Ok(s) => s.access_token,
+                                    Err(e) => {
+                                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                                            .await?;
+                                        return Ok(());
+                                    }
+                                };
+                                
+                                if let Err(e) = buildit_utils::github::open_pr(
+                                    &app_private_key,
+                                    &token,
+                                    id,
+                                    OpenPRRequest {
+                                        git_ref: parts[1].to_owned(),
+                                        abbs_path: ARGS.abbs_path.clone(),
+                                        packages: parts[2].to_owned(),
+                                        title: parts[0].to_string(),
+                                        tags,
+                                        archs,
+                                    },
+                                ).await {
+                                    bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                                }
+                            }
+                            _ => {
+                                bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                            }
+                        },
+                        _ => {
+                            bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                        }
+                    },
+                }
             }
 
             bot.send_message(

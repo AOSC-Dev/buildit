@@ -1,6 +1,7 @@
 use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail};
+use buildit_utils::github::{update_abbs, get_archs};
 use common::JobSource;
 use futures::StreamExt;
 use lapin::{
@@ -15,9 +16,8 @@ use serde::Deserialize;
 
 use crate::{
     formatter::to_html_new_job_summary,
-    github::{get_packages_from_pr, update_abbs},
+    github::get_packages_from_pr,
     job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
-    utils::get_archs,
     ARGS,
 };
 
@@ -195,7 +195,9 @@ async fn handle_webhook_comment(
         }
     };
 
-    if let Err(e) = update_abbs(git_ref).await {
+    let path = &ARGS.abbs_path;
+
+    if let Err(e) = update_abbs(git_ref, path).await {
         create_github_comment(&crab, retry, num, &e.to_string()).await;
     }
 
