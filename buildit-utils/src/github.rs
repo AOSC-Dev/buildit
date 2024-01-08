@@ -353,7 +353,7 @@ fn print_stdout_and_stderr(output: &Output) {
     info!(" {}", String::from_utf8_lossy(&output.stderr));
 }
 
-fn get_repo(path: &Path) -> anyhow::Result<Repository> {
+pub fn get_repo(path: &Path) -> anyhow::Result<Repository> {
     let mut git_open_opts_map = sec::trust::Mapping::<gix::open::Options>::default();
 
     let config = gix::open::permissions::Config {
