@@ -204,7 +204,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                 .await?;
 
             pushpkg_success = output.status.success();
-            log_url = Some("https://buildit.aosc.io/logs/")
+            log_url = Some("https://buildit.aosc.io/logs/{file_name}".to_string())
         }
     } else {
         logs.extend(
@@ -221,7 +221,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         successful_packages,
         failed_package,
         skipped_packages,
-        log: log_url.map(|x| format!("{x}/raw")),
+        log: log_url,
         worker: WorkerIdentifier {
             hostname: gethostname::gethostname().to_string_lossy().to_string(),
             arch: args.arch.clone(),
