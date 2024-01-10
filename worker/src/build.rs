@@ -204,7 +204,8 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                 .await?;
 
             pushpkg_success = output.status.success();
-            log_url = Some("https://buildit.aosc.io/logs/{file_name}".to_string())
+            log_url = Some("https://buildit.aosc.io/logs/{file_name}".to_string());
+            fs::remove_file(path).await?;
         }
     } else {
         logs.extend(
