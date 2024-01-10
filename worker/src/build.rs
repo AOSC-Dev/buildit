@@ -182,7 +182,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             .await?;
 
             let file_name = format!(
-                "{}-{}-{}-{}",
+                "{}-{}-{}-{}.log",
                 gethostname::gethostname().to_string_lossy(),
                 job.git_ref,
                 job.arch,
