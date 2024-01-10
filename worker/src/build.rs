@@ -181,39 +181,37 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             )
             .await?;
 
-            let file_name = format!(
-                "{}-{}-{}-{}.txt",
-                gethostname::gethostname().to_string_lossy(),
-                job.git_ref,
-                job.arch,
-                Local::now().format("%Y-%m-%d-%H:%M")
-            );
-
-            let path = format!("/tmp/{file_name}");
-            fs::write(&path, logs).await?;
-
-            Command::new("scp")
-                .args(&[
-                    "-i",
-                    upload_ssh_key,
-                    &path,
-                    "maintainers@repo.aosc.io:/buildit/logs",
-                ])
-                .current_dir(output_path)
-                .output()
-                .await?;
-
             pushpkg_success = output.status.success();
-            log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
-            fs::remove_file(path).await?;
         }
+
+        let file_name = format!(
+            "{}-{}-{}-{}.txt",
+            gethostname::gethostname().to_string_lossy(),
+            job.git_ref,
+            job.arch,
+            Local::now().format("%Y-%m-%d-%H:%M")
+        );
+
+        let path = format!("/tmp/{file_name}");
+        fs::write(&path, logs).await?;
+
+        Command::new("scp")
+            .args(&[
+                "-i",
+                upload_ssh_key,
+                &path,
+                "maintainers@repo.aosc.io:/buildit/logs",
+            ])
+            .current_dir(output_path)
+            .output()
+            .await?;
+
+        log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
+        fs::remove_file(path).await?;
     } else {
-        logs.extend(
-            format!(
-                "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
-                gethostname::gethostname().to_string_lossy()
-            )
-            .as_bytes(),
+        error!(
+            "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
+            gethostname::gethostname().to_string_lossy()
         );
     }
 
