@@ -12,12 +12,11 @@ use lapin::{
 };
 use log::{error, info, warn};
 use std::{
-    collections::HashMap,
     path::Path,
     process::Output,
     time::{Duration, Instant},
 };
-use tokio::process::Command;
+use tokio::{fs, process::Command};
 
 async fn get_output_logged(
     cmd: &str,
@@ -168,6 +167,8 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         }
     }
 
+    let mut log_url = None;
+
     // upload to repo if succeeded
     let mut pushpkg_success = false;
     if let Some(upload_ssh_key) = &args.upload_ssh_key {
@@ -180,7 +181,30 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             )
             .await?;
 
-            pushpkg_success = output.status.success()
+            let file_name = format!(
+                "{}-{}-{}-{}",
+                gethostname::gethostname().to_string_lossy(),
+                job.git_ref,
+                job.arch,
+                Local::now().format("%Y-%m-%d-%H:%M")
+            );
+
+            let path = format!("/tmp/{file_name}");
+            fs::write(&path, logs).await?;
+
+            Command::new("scp")
+                .args(&[
+                    "-i",
+                    upload_ssh_key,
+                    &path,
+                    "maintainers@repo.aosc.io:/buildit/logs",
+                ])
+                .current_dir(output_path)
+                .output()
+                .await?;
+
+            pushpkg_success = output.status.success();
+            log_url = Some("https://buildit.aosc.io/logs/")
         }
     } else {
         logs.extend(
@@ -191,24 +215,6 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             .as_bytes(),
         );
     }
-
-    // update logs to pastebin
-    let mut map = HashMap::new();
-    map.insert("contents", String::from_utf8_lossy(&logs).to_string());
-    map.insert("language", "log".to_string());
-
-    let client = reqwest::Client::new();
-    let res = client
-        .post("https://pastebin.aosc.io/api/paste/submit")
-        .json(&map)
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
-    let log_url = res
-        .as_object()
-        .and_then(|m| m.get("url"))
-        .and_then(|v| v.as_str());
 
     let result = JobResult::Ok(JobOk {
         job: job.clone(),
