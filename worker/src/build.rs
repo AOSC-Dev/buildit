@@ -85,6 +85,8 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     )
     .await?;
 
+    let mut pushpkg_success = false;
+
     if output.status.success() {
         let output =
             get_output_logged("git", &["rev-parse", "FETCH_HEAD"], tree_path, &mut logs).await?;
@@ -126,6 +128,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             let mut found_failed_package = false;
             let mut found_packages_built = false;
             let mut found_packages_not_built = false;
+
             for line in String::from_utf8_lossy(&output.stdout).lines() {
                 if line.contains("========================================") {
                     found_banner = true;
@@ -164,56 +167,45 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                     }
                 }
             }
+
+            if failed_package.is_none() {
+                let output = get_output_logged(
+                    "pushpkg",
+                    &["-i", &args.upload_ssh_key, "maintainers", &job.git_ref],
+                    &output_path,
+                    &mut logs,
+                )
+                .await?;
+        
+                pushpkg_success = output.status.success();
+            }
         }
     }
 
-    let mut log_url = None;
+    let file_name = format!(
+        "{}-{}-{}-{}.txt",
+        gethostname::gethostname().to_string_lossy(),
+        job.git_ref,
+        job.arch,
+        Local::now().format("%Y-%m-%d-%H:%M")
+    );
 
-    // upload to repo if succeeded
-    let mut pushpkg_success = false;
-    if let Some(upload_ssh_key) = &args.upload_ssh_key {
-        if failed_package.is_none() {
-            let output = get_output_logged(
-                "pushpkg",
-                &["-i", &upload_ssh_key, "maintainers", &job.git_ref],
-                &output_path,
-                &mut logs,
-            )
-            .await?;
+    let path = format!("/tmp/{file_name}");
+    fs::write(&path, logs).await?;
 
-            pushpkg_success = output.status.success();
-        }
+    Command::new("scp")
+        .args(&[
+            "-i",
+            &args.upload_ssh_key,
+            &path,
+            "maintainers@repo.aosc.io:/buildit/logs",
+        ])
+        .current_dir(output_path)
+        .output()
+        .await?;
 
-        let file_name = format!(
-            "{}-{}-{}-{}.txt",
-            gethostname::gethostname().to_string_lossy(),
-            job.git_ref,
-            job.arch,
-            Local::now().format("%Y-%m-%d-%H:%M")
-        );
-
-        let path = format!("/tmp/{file_name}");
-        fs::write(&path, logs).await?;
-
-        Command::new("scp")
-            .args(&[
-                "-i",
-                upload_ssh_key,
-                &path,
-                "maintainers@repo.aosc.io:/buildit/logs",
-            ])
-            .current_dir(output_path)
-            .output()
-            .await?;
-
-        log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
-        fs::remove_file(path).await?;
-    } else {
-        error!(
-            "buildit: has no upload_ssh_key in buildbot: {}, run pushpkg failed.\n",
-            gethostname::gethostname().to_string_lossy()
-        );
-    }
+    let log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
+    fs::remove_file(path).await?;
 
     let result = JobResult::Ok(JobOk {
         job: job.clone(),

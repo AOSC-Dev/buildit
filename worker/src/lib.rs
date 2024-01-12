@@ -66,5 +66,5 @@ pub struct Args {
 
     /// SSH key for repo uploading
     #[arg(short = 's', long, env = "BUILDIT_SSH_KEY")]
-    pub upload_ssh_key: Option<String>,
+    pub upload_ssh_key: String,
 }
