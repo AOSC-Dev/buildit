@@ -193,7 +193,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let path = format!("/tmp/{file_name}");
     fs::write(&path, logs).await?;
 
-    Command::new("scp")
+    let output = Command::new("scp")
         .args([
             "-i",
             &args.upload_ssh_key,
@@ -204,7 +204,21 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         .output()
         .await?;
 
-    let log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
+    let log_url = if output.status.success() {
+        Some(format!("https://buildit.aosc.io/logs/{file_name}"))
+    } else {
+        error!("scp return error code: {:?}", output.status.code());
+        error!(
+            "`scp' stdout: {:?}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        error!(
+            "`scp' stderr: {:?}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        None
+    };
+
     fs::remove_file(path).await?;
 
     let result = JobResult::Ok(JobOk {
