@@ -422,6 +422,7 @@ pub async fn answer(
                     Ok(url) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?;
+                        return Ok(());
                     }
                     Err(e) => match e {
                         OpenPRError::Github(e) => match e {
@@ -446,8 +447,8 @@ pub async fn answer(
                                     }
                                 };
 
-                                if let Err(e) = buildit_utils::github::open_pr(
-                                    app_private_key,
+                                match buildit_utils::github::open_pr(
+                                    &app_private_key,
                                     &token,
                                     id,
                                     OpenPRRequest {
@@ -461,16 +462,29 @@ pub async fn answer(
                                 )
                                 .await
                                 {
-                                    bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
+                                    Ok(url) => {
+                                        bot.send_message(
+                                            msg.chat.id,
+                                            format!("Successfully opened PR: {url}"),
+                                        )
                                         .await?;
+                                        return Ok(());
+                                    }
+                                    Err(e) => {
+                                        bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
+                                            .await?;
+                                        return Ok(());
+                                    }
                                 }
                             }
                             _ => {
                                 bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                                return Ok(());
                             }
                         },
                         _ => {
                             bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                            return Ok(());
                         }
                     },
                 }
