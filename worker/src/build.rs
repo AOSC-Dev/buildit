@@ -205,21 +205,26 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         .await?;
 
     let log_url = if output.status.success() {
+        fs::remove_file(path).await?;
         Some(format!("https://buildit.aosc.io/logs/{file_name}"))
     } else {
         error!("scp return error code: {:?}", output.status.code());
         error!(
-            "`scp' stdout: {:?}",
+            "`scp' stdout: {}",
             String::from_utf8_lossy(&output.stdout)
         );
         error!(
-            "`scp' stderr: {:?}",
+            "`scp' stderr: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+
+        let dir = Path::new("./push_failed_logs");
+        fs::create_dir_all(dir).await?;
+
+        fs::copy(path, dir).await?;
+
         None
     };
-
-    fs::remove_file(path).await?;
 
     let result = JobResult::Ok(JobOk {
         job: job.clone(),
