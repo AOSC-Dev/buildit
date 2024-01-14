@@ -176,7 +176,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                     &mut logs,
                 )
                 .await?;
-        
+
                 pushpkg_success = output.status.success();
             }
         }
@@ -194,7 +194,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     fs::write(&path, logs).await?;
 
     Command::new("scp")
-        .args(&[
+        .args([
             "-i",
             &args.upload_ssh_key,
             &path,

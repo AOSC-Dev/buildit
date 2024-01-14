@@ -6,7 +6,7 @@ use crate::{
     job::{get_ready_message, send_build_request},
     Args, ALL_ARCH, ARGS, WORKERS,
 };
-use buildit_utils::github::{OpenPRError, OpenPRRequest, update_abbs, get_archs};
+use buildit_utils::github::{get_archs, update_abbs, OpenPRError, OpenPRRequest};
 use chrono::Local;
 use common::{ensure_job_queue, JobSource};
 use lapin::{Channel, ConnectionProperties};
@@ -405,7 +405,7 @@ pub async fn answer(
                 };
 
                 match buildit_utils::github::open_pr(
-                    &app_private_key,
+                    app_private_key,
                     &token,
                     id,
                     OpenPRRequest {
@@ -445,9 +445,9 @@ pub async fn answer(
                                         return Ok(());
                                     }
                                 };
-                                
+
                                 if let Err(e) = buildit_utils::github::open_pr(
-                                    &app_private_key,
+                                    app_private_key,
                                     &token,
                                     id,
                                     OpenPRRequest {
@@ -458,8 +458,11 @@ pub async fn answer(
                                         tags,
                                         archs,
                                     },
-                                ).await {
-                                    bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                                )
+                                .await
+                                {
+                                    bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
+                                        .await?;
                                 }
                             }
                             _ => {

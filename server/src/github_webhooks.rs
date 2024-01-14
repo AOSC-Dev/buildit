@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail};
-use buildit_utils::github::{update_abbs, get_archs};
+use buildit_utils::github::{get_archs, update_abbs};
 use common::JobSource;
 use futures::StreamExt;
 use lapin::{

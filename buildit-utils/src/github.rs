@@ -77,7 +77,7 @@ pub async fn open_pr(
         packages,
         title,
         tags,
-        archs
+        archs,
     } = openpr_request;
 
     update_abbs(&git_ref, &abbs_path).await?;
@@ -748,4 +748,3 @@ fn test_auto_add_label() {
         ]
     );
 }
-

@@ -54,6 +54,7 @@ pub struct Args {
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 
+// follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
 pub(crate) const ALL_ARCH: &[&str] = &[
     "amd64",
     "arm64",
