@@ -2,3 +2,4 @@ target/
 .env
 *.pem
 /aosc-os-abbs
+/push_failed_logs
