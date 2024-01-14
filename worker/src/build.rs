@@ -219,9 +219,9 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         );
 
         let dir = Path::new("./push_failed_logs");
+        let to = dir.join(file_name);
         fs::create_dir_all(dir).await?;
-
-        fs::copy(path, dir).await?;
+        fs::copy(path, to).await?;
 
         None
     };
