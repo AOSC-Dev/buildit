@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::JobOk;
 
 pub const SUCCESS: &str = "✅️";
@@ -49,7 +51,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
 <b>Package(s) failed to build</b>: {}
 <b>Package(s) not built due to previous build failure</b>: {}
 
-<a href="{}">Build Log >></a>"#,
+{}"#,
         if success { SUCCESS } else { FAILED },
         &worker.hostname,
         worker.arch,
@@ -72,7 +74,11 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         &successful_packages.join(", "),
         &failed_package.clone().unwrap_or(String::from("None")),
         &skipped_packages.join(", "),
-        log.clone().unwrap_or(String::from("None")),
+        if let Some(log) = log {
+            Cow::Owned(format!("<a href=\"{}\">Build Log >></a>", log))
+        } else {
+            Cow::Borrowed("Failed to push log! See <code>/buildroots/buildit/buildit/push_failed_logs</code> to see log.")
+        }
     )
 }
 
@@ -90,7 +96,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
     } = job;
 
     format!(
-        "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n[Build Log \\>\\>]({})\n",
+        "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
         worker.hostname,
         worker.arch,
@@ -105,7 +111,11 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
         teloxide::utils::markdown::escape(&successful_packages.join(", ")),
         teloxide::utils::markdown::escape(&failed_package.clone().unwrap_or(String::from("None"))),
         teloxide::utils::markdown::escape(&skipped_packages.join(", ")),
-        log.to_owned().unwrap_or("None".to_string())
+        if let Some(log) = log {
+            Cow::Owned(format!("[Build Log \\>\\>]({})", log))
+        } else {
+            Cow::Borrowed("Failed to push log! See `/buildroots/buildit/buildit/push_failed_logs` to see log.")
+        }
     )
 }
 
