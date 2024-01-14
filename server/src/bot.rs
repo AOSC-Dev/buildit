@@ -100,16 +100,15 @@ async fn telegram_send_build_request(
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     let mut archs = archs;
     if archs.contains(&"mainline") {
-        // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
-        archs.extend_from_slice(ALL_ARCH);
+        // FIXME: loongarch64 is not in mainline
+        // archs
+        archs.extend(ALL_ARCH.iter().filter(|x| x != &&"loongarch64"));
         archs.retain(|arch| *arch != "mainline");
     }
     archs.sort();
     archs.dedup();
 
-    // FIXME: loongarch64 is not in mainline
-    // archs
-    archs.into_iter().filter(|x| x != &"loongarch64").collect()
+    archs
 }
 
 async fn status(args: &Args) -> anyhow::Result<String> {
