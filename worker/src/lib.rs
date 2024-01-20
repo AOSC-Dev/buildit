@@ -67,4 +67,13 @@ pub struct Args {
     /// SSH key for repo uploading
     #[arg(short = 's', long, env = "BUILDIT_SSH_KEY")]
     pub upload_ssh_key: String,
+
+    /// rsync host (server)
+    #[arg(
+        short,
+        long,
+        default_value = "repo.aosc.io",
+        env = "BUILDIT_RSYNC_HOST"
+    )]
+    pub rsync_host: String,
 }
