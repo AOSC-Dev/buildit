@@ -215,6 +215,15 @@ pub async fn answer(
                             &pr.head.ref_field
                         };
 
+                        if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(true) {
+                            bot.send_message(
+                                msg.chat.id,
+                                "Failed to create job: Pull request is a fork"
+                            )
+                            .await?;
+                            return Ok(());
+                        }
+
                         let path = &ARGS.abbs_path;
 
                         if let Err(e) = update_abbs(git_ref, path).await {
