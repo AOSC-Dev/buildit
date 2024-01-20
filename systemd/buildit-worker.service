@@ -8,7 +8,7 @@ Restart=always
 RestartSec=30
 ExecStart=cargo run --bin worker -- --ciel-path /buildroots/buildit --arch ARCH
 WorkingDirectory=/buildroots/buildit/buildit
-Environment=RUST_LOG=info BUILDIT_AMQP_ADDR=REDACTED BUILDIT_SSH_KEY=REDACTED
+Environment=RUST_LOG=info BUILDIT_AMQP_ADDR=REDACTED BUILDIT_SSH_KEY=REDACTED BUILDIT_RSYNC_HOST=repo.aosc.io
 
 [Install]
 WantedBy=multi-user.target
