@@ -171,7 +171,14 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             if failed_package.is_none() {
                 let output = get_output_logged(
                     "pushpkg",
-                    &["-i", &args.upload_ssh_key, "maintainers", &job.git_ref],
+                    &[
+                        "--host",
+                        &args.rsync_host,
+                        "-i",
+                        &args.upload_ssh_key,
+                        "maintainers",
+                        &job.git_ref
+                    ],
                     &output_path,
                     &mut logs,
                 )
