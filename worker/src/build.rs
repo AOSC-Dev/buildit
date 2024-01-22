@@ -105,7 +105,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     }
 
     // switch to git ref
-    let output = get_output_logged(
+    let git_fetch_succeess = run_logged_with_retry(
         "git",
         &[
             "fetch",
@@ -119,7 +119,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
 
     let mut pushpkg_success = false;
 
-    if output.status.success() {
+    if git_fetch_succeess {
         let output =
             get_output_logged("git", &["rev-parse", "FETCH_HEAD"], tree_path, &mut logs).await?;
         git_commit = Some(String::from_utf8_lossy(&output.stdout).to_string());
