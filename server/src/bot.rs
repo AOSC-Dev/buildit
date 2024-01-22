@@ -218,7 +218,7 @@ pub async fn answer(
                         if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
                             bot.send_message(
                                 msg.chat.id,
-                                "Failed to create job: Pull request is a fork"
+                                "Failed to create job: Pull request is a fork",
                             )
                             .await?;
                             return Ok(());

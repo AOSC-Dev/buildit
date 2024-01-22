@@ -24,6 +24,8 @@ pub struct Job {
     pub github_pr: Option<u64>,
     /// If built for `noarch` packages
     pub noarch: bool,
+    /// Time when the job was enqueued
+    pub enqueue_time: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

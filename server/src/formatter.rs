@@ -43,7 +43,8 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
 
     format!(
         r#"{} Job completed on {} ({})
- 
+
+<b>Enqueue time</b>: {}
 <b>Time elapsed</b>: {}
 {}{}<b>Architecture</b>: {}
 <b>Package(s) to build</b>: {}
@@ -55,6 +56,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         if success { SUCCESS } else { FAILED },
         &worker.hostname,
         worker.arch,
+        job.enqueue_time.to_string(),
         &format!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
             format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", git_commit, &git_commit[..8])
@@ -96,10 +98,11 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
     } = job;
 
     format!(
-        "{} Job completed on {} \\({}\\)\n\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
+        "{} Job completed on {} \\({}\\)\n\n**Enqueue Time**: {}\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
         worker.hostname,
         worker.arch,
+        teloxide::utils::markdown::escape(&job.enqueue_time.to_string()),
         format_args!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
             format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
@@ -131,6 +134,7 @@ fn test_format_html_new_job_summary() {
 
 #[test]
 fn test_format_html_build_result() {
+    use chrono::TimeZone;
     use common::{Job, JobOk, JobSource, WorkerIdentifier};
     use std::time::Duration;
 
@@ -143,6 +147,8 @@ fn test_format_html_build_result() {
             source: JobSource::Telegram(484493567),
             github_pr: Some(4992),
             noarch: false,
+            enqueue_time: chrono::Utc
+                .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
         },
         successful_packages: vec!["fd".to_string()],
         failed_package: None,
@@ -160,5 +166,5 @@ fn test_format_html_build_result() {
 
     let s = to_html_build_result(&job, true);
 
-    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n \n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888.85s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
 }

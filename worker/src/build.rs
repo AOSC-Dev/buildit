@@ -177,7 +177,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                         "-i",
                         &args.upload_ssh_key,
                         "maintainers",
-                        &job.git_ref
+                        &job.git_ref,
                     ],
                     &output_path,
                     &mut logs,
@@ -216,14 +216,8 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         Some(format!("https://buildit.aosc.io/logs/{file_name}"))
     } else {
         error!("scp return error code: {:?}", output.status.code());
-        error!(
-            "`scp' stdout: {}",
-            String::from_utf8_lossy(&output.stdout)
-        );
-        error!(
-            "`scp' stderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        error!("`scp' stdout: {}", String::from_utf8_lossy(&output.stdout));
+        error!("`scp' stderr: {}", String::from_utf8_lossy(&output.stderr));
 
         let dir = Path::new("./push_failed_logs");
         let to = dir.join(file_name);
