@@ -1,5 +1,4 @@
 use crate::{ensure_channel, Args};
-use anyhow::anyhow;
 use chrono::Local;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, WorkerIdentifier};
 use futures::StreamExt;
@@ -17,7 +16,7 @@ use std::{
     process::Output,
     time::{Duration, Instant},
 };
-use tokio::{fs, process::Command};
+use tokio::{fs, process::Command, time::sleep};
 
 async fn get_output_logged(
     cmd: &str,
@@ -83,6 +82,8 @@ async fn run_logged_with_retry(
                 warn!("Running `{cmd} {}` failed with {err}", args.join(" "));
             }
         }
+        // exponential backoff
+        sleep(Duration::from_secs(1 << i)).await;
     }
     warn!("Failed too many times running `{cmd} {}`", args.join(" "));
     Ok(false)
