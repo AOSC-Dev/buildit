@@ -1,4 +1,5 @@
 use crate::{ensure_channel, Args};
+use anyhow::anyhow;
 use chrono::Local;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, WorkerIdentifier};
 use futures::StreamExt;
@@ -53,6 +54,37 @@ async fn get_output_logged(
     logs.extend(output.stderr.clone());
 
     Ok(output)
+}
+
+/// Run command and retry until it succeeds
+async fn run_logged_with_retry(
+    cmd: &str,
+    args: &[&str],
+    cwd: &Path,
+    logs: &mut Vec<u8>,
+) -> anyhow::Result<bool> {
+    for i in 0..5 {
+        if i > 0 {
+            info!("#{i} trial to run `{cmd} {}`", args.join(" "));
+        }
+        match get_output_logged(cmd, args, cwd, logs).await {
+            Ok(output) => {
+                if output.status.success() {
+                    return Ok(true);
+                } else {
+                    warn!(
+                        "Running `{cmd} {}` exited with {}",
+                        args.join(" "),
+                        output.status
+                    );
+                }
+            }
+            Err(err) => {
+                warn!("Running `{cmd} {}` failed with {err}", args.join(" "));
+            }
+        }
+    }
+    Err(anyhow!("Failed too many times running `{cmd}`"))
 }
 
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
@@ -169,7 +201,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             }
 
             if failed_package.is_none() {
-                let output = get_output_logged(
+                pushpkg_success = run_logged_with_retry(
                     "pushpkg",
                     &[
                         "--host",
@@ -183,8 +215,6 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                     &mut logs,
                 )
                 .await?;
-
-                pushpkg_success = output.status.success();
             }
         }
     }
