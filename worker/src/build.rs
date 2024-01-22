@@ -84,7 +84,8 @@ async fn run_logged_with_retry(
             }
         }
     }
-    Err(anyhow!("Failed too many times running `{cmd}`"))
+    warn!("Failed too many times running `{cmd} {}`", args.join(" "));
+    Ok(false)
 }
 
 async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
