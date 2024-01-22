@@ -17,3 +17,8 @@ Steps (as root):
 8. `chmod 600 /etc/systemd/system/buildit-worker.service`
 9. Setup SSH key of AOSC Maintainers at the location of BUILDIT_SSH_KEY
 10. Add SSH known hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
+
+Arch-specific notes:
+
+- Add `--no-default-features --features gix-faster` to cargo for loongarch64 until libz-ng support lands
+- Add `RUSTFLAGS="-C link-arg=-fuse-ld=gold"` environment for loongson3
