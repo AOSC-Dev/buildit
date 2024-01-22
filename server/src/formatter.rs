@@ -44,8 +44,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
     format!(
         r#"{} Job completed on {} ({})
 
-<b>Enqueue time</b>: {}
-<b>Time elapsed</b>: {}
+{}<b>Time elapsed</b>: {}
 {}{}<b>Architecture</b>: {}
 <b>Package(s) to build</b>: {}
 <b>Package(s) successfully built</b>: {}
@@ -56,7 +55,11 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         if success { SUCCESS } else { FAILED },
         &worker.hostname,
         worker.arch,
-        job.enqueue_time.to_string(),
+        if let Some(enqueue_time) = &job.enqueue_time {
+            format!("<b>Enqueue time</b>: {}\n", enqueue_time.to_string())
+        } else {
+            String::new()
+        },
         &format!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
             format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", git_commit, &git_commit[..8])
@@ -98,11 +101,15 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
     } = job;
 
     format!(
-        "{} Job completed on {} \\({}\\)\n\n**Enqueue Time**: {}\n**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
+        "{} Job completed on {} \\({}\\)\n\n{}**Time elapsed**: {}\n{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
         worker.hostname,
         worker.arch,
-        teloxide::utils::markdown::escape(&job.enqueue_time.to_string()),
+        if let Some(enqueue_time) = &job.enqueue_time {
+            format!("**Enqueue time**: {}\n", teloxide::utils::markdown::escape(&enqueue_time.to_string()))
+        } else {
+            String::new()
+        },
         format_args!("{:.2?}", elapsed),
         if let Some(git_commit) = &git_commit {
             format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
@@ -147,8 +154,10 @@ fn test_format_html_build_result() {
             source: JobSource::Telegram(484493567),
             github_pr: Some(4992),
             noarch: false,
-            enqueue_time: chrono::Utc
-                .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
+            enqueue_time: Some(
+                chrono::Utc
+                    .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
+            ),
         },
         successful_packages: vec!["fd".to_string()],
         failed_package: None,

@@ -393,7 +393,7 @@ pub async fn send_build_request(
             github_pr,
             noarch: arch == &"noarch",
             sha: sha.to_string(),
-            enqueue_time: chrono::Utc::now(),
+            enqueue_time: Some(chrono::Utc::now()),
         };
 
         info!("Adding job to message queue {:?} ...", job);
