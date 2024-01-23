@@ -30,7 +30,7 @@ async fn get_output_logged(
         Local::now(),
         cmd,
         args.join(" "),
-        cwd
+        cwd.display()
     );
     logs.extend(msg.as_bytes());
     info!("{}", msg.trim());
