@@ -516,12 +516,12 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("ppc64el", PPC64EL);
     map.insert("riscv64", RISCV64);
 
-    // Primary Architectures
-    let mut primary = false;
+    let mut newline = false;
 
+    // Primary Architectures
     if archs.contains(&"amd64") || archs.contains(&"arm64") || archs.contains(&"noarch") {
         s.push_str("**Primary Architectures**\n\n");
-        primary = true;
+        newline = true;
     }
 
     for i in ["amd64", "arm64", "noarch"] {
@@ -531,14 +531,12 @@ fn format_archs(archs: &[&str]) -> String {
     }
 
     // Secondary Architectures
-    if archs.contains(&"loongson3")
-        || archs.contains(&"ppc64el")
-        || archs.contains(&"riscv64")
-    {
-        if primary {
+    if archs.contains(&"loongson3") || archs.contains(&"ppc64el") || archs.contains(&"riscv64") {
+        if newline {
             s.push('\n');
         }
         s.push_str("**Secondary Architectures**\n\n");
+        newline = true;
     }
 
     for i in ["loongson3", "ppc64el", "riscv64"] {
@@ -548,9 +546,8 @@ fn format_archs(archs: &[&str]) -> String {
     }
 
     // Secondary Architectures
-    if archs.contains(&"mips64r6el")
-    {
-        if primary {
+    if archs.contains(&"mips64r6el") {
+        if newline {
             s.push('\n');
         }
         s.push_str("**Experimental Architectures**\n\n");
