@@ -532,7 +532,6 @@ fn format_archs(archs: &[&str]) -> String {
 
     // Secondary Architectures
     if archs.contains(&"loongson3")
-        || archs.contains(&"mips64r6el")
         || archs.contains(&"ppc64el")
         || archs.contains(&"riscv64")
     {
@@ -542,7 +541,22 @@ fn format_archs(archs: &[&str]) -> String {
         s.push_str("**Secondary Architectures**\n\n");
     }
 
-    for i in ["loongson3", "mips64r6el", "ppc64el", "riscv64"] {
+    for i in ["loongson3", "ppc64el", "riscv64"] {
+        if archs.contains(&i) {
+            s.push_str(&format!("- [ ] {}\n", map[i]));
+        }
+    }
+
+    // Secondary Architectures
+    if archs.contains(&"mips64r6el")
+    {
+        if primary {
+            s.push('\n');
+        }
+        s.push_str("**Experimental Architectures**\n\n");
+    }
+
+    for i in ["mips64r6el"] {
         if archs.contains(&i) {
             s.push_str(&format!("- [ ] {}\n", map[i]));
         }
