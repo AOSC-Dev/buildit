@@ -571,24 +571,47 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
             return;
         }
 
-        let defines = path.join("autobuild").join("defines");
-        let defines = std::fs::read_to_string(defines);
+        let defines_list = if path.join("autobuild").exists() {
+            vec![path.join("autobuild").join("defines")]
+        } else {
+            let mut defines_list = vec![];
+            for i in WalkDir::new(path)
+                .max_depth(1)
+                .min_depth(1)
+                .into_iter()
+                .flatten()
+            {
+                if !i.path().is_dir() {
+                    continue;
+                }
+                let defines_path = i.path().join("defines");
+                if defines_path.exists() {
+                    defines_list.push(i.into_path());
+                }
+            }
 
-        if let Ok(defines) = defines {
-            let defines = read_ab_with_apml(&defines);
+            defines_list
+        };
 
-            is_noarch.push(
-                defines
-                    .get("ABHOST")
-                    .map(|x| x == "noarch")
-                    .unwrap_or(false),
-            );
+        for i in defines_list {
+            let defines = std::fs::read_to_string(i);
 
-            if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                fail_archs.push(fail_arch_regex(fail_arch).ok())
-            } else {
-                fail_archs.push(None);
-            };
+            if let Ok(defines) = defines {
+                let defines = read_ab_with_apml(&defines);
+
+                is_noarch.push(
+                    defines
+                        .get("ABHOST")
+                        .map(|x| x == "noarch")
+                        .unwrap_or(false),
+                );
+
+                if let Some(fail_arch) = defines.get("FAIL_ARCH") {
+                    fail_archs.push(fail_arch_regex(fail_arch).ok())
+                } else {
+                    fail_archs.push(None);
+                };
+            }
         }
     });
 
