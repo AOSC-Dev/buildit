@@ -204,7 +204,7 @@ pub async fn answer(
 
             let mut pr_numbers = vec![];
             let mut parse_success = true;
-            for part in parts[0].split(",") {
+            for part in parts[0].split(',') {
                 if let Ok(pr_number) = str::parse::<u64>(part) {
                     pr_numbers.push(pr_number);
                 } else {
@@ -472,7 +472,7 @@ pub async fn answer(
                                 };
 
                                 match buildit_utils::github::open_pr(
-                                    &app_private_key,
+                                    app_private_key,
                                     &token,
                                     id,
                                     OpenPRRequest {
@@ -550,7 +550,7 @@ pub async fn answer(
         Command::Queue(arguments) => {
             let mut archs = vec![];
             if !arguments.is_empty() {
-                archs.extend(arguments.split(","));
+                archs.extend(arguments.split(','));
             } else {
                 archs.extend(ALL_ARCH);
             }

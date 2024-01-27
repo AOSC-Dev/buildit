@@ -56,7 +56,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         &worker.hostname,
         worker.arch,
         if let Some(enqueue_time) = &job.enqueue_time {
-            format!("<b>Enqueue time</b>: {}\n", enqueue_time.to_string())
+            format!("<b>Enqueue time</b>: {}\n", enqueue_time)
         } else {
             String::new()
         },
