@@ -432,47 +432,51 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         .list()
         // Optional Parameters
         .state(params::State::Open)
-        .head(head)
+        .head(format!("aosc-os-abbs:{}", head))
         .base("stable")
         // Send the request
         .send()
         .await?;
 
-    if page.items.is_empty() {
-        // create a new pr
-        let pr = crab
-            .pulls("AOSC-Dev", "aosc-os-abbs")
-            .create(title, head, "stable")
-            .draft(false)
-            .maintainer_can_modify(true)
-            .body(&body)
-            .send()
-            .await?;
+    for old_pr in page.items {
+        if old_pr.head.ref_field == head {
+            // double check
 
-        if !tags.is_empty() {
-            crab.issues("AOSC-Dev", "aosc-os-abbs")
-                .add_labels(pr.number, &tags)
+            // update existing pr
+            let pr = crab
+                .pulls("AOSC-Dev", "aosc-os-abbs")
+                .update(old_pr.number)
+                .body(&body)
+                .send()
                 .await?;
+
+            if !tags.is_empty() {
+                crab.issues("AOSC-Dev", "aosc-os-abbs")
+                    .add_labels(pr.number, &tags)
+                    .await?;
+            }
+
+            return Ok(pr);
         }
-
-        Ok(pr)
-    } else {
-        // update existing pr
-        let pr = crab
-            .pulls("AOSC-Dev", "aosc-os-abbs")
-            .update(page.items[0].number)
-            .body(&body)
-            .send()
-            .await?;
-
-        if !tags.is_empty() {
-            crab.issues("AOSC-Dev", "aosc-os-abbs")
-                .add_labels(pr.number, &tags)
-                .await?;
-        }
-
-        Ok(pr)
     }
+
+    // create a new pr
+    let pr = crab
+        .pulls("AOSC-Dev", "aosc-os-abbs")
+        .create(title, head, "stable")
+        .draft(false)
+        .maintainer_can_modify(true)
+        .body(&body)
+        .send()
+        .await?;
+
+    if !tags.is_empty() {
+        crab.issues("AOSC-Dev", "aosc-os-abbs")
+            .add_labels(pr.number, &tags)
+            .await?;
+    }
+
+    Ok(pr)
 }
 
 /// Add labels based on pull request title
