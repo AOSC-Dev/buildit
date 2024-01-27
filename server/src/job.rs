@@ -14,6 +14,7 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
+use std::fmt::Write;
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
 
@@ -333,7 +334,7 @@ pub async fn get_ready_message(
 
         if ready > 0 {
             let client = reqwest::Client::new();
-            let msg = client
+            let resp: Vec<serde_json::Value> = client
                 .post(format!("{api}job-{i}/get"))
                 .header("Content-type", "application/json")
                 .json(&serde_json::json!({
@@ -346,8 +347,20 @@ pub async fn get_ready_message(
                 .send()
                 .await?
                 .error_for_status()?
-                .text()
+                .json()
                 .await?;
+
+            let mut msg = String::new();
+            // parse payload as Job
+            for entry in resp {
+                if let Some(job) = entry
+                    .as_object()
+                    .and_then(|e| e.get("payload"))
+                    .and_then(|v| v.as_str())
+                {
+                    writeln!(&mut msg, "{}", job)?;
+                }
+            }
 
             res.push((i.to_string(), msg));
         }
