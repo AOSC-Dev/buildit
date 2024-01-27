@@ -432,7 +432,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         .list()
         // Optional Parameters
         .state(params::State::Open)
-        .head(format!("aosc-os-abbs:{}", head))
+        .head(format!("AOSC-Dev:{}", head))
         .base("stable")
         // Send the request
         .send()
