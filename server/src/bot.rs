@@ -43,8 +43,8 @@ pub enum Command {
     Login,
     #[command(description = "Start bot")]
     Start(String),
-    #[command(description = "Queue all ready messages")]
-    Queue,
+    #[command(description = "Queue all ready messages: /queue [archs]")]
+    Queue(String),
 }
 
 pub struct BuildRequest<'a> {
@@ -547,26 +547,35 @@ pub async fn answer(
                 };
             }
         }
-        Command::Queue => match get_ready_message(&ARGS.amqp_addr).await {
-            Ok(map) => {
-                let mut res = String::new();
-                for (k, v) in map {
-                    res.push_str(&format!("{k}:\n"));
-                    res.push_str(&format!("{}\n", code_repr_string(&v)));
-                }
+        Command::Queue(arguments) => {
+            let mut archs = vec![];
+            if !arguments.is_empty() {
+                archs.extend(arguments.split(","));
+            } else {
+                archs.extend(ALL_ARCH);
+            }
 
-                if res.is_empty() {
-                    bot.send_message(msg.chat.id, "Queue is empty").await?;
-                } else {
-                    bot.send_message(msg.chat.id, res)
-                        .parse_mode(ParseMode::Html)
-                        .await?;
+            match get_ready_message(&ARGS.amqp_addr, &archs).await {
+                Ok(map) => {
+                    let mut res = String::new();
+                    for (k, v) in map {
+                        res.push_str(&format!("{k}:\n"));
+                        res.push_str(&format!("{}\n", code_repr_string(&v)));
+                    }
+
+                    if res.is_empty() {
+                        bot.send_message(msg.chat.id, "Queue is empty").await?;
+                    } else {
+                        bot.send_message(msg.chat.id, res)
+                            .parse_mode(ParseMode::Html)
+                            .await?;
+                    }
+                }
+                Err(e) => {
+                    bot.send_message(msg.chat.id, e.to_string()).await?;
                 }
             }
-            Err(e) => {
-                bot.send_message(msg.chat.id, e.to_string()).await?;
-            }
-        },
+        }
     };
 
     Ok(())

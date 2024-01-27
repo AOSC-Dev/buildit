@@ -2,7 +2,7 @@ use crate::{
     bot::http_rabbitmq_api,
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
     github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
-    ALL_ARCH, ARGS,
+    ARGS,
 };
 use anyhow::anyhow;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, JobSource};
@@ -310,12 +310,15 @@ async fn handle_success_message(
     HandleSuccessResult::Ok
 }
 
-pub async fn get_ready_message(amqp_addr: &str) -> anyhow::Result<Vec<(String, String)>> {
+pub async fn get_ready_message(
+    amqp_addr: &str,
+    archs: &[&str],
+) -> anyhow::Result<Vec<(String, String)>> {
     let mut res = vec![];
     let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
     let channel = conn.create_channel().await?;
 
-    for i in ALL_ARCH {
+    for i in archs {
         ensure_job_queue(&format!("job-{i}"), &channel).await?;
         let api = ARGS
             .rabbitmq_queue_api
