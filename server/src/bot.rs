@@ -30,7 +30,7 @@ pub enum Command {
     )]
     Build(String),
     #[command(
-        description = "Start one or more build jobs from GitHub PR: /pr [pr-numbers] [architectures] (e.g., /pr 12,34 amd64,arm64)"
+        description = "Start one or more build jobs from GitHub PR: /pr pr-numbers [archs] (e.g., /pr 12,34 amd64,arm64)"
     )]
     PR(String),
     #[command(description = "Show queue and server status: /status")]
