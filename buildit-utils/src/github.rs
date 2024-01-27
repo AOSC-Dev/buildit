@@ -5,7 +5,7 @@ use gix::{
 };
 use jsonwebtoken::EncodingKey;
 use log::{debug, error, info};
-use octocrab::models::pulls::PullRequest;
+use octocrab::{models::pulls::PullRequest, params};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -409,34 +409,70 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         .user_access_token(access_token)
         .build()?;
 
-    let pr = crab
-        .pulls("AOSC-Dev", "aosc-os-abbs")
-        .create(title, head, "stable")
-        .draft(false)
-        .maintainer_can_modify(true)
-        .body(format!(
-            PR!(),
-            desc,
-            pkg_affected.join("\n"),
-            format!("#buildit {}", packages.replace(',', " ")),
-            format_archs(archs)
-        ))
-        .send()
-        .await?;
+    // pr body
+    let body = format!(
+        PR!(),
+        desc,
+        pkg_affected.join("\n"),
+        format!("#buildit {}", packages.replace(',', " ")),
+        format_archs(archs)
+    );
 
+    // pr tags
     let tags = if let Some(tags) = tags {
         Cow::Borrowed(tags)
     } else {
         Cow::Owned(auto_add_label(title))
     };
 
-    if !tags.is_empty() {
-        crab.issues("AOSC-Dev", "aosc-os-abbs")
-            .add_labels(pr.number, &tags)
-            .await?;
-    }
+    // check if there are existing open pr
 
-    Ok(pr)
+    let page = crab
+        .pulls("AOSC-Dev", "aosc-os-abbs")
+        .list()
+        // Optional Parameters
+        .state(params::State::Open)
+        .head(head)
+        .base("stable")
+        // Send the request
+        .send()
+        .await?;
+
+    if page.items.is_empty() {
+        // create a new pr
+        let pr = crab
+            .pulls("AOSC-Dev", "aosc-os-abbs")
+            .create(title, head, "stable")
+            .draft(false)
+            .maintainer_can_modify(true)
+            .body(&body)
+            .send()
+            .await?;
+
+        if !tags.is_empty() {
+            crab.issues("AOSC-Dev", "aosc-os-abbs")
+                .add_labels(pr.number, &tags)
+                .await?;
+        }
+
+        Ok(pr)
+    } else {
+        // update existing pr
+        let pr = crab
+            .pulls("AOSC-Dev", "aosc-os-abbs")
+            .update(page.items[0].number)
+            .body(&body)
+            .send()
+            .await?;
+
+        if !tags.is_empty() {
+            crab.issues("AOSC-Dev", "aosc-os-abbs")
+                .add_labels(pr.number, &tags)
+                .await?;
+        }
+
+        Ok(pr)
+    }
 }
 
 /// Add labels based on pull request title
