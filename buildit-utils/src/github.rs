@@ -446,6 +446,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
             let pr = crab
                 .pulls("AOSC-Dev", "aosc-os-abbs")
                 .update(old_pr.number)
+                .title(title)
                 .body(&body)
                 .send()
                 .await?;
