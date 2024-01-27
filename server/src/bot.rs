@@ -29,7 +29,9 @@ pub enum Command {
         description = "Start a build job: /build git-ref packages archs (e.g., /build stable bash,fish amd64,arm64)"
     )]
     Build(String),
-    #[command(description = "Start a build job from GitHub PR: /pr pr-number [architectures]")]
+    #[command(
+        description = "Start one or more build jobs from GitHub PR: /pr [pr-numbers] [architectures] (e.g., /pr 12,34 amd64,arm64)"
+    )]
     PR(String),
     #[command(description = "Show queue and server status: /status")]
     Status,
@@ -200,93 +202,106 @@ pub async fn answer(
                 .await?;
             }
 
-            if let Ok(pr_number) = str::parse::<u64>(parts[0]) {
-                match octocrab::instance()
-                    .pulls("AOSC-Dev", "aosc-os-abbs")
-                    .get(pr_number)
-                    .await
-                {
-                    Ok(pr) => {
-                        // If the pull request has been merged,
-                        // build and push packages based on stable
-                        let git_ref = if pr.merged_at.is_some() {
-                            "stable"
-                        } else {
-                            &pr.head.ref_field
-                        };
+            let mut pr_numbers = vec![];
+            let mut parse_success = true;
+            for part in parts[0].split(",") {
+                if let Ok(pr_number) = str::parse::<u64>(part) {
+                    pr_numbers.push(pr_number);
+                } else {
+                    parse_success = false;
 
-                        if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
-                            bot.send_message(
-                                msg.chat.id,
-                                "Failed to create job: Pull request is a fork",
+                    bot.send_message(
+                        msg.chat.id,
+                        format!(
+                            "Got invalid pr description: {arguments}.\n\n{}",
+                            Command::descriptions()
+                        ),
+                    )
+                    .await?;
+                    break;
+                }
+            }
+
+            if parse_success {
+                for pr_number in pr_numbers {
+                    match octocrab::instance()
+                        .pulls("AOSC-Dev", "aosc-os-abbs")
+                        .get(pr_number)
+                        .await
+                    {
+                        Ok(pr) => {
+                            // If the pull request has been merged,
+                            // build and push packages based on stable
+                            let git_ref = if pr.merged_at.is_some() {
+                                "stable"
+                            } else {
+                                &pr.head.ref_field
+                            };
+
+                            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    "Failed to create job: Pull request is a fork",
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+
+                            let path = &ARGS.abbs_path;
+
+                            if let Err(e) = update_abbs(git_ref, path).await {
+                                bot.send_message(msg.chat.id, e.to_string()).await?;
+                            }
+
+                            // find lines starting with #buildit
+                            let packages = get_packages_from_pr(&pr);
+                            if !packages.is_empty() {
+                                let archs = if parts.len() == 1 {
+                                    let path = &ARGS.abbs_path;
+
+                                    get_archs(path, &packages)
+                                } else {
+                                    let archs = parts[1].split(',').collect();
+
+                                    for a in &archs {
+                                        if !ALL_ARCH.contains(a) && a != &"mainline" {
+                                            bot.send_message(
+                                                msg.chat.id,
+                                                format!("Architecture {a} is not supported."),
+                                            )
+                                            .await?;
+                                            return Ok(());
+                                        }
+                                    }
+
+                                    archs
+                                };
+
+                                let build_request = BuildRequest {
+                                    git_ref,
+                                    packages: &packages,
+                                    archs: &archs,
+                                    github_pr: Some(pr_number),
+                                    sha: &pr.head.sha,
+                                };
+
+                                telegram_send_build_request(&bot, build_request, &msg, &channel)
+                                    .await?;
+                            } else {
+                                bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
+                                .await?;
+                            }
+                        }
+                        Err(err) => {
+                            bot_send_message_handle_length(
+                                &bot,
+                                &msg,
+                                &format!("Failed to get pr info: {err}."),
                             )
                             .await?;
-                            return Ok(());
                         }
-
-                        let path = &ARGS.abbs_path;
-
-                        if let Err(e) = update_abbs(git_ref, path).await {
-                            bot.send_message(msg.chat.id, e.to_string()).await?;
-                        }
-
-                        // find lines starting with #buildit
-                        let packages = get_packages_from_pr(&pr);
-                        if !packages.is_empty() {
-                            let archs = if parts.len() == 1 {
-                                let path = &ARGS.abbs_path;
-
-                                get_archs(path, &packages)
-                            } else {
-                                let archs = parts[1].split(',').collect();
-
-                                for a in &archs {
-                                    if !ALL_ARCH.contains(a) && a != &"mainline" {
-                                        bot.send_message(
-                                            msg.chat.id,
-                                            format!("Architecture {a} is not supported."),
-                                        )
-                                        .await?;
-                                        return Ok(());
-                                    }
-                                }
-
-                                archs
-                            };
-
-                            let build_request = BuildRequest {
-                                git_ref,
-                                packages: &packages,
-                                archs: &archs,
-                                github_pr: Some(pr_number),
-                                sha: &pr.head.sha,
-                            };
-
-                            telegram_send_build_request(&bot, build_request, &msg, &channel)
-                                .await?;
-                        } else {
-                            bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
-                                .await?;
-                        }
-                    }
-                    Err(err) => {
-                        bot_send_message_handle_length(
-                            &bot,
-                            &msg,
-                            &format!("Failed to get pr info: {err}."),
-                        )
-                        .await?;
                     }
                 }
-            } else {
-                bot.send_message(
-                    msg.chat.id,
-                    format!(
-                        "Got invalid pr description: {arguments}.\n\n{}",
-                        Command::descriptions()
-                    ),
-                )
-                .await?;
             }
         }
         Command::Build(arguments) => {
