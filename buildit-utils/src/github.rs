@@ -16,7 +16,8 @@ use tokio::{process, task};
 use walkdir::WalkDir;
 
 use crate::{
-    ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64,
+    ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, MIPS64R6EL, NOARCH,
+    PPC64EL, RISCV64,
 };
 
 macro_rules! PR {
@@ -552,6 +553,7 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("amd64", AMD64);
     map.insert("arm64", ARM64);
     map.insert("noarch", NOARCH);
+    map.insert("loongarch64", LOONGARCH64);
     map.insert("loongson3", LOONGSON3);
     map.insert("mips64r6el", MIPS64R6EL);
     map.insert("ppc64el", PPC64EL);

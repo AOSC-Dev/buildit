@@ -3,6 +3,7 @@ pub mod github;
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
+pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
 pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
 pub const MIPS64R6EL: &str = "MIPS R6 64-bit (Little Endian) `mips64r6el`";
 pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
