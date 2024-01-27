@@ -586,15 +586,15 @@ fn format_archs(archs: &[&str]) -> String {
         }
     }
 
-    // Secondary Architectures
-    if archs.contains(&"mips64r6el") {
+    // Experimental Architectures
+    if archs.contains(&"mips64r6el") || archs.contains(&"loongarch64") {
         if newline {
             s.push('\n');
         }
         s.push_str("**Experimental Architectures**\n\n");
     }
 
-    for i in ["mips64r6el"] {
+    for i in ["mips64r6el", "loongarch64"] {
         if archs.contains(&i) {
             s.push_str(&format!("- [ ] {}\n", map[i]));
         }
