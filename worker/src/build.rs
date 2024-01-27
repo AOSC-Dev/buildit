@@ -70,7 +70,7 @@ async fn run_logged_with_retry(
 ) -> anyhow::Result<bool> {
     for i in 0..5 {
         if i > 0 {
-            info!("#{i} trial to run `{cmd} {}`", args.join(" "));
+            info!("Attempt #{i} to run `{cmd} {}`", args.join(" "));
         }
         match get_output_logged(cmd, args, cwd, logs).await {
             Ok(output) => {
