@@ -245,7 +245,6 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             &path,
             "maintainers@repo.aosc.io:/buildit/logs",
         ])
-        .current_dir(output_path)
         .output()
         .await?;
 
