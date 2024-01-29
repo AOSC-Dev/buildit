@@ -14,6 +14,7 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
+use octocrab::models::CheckRunId;
 use std::fmt::Write;
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
@@ -240,6 +241,34 @@ async fn handle_success_message(
                                 error!("{e}");
                                 return update_retry(retry);
                             }
+                        }
+                    }
+
+                    // if associated with github check run, update status
+                    if let Some(github_check_run_id) = job_parent.github_check_run_id {
+                        let crab = match octocrab::Octocrab::builder()
+                            .user_access_token(ARGS.github_access_token.clone())
+                            .build()
+                        {
+                            Ok(crab) => crab,
+                            Err(e) => {
+                                error!("{e}");
+                                return HandleSuccessResult::DoNotRetry;
+                            }
+                        };
+
+                        let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
+                        let mut builder = handler
+                            .update_check_run(CheckRunId(github_check_run_id))
+                            .status(octocrab::checks::CheckRunStatus::Completed);
+
+                        if let Some(log) = job.log {
+                            builder = builder.details_url(log);
+                        }
+
+                        if let Err(e) = builder.send().await {
+                            error!("{e}");
+                            return update_retry(retry);
                         }
                     }
                 }
