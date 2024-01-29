@@ -255,13 +255,13 @@ async fn handle_success_message(
                             Ok(Some(crab)) => {
                                 let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
                                 let output = CheckRunOutput {
-                                    title: format!("buildit {}", job_parent.arch),
-                                    summary: format!(
+                                    title: format!(
                                         "Built {} packages in {:?}",
                                         job.successful_packages.len(),
                                         job.elapsed
                                     ),
-                                    text: Some(new_content),
+                                    summary: new_content,
+                                    text: None,
                                     annotations: vec![],
                                     images: vec![],
                                 };
