@@ -25,3 +25,4 @@ timeago = { version = "0.4.2", features = ["chrono"] }
 tokio = { version = "1.34.0", features = ["macros", "rt-multi-thread", "process", "sync"] }
 console = "0.15.7"
 buildit-utils = { path = "../buildit-utils" }
+jsonwebtoken = "9.2.0"

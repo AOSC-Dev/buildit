@@ -3084,6 +3084,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures",
+ "jsonwebtoken",
  "lapin",
  "log",
  "octocrab",

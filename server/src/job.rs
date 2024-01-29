@@ -428,30 +428,45 @@ pub async fn send_build_request(
     for arch in archs {
         // create github check run
         let mut github_check_run_id = None;
-        match octocrab::Octocrab::builder()
-            .user_access_token(ARGS.github_access_token.clone())
-            .build()
+        // authenticate with github app
+        if let Some(id) = ARGS
+            .github_app_id
+            .as_ref()
+            .and_then(|x| x.parse::<u64>().ok())
         {
-            Ok(crab) => {
-                match crab
-                    .checks("AOSC-Dev", "aosc-os-abbs")
-                    .create_check_run(format!("buildit {}", arch), sha)
-                    .status(octocrab::checks::CheckRunStatus::InProgress)
-                    .send()
-                    .await
+            if let Some(app_private_key) = ARGS.github_app_key.as_ref() {
+                let key = tokio::fs::read(app_private_key).await?;
+                let key = tokio::task::spawn_blocking(move || {
+                    jsonwebtoken::EncodingKey::from_rsa_pem(&key)
+                })
+                .await??;
+
+                match octocrab::Octocrab::builder()
+                    .app(id.into(), key)
+                    .build()
                 {
-                    Ok(check_run) => {
-                        github_check_run_id = Some(check_run.id.0);
+                    Ok(crab) => {
+                        match crab
+                            .checks("AOSC-Dev", "aosc-os-abbs")
+                            .create_check_run(format!("buildit {}", arch), sha)
+                            .status(octocrab::checks::CheckRunStatus::InProgress)
+                            .send()
+                            .await
+                        {
+                            Ok(check_run) => {
+                                github_check_run_id = Some(check_run.id.0);
+                            }
+                            Err(err) => {
+                                warn!("Failed to create check run: {}", err);
+                            }
+                        }
                     }
                     Err(err) => {
-                        warn!("Failed to create check run: {}", err);
+                        warn!("Failed to build octocrab: {}", err);
                     }
-                }
+                };
             }
-            Err(err) => {
-                warn!("Failed to build octocrab: {}", err);
-            }
-        };
+        }
 
         let job = Job {
             packages: packages.iter().map(|s| s.to_string()).collect(),
