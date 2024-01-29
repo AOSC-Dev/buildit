@@ -472,33 +472,37 @@ pub async fn send_build_request(
     sha: &str,
     channel: &Channel,
 ) -> anyhow::Result<()> {
+    // authenticate with github app
+    let crab = match get_crab_github_installation().await {
+        Ok(Some(crab)) => Some(crab),
+        Ok(None) => {
+            // github app unavailable
+            None
+        }
+        Err(err) => {
+            warn!("Failed to build octocrab: {}", err);
+            None
+        }
+    };
+
     // for each arch, create a job
     for arch in archs {
         // create github check run
         let mut github_check_run_id = None;
-        // authenticate with github app
-        match get_crab_github_installation().await {
-            Ok(Some(crab)) => {
-                match crab
-                    .checks("AOSC-Dev", "aosc-os-abbs")
-                    .create_check_run(format!("buildit {}", arch), sha)
-                    .status(octocrab::params::checks::CheckRunStatus::InProgress)
-                    .send()
-                    .await
-                {
-                    Ok(check_run) => {
-                        github_check_run_id = Some(check_run.id.0);
-                    }
-                    Err(err) => {
-                        warn!("Failed to create check run: {}", err);
-                    }
+        if let Some(crab) = &crab {
+            match crab
+                .checks("AOSC-Dev", "aosc-os-abbs")
+                .create_check_run(format!("buildit {}", arch), sha)
+                .status(octocrab::params::checks::CheckRunStatus::InProgress)
+                .send()
+                .await
+            {
+                Ok(check_run) => {
+                    github_check_run_id = Some(check_run.id.0);
                 }
-            }
-            Ok(None) => {
-                // github app unavailable
-            }
-            Err(err) => {
-                warn!("Failed to build octocrab: {}", err);
+                Err(err) => {
+                    warn!("Failed to create check run: {}", err);
+                }
             }
         }
 
