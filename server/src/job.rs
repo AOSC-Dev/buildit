@@ -292,7 +292,12 @@ async fn handle_success_message(
                                                     ))
                                                     .status(
                                                         octocrab::checks::CheckRunStatus::Completed,
-                                                    );
+                                                    )
+                                                    .conclusion(if success {
+                                                        "success"
+                                                    } else {
+                                                        "failure"
+                                                    });
 
                                                 if let Some(log) = job.log {
                                                     builder = builder.details_url(log);
