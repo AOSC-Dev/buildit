@@ -397,6 +397,33 @@ pub async fn send_build_request(
 ) -> anyhow::Result<()> {
     // for each arch, create a job
     for arch in archs {
+        // create github check run
+        let mut github_check_run_id = None;
+        match octocrab::Octocrab::builder()
+            .user_access_token(ARGS.github_access_token.clone())
+            .build()
+        {
+            Ok(crab) => {
+                match crab
+                    .checks("AOSC-Dev", "aosc-os-abbs")
+                    .create_check_run(format!("buildit {}", arch), sha)
+                    .status(octocrab::checks::CheckRunStatus::InProgress)
+                    .send()
+                    .await
+                {
+                    Ok(check_run) => {
+                        github_check_run_id = Some(check_run.id.0);
+                    }
+                    Err(err) => {
+                        warn!("Failed to create check run: {}", err);
+                    }
+                }
+            }
+            Err(err) => {
+                warn!("Failed to build octocrab: {}", err);
+            }
+        };
+
         let job = Job {
             packages: packages.iter().map(|s| s.to_string()).collect(),
             git_ref: git_ref.to_string(),
@@ -410,6 +437,7 @@ pub async fn send_build_request(
             noarch: arch == &"noarch",
             sha: sha.to_string(),
             enqueue_time: Some(chrono::Utc::now()),
+            github_check_run_id,
         };
 
         info!("Adding job to message queue {:?} ...", job);
