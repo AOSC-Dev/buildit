@@ -14,7 +14,12 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
-use octocrab::models::{CheckRunId, InstallationId};
+use octocrab::params::checks::CheckRunConclusion;
+use octocrab::params::checks::CheckRunOutput;
+use octocrab::{
+    models::{CheckRunId, InstallationId},
+    Octocrab,
+};
 use std::fmt::Write;
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
@@ -129,9 +134,8 @@ async fn handle_success_message(
                     }
 
                     // if associated with github pr, update comments
+                    let new_content = to_markdown_build_result(&job, success);
                     if let Some(pr_num) = job_parent.github_pr {
-                        let new_content = to_markdown_build_result(&job, success);
-
                         let crab = match octocrab::Octocrab::builder()
                             .user_access_token(ARGS.github_access_token.clone())
                             .build()
@@ -187,7 +191,7 @@ async fn handle_success_message(
 
                         if let Err(e) = crab
                             .issues("AOSC-Dev", "aosc-os-abbs")
-                            .create_comment(pr_num, new_content)
+                            .create_comment(pr_num, new_content.clone())
                             .await
                         {
                             error!("{e}");
@@ -247,78 +251,45 @@ async fn handle_success_message(
                     // if associated with github check run, update status
                     if let Some(github_check_run_id) = job_parent.github_check_run_id {
                         // authenticate with github app
-                        if let Some(id) = ARGS
-                            .github_app_id
-                            .as_ref()
-                            .and_then(|x| x.parse::<u64>().ok())
-                        {
-                            if let Some(app_private_key) = ARGS.github_app_key.as_ref() {
-                                let key = match tokio::fs::read(app_private_key).await {
-                                    Ok(key) => key,
-                                    Err(err) => {
-                                        error!("Failed to read github app key: {err}");
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
+                        match get_crab_github_installation().await {
+                            Ok(Some(crab)) => {
+                                let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
+                                let output = CheckRunOutput {
+                                    title: format!("buildit {}", job_parent.arch),
+                                    summary: format!(
+                                        "Built {} packages in {:?}",
+                                        job.successful_packages.len(),
+                                        job.elapsed
+                                    ),
+                                    text: Some(new_content),
+                                    annotations: vec![],
+                                    images: vec![],
                                 };
+                                let mut builder = handler
+                                    .update_check_run(CheckRunId(github_check_run_id))
+                                    .status(octocrab::params::checks::CheckRunStatus::Completed)
+                                    .output(output)
+                                    .conclusion(if success {
+                                        CheckRunConclusion::Success
+                                    } else {
+                                        CheckRunConclusion::Failure
+                                    });
 
-                                let key = match tokio::task::spawn_blocking(move || {
-                                    jsonwebtoken::EncodingKey::from_rsa_pem(&key)
-                                })
-                                .await
-                                {
-                                    Ok(Ok(key)) => key,
-                                    Ok(Err(err)) => {
-                                        error!("Failed to parse github app key: {err}");
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
-                                    Err(err) => {
-                                        error!("Failed to parse github app key: {err}");
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
-                                };
+                                if let Some(log) = job.log {
+                                    builder = builder.details_url(log);
+                                }
 
-                                match octocrab::Octocrab::builder().app(id.into(), key).build() {
-                                    Ok(app_crab) => {
-                                        match app_crab
-                                            .installation_and_token(InstallationId(45135446))
-                                            .await
-                                        {
-                                            Ok(crab) => {
-                                                let handler =
-                                                    crab.0.checks("AOSC-Dev", "aosc-os-abbs");
-                                                let mut builder = handler
-                                                    .update_check_run(CheckRunId(
-                                                        github_check_run_id,
-                                                    ))
-                                                    .status(
-                                                        octocrab::checks::CheckRunStatus::Completed,
-                                                    )
-                                                    .conclusion(if success {
-                                                        "success"
-                                                    } else {
-                                                        "failure"
-                                                    });
-
-                                                if let Some(log) = job.log {
-                                                    builder = builder.details_url(log);
-                                                }
-
-                                                if let Err(e) = builder.send().await {
-                                                    error!("{e}");
-                                                    return update_retry(retry);
-                                                }
-                                            }
-                                            Err(err) => {
-                                                warn!("Failed to get installation token: {}", err);
-                                                return update_retry(retry);
-                                            }
-                                        }
-                                    }
-                                    Err(err) => {
-                                        warn!("Failed to build octocrab: {}", err);
-                                        return HandleSuccessResult::DoNotRetry;
-                                    }
-                                };
+                                if let Err(e) = builder.send().await {
+                                    error!("{e}");
+                                    return update_retry(retry);
+                                }
+                            }
+                            Ok(None) => {
+                                // github app unavailable
+                            }
+                            Err(err) => {
+                                warn!("Failed to get installation token: {}", err);
+                                return update_retry(retry);
                             }
                         }
                     }
@@ -466,6 +437,32 @@ pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Resul
     }
 }
 
+/// Create octocrab instance authenticated as github installation
+async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {
+    if let Some(id) = ARGS
+        .github_app_id
+        .as_ref()
+        .and_then(|x| x.parse::<u64>().ok())
+    {
+        if let Some(app_private_key) = ARGS.github_app_key.as_ref() {
+            let key = tokio::fs::read(app_private_key).await?;
+            let key =
+                tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
+                    .await??;
+
+            let app_crab = octocrab::Octocrab::builder().app(id.into(), key).build()?;
+            // TODO: move to config
+            return Ok(Some(
+                app_crab
+                    .installation_and_token(InstallationId(45135446))
+                    .await?
+                    .0,
+            ));
+        }
+    }
+    return Ok(None);
+}
+
 pub async fn send_build_request(
     git_ref: &str,
     packages: &[String],
@@ -480,50 +477,28 @@ pub async fn send_build_request(
         // create github check run
         let mut github_check_run_id = None;
         // authenticate with github app
-        if let Some(id) = ARGS
-            .github_app_id
-            .as_ref()
-            .and_then(|x| x.parse::<u64>().ok())
-        {
-            if let Some(app_private_key) = ARGS.github_app_key.as_ref() {
-                let key = tokio::fs::read(app_private_key).await?;
-                let key = tokio::task::spawn_blocking(move || {
-                    jsonwebtoken::EncodingKey::from_rsa_pem(&key)
-                })
-                .await??;
-
-                match octocrab::Octocrab::builder().app(id.into(), key).build() {
-                    Ok(app_crab) => {
-                        match app_crab
-                            .installation_and_token(InstallationId(45135446))
-                            .await
-                        {
-                            Ok(crab) => {
-                                match crab
-                                    .0
-                                    .checks("AOSC-Dev", "aosc-os-abbs")
-                                    .create_check_run(format!("buildit {}", arch), sha)
-                                    .status(octocrab::checks::CheckRunStatus::InProgress)
-                                    .send()
-                                    .await
-                                {
-                                    Ok(check_run) => {
-                                        github_check_run_id = Some(check_run.id.0);
-                                    }
-                                    Err(err) => {
-                                        warn!("Failed to create check run: {}", err);
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                warn!("Failed to get installation token: {}", err);
-                            }
-                        }
+        match get_crab_github_installation().await {
+            Ok(Some(crab)) => {
+                match crab
+                    .checks("AOSC-Dev", "aosc-os-abbs")
+                    .create_check_run(format!("buildit {}", arch), sha)
+                    .status(octocrab::params::checks::CheckRunStatus::InProgress)
+                    .send()
+                    .await
+                {
+                    Ok(check_run) => {
+                        github_check_run_id = Some(check_run.id.0);
                     }
                     Err(err) => {
-                        warn!("Failed to build octocrab: {}", err);
+                        warn!("Failed to create check run: {}", err);
                     }
-                };
+                }
+            }
+            Ok(None) => {
+                // github app unavailable
+            }
+            Err(err) => {
+                warn!("Failed to build octocrab: {}", err);
             }
         }
 
