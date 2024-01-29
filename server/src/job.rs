@@ -189,6 +189,8 @@ async fn handle_success_message(
                             }
                         }
 
+                        // Disable comment posting, since we have check run reporting
+                        /*
                         if let Err(e) = crab
                             .issues("AOSC-Dev", "aosc-os-abbs")
                             .create_comment(pr_num, new_content.clone())
@@ -197,6 +199,7 @@ async fn handle_success_message(
                             error!("{e}");
                             return update_retry(retry);
                         }
+                        */
 
                         if success {
                             let pr = match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_num).await
