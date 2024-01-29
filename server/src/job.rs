@@ -14,7 +14,7 @@ use lapin::{
     BasicProperties, Channel, ConnectionProperties,
 };
 use log::{error, info, warn};
-use octocrab::models::CheckRunId;
+use octocrab::models::{CheckRunId, InstallationId};
 use std::fmt::Write;
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
@@ -441,23 +441,30 @@ pub async fn send_build_request(
                 })
                 .await??;
 
-                match octocrab::Octocrab::builder()
-                    .app(id.into(), key)
-                    .build()
-                {
-                    Ok(crab) => {
-                        match crab
-                            .checks("AOSC-Dev", "aosc-os-abbs")
-                            .create_check_run(format!("buildit {}", arch), sha)
-                            .status(octocrab::checks::CheckRunStatus::InProgress)
-                            .send()
+                match octocrab::Octocrab::builder().app(id.into(), key).build() {
+                    Ok(app_crab) => {
+                        match app_crab
+                            .installation_and_token(InstallationId(45135446))
                             .await
                         {
-                            Ok(check_run) => {
-                                github_check_run_id = Some(check_run.id.0);
+                            Ok(crab) => {
+                                match crab.0
+                                    .checks("AOSC-Dev", "aosc-os-abbs")
+                                    .create_check_run(format!("buildit {}", arch), sha)
+                                    .status(octocrab::checks::CheckRunStatus::InProgress)
+                                    .send()
+                                    .await
+                                {
+                                    Ok(check_run) => {
+                                        github_check_run_id = Some(check_run.id.0);
+                                    }
+                                    Err(err) => {
+                                        warn!("Failed to create check run: {}", err);
+                                    }
+                                }
                             }
                             Err(err) => {
-                                warn!("Failed to create check run: {}", err);
+                                warn!("Failed to get installation token: {}", err);
                             }
                         }
                     }
