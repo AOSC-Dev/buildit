@@ -201,53 +201,54 @@ async fn handle_success_message(
                         }
                         */
 
-                        if success {
-                            let pr = match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_num).await
-                            {
-                                Ok(pr) => pr,
-                                Err(e) => {
-                                    error!("{e}");
-                                    return update_retry(retry);
-                                }
-                            };
-
-                            let body = if let Some(body) = pr.body {
-                                body
-                            } else {
-                                return HandleSuccessResult::DoNotRetry;
-                            };
-
-                            let pr_arch = match job_parent.arch.as_str() {
-                                "amd64" if job_parent.noarch => NOARCH,
-                                "amd64" => AMD64,
-                                "arm64" => ARM64,
-                                "loongson3" => LOONGSON3,
-                                "mips64r6el" => MIPS64R6EL,
-                                "ppc64el" => PPC64EL,
-                                "riscv64" => RISCV64,
-                                "loongarch64" => {
-                                    // FIXME: loongarch64 does not in mainline for now
-                                    return HandleSuccessResult::Ok;
-                                }
-                                x => {
-                                    error!("Unknown architecture: {x}");
-                                    return HandleSuccessResult::DoNotRetry;
-                                }
-                            };
-
-                            let body = body
-                                .replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"));
-
-                            if let Err(e) = crab
-                                .pulls("AOSC-Dev", "aosc-os-abbs")
-                                .update(pr_num)
-                                .body(body)
-                                .send()
-                                .await
-                            {
+                        // update checklist
+                        let pr = match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_num).await {
+                            Ok(pr) => pr,
+                            Err(e) => {
                                 error!("{e}");
                                 return update_retry(retry);
                             }
+                        };
+
+                        let body = if let Some(body) = pr.body {
+                            body
+                        } else {
+                            return HandleSuccessResult::DoNotRetry;
+                        };
+
+                        let pr_arch = match job_parent.arch.as_str() {
+                            "amd64" if job_parent.noarch => NOARCH,
+                            "amd64" => AMD64,
+                            "arm64" => ARM64,
+                            "loongson3" => LOONGSON3,
+                            "mips64r6el" => MIPS64R6EL,
+                            "ppc64el" => PPC64EL,
+                            "riscv64" => RISCV64,
+                            "loongarch64" => {
+                                // FIXME: loongarch64 does not in mainline for now
+                                return HandleSuccessResult::Ok;
+                            }
+                            x => {
+                                error!("Unknown architecture: {x}");
+                                return HandleSuccessResult::DoNotRetry;
+                            }
+                        };
+
+                        let body = if success {
+                            body.replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"));
+                        } else {
+                            body.replace(&format!("- [x] {pr_arch}"), &format!("- [ ] {pr_arch}"));
+                        };
+
+                        if let Err(e) = crab
+                            .pulls("AOSC-Dev", "aosc-os-abbs")
+                            .update(pr_num)
+                            .body(body)
+                            .send()
+                            .await
+                        {
+                            error!("{e}");
+                            return update_retry(retry);
                         }
                     }
 
