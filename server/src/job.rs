@@ -235,9 +235,9 @@ async fn handle_success_message(
                         };
 
                         let body = if success {
-                            body.replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"));
+                            body.replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"))
                         } else {
-                            body.replace(&format!("- [x] {pr_arch}"), &format!("- [ ] {pr_arch}"));
+                            body.replace(&format!("- [x] {pr_arch}"), &format!("- [ ] {pr_arch}"))
                         };
 
                         if let Err(e) = crab
