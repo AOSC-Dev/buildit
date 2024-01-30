@@ -48,6 +48,8 @@ pub enum JobResult {
 pub struct JobOk {
     /// Original job description
     pub job: Job,
+    /// Is the build successful?
+    pub success: bool,
     /// List of packages successfully built
     pub successful_packages: Vec<String>,
     /// List of packages failed to build

@@ -101,6 +101,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let mut failed_package = None;
     let mut skipped_packages = vec![];
     let mut git_commit = None;
+    let mut success = false;
     let mut logs = vec![];
 
     // assuming branch name == git_ref
@@ -160,6 +161,8 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.iter().map(String::as_str));
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
+
+            success = output.status.success();
 
             // parse output
             // match acbs/acbs/util.py
@@ -278,6 +281,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         elapsed: begin.elapsed(),
         git_commit,
         pushpkg_success,
+        success,
     });
 
     Ok(result)
