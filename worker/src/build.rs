@@ -100,13 +100,11 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let mut successful_packages = vec![];
     let mut failed_package = None;
     let mut skipped_packages = vec![];
-    let mut git_commit = None;
     let mut success = false;
     let mut logs = vec![];
 
-    // assuming branch name == git_ref
     let mut output_path = args.ciel_path.clone();
-    output_path.push(format!("OUTPUT-{}", job.git_ref));
+    output_path.push(format!("OUTPUT-{}", job.branch));
 
     // clear output directory
     if output_path.exists() {
@@ -119,7 +117,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         &[
             "fetch",
             "https://github.com/AOSC-Dev/aosc-os-abbs.git",
-            &job.git_ref,
+            &job.branch,
         ],
         tree_path,
         &mut logs,
@@ -129,29 +127,22 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let mut pushpkg_success = false;
 
     if git_fetch_succeess {
-        let output =
-            get_output_logged("git", &["rev-parse", "FETCH_HEAD"], tree_path, &mut logs).await?;
-        git_commit = Some(String::from_utf8_lossy(&output.stdout).to_string());
-
         // try to switch branch, but allow it to fail:
         // ensure branch exists
         get_output_logged(
             "git",
-            &["checkout", "-b", &job.git_ref],
+            &["checkout", "-b", &job.branch],
             tree_path,
             &mut logs,
         )
         .await?;
         // checkout to branch
-        get_output_logged("git", &["checkout", &job.git_ref], tree_path, &mut logs).await?;
+        get_output_logged("git", &["checkout", &job.branch], tree_path, &mut logs).await?;
 
-        let output = get_output_logged(
-            "git",
-            &["reset", "FETCH_HEAD", "--hard"],
-            tree_path,
-            &mut logs,
-        )
-        .await?;
+        // switch to the commit by sha
+        // to avoid race condition, resolve branch name to sha in server
+        let output =
+            get_output_logged("git", &["reset", &job.sha, "--hard"], tree_path, &mut logs).await?;
 
         if output.status.success() {
             // update container
@@ -220,7 +211,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
                         "-i",
                         &args.upload_ssh_key,
                         "maintainers",
-                        &job.git_ref,
+                        &job.branch,
                     ],
                     &output_path,
                     &mut logs,
@@ -233,7 +224,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
     let file_name = format!(
         "{}-{}-{}-{}.txt",
         gethostname::gethostname().to_string_lossy(),
-        job.git_ref,
+        job.branch,
         job.arch,
         Local::now().format("%Y-%m-%d-%H:%M")
     );
@@ -279,7 +270,6 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
             pid: std::process::id(),
         },
         elapsed: begin.elapsed(),
-        git_commit,
         pushpkg_success,
         success,
     });

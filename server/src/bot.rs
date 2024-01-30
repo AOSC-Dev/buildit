@@ -16,6 +16,7 @@ use teloxide::{
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
+use tokio::process;
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -26,7 +27,7 @@ pub enum Command {
     #[command(description = "Display usage: /help")]
     Help,
     #[command(
-        description = "Start a build job: /build git-ref packages archs (e.g., /build stable bash,fish amd64,arm64)"
+        description = "Start a build job: /build branch packages archs (e.g., /build stable bash,fish amd64,arm64)"
     )]
     Build(String),
     #[command(
@@ -48,7 +49,7 @@ pub enum Command {
 }
 
 pub struct BuildRequest<'a> {
-    pub git_ref: &'a str,
+    pub branch: &'a str,
     pub packages: &'a [String],
     pub archs: &'a [&'a str],
     pub github_pr: Option<u64>,
@@ -62,7 +63,7 @@ async fn telegram_send_build_request(
     channel: &Channel,
 ) -> ResponseResult<()> {
     let BuildRequest {
-        git_ref,
+        branch,
         packages,
         archs,
         github_pr,
@@ -72,7 +73,7 @@ async fn telegram_send_build_request(
     let archs = handle_archs_args(archs.to_vec());
 
     match send_build_request(
-        git_ref,
+        branch,
         packages,
         &archs,
         github_pr,
@@ -85,7 +86,7 @@ async fn telegram_send_build_request(
         Ok(()) => {
             bot.send_message(
                 msg.chat.id,
-                to_html_new_job_summary(git_ref, github_pr, &archs, packages),
+                to_html_new_job_summary(branch, github_pr, &archs, packages),
             )
             .parse_mode(ParseMode::Html)
             .disable_web_page_preview(true)
@@ -232,7 +233,7 @@ pub async fn answer(
                         Ok(pr) => {
                             // If the pull request has been merged,
                             // build and push packages based on stable
-                            let git_ref = if pr.merged_at.is_some() {
+                            let branch = if pr.merged_at.is_some() {
                                 "stable"
                             } else {
                                 &pr.head.ref_field
@@ -249,7 +250,7 @@ pub async fn answer(
 
                             let path = &ARGS.abbs_path;
 
-                            if let Err(e) = update_abbs(git_ref, path).await {
+                            if let Err(e) = update_abbs(branch, path).await {
                                 bot.send_message(msg.chat.id, e.to_string()).await?;
                             }
 
@@ -278,7 +279,7 @@ pub async fn answer(
                                 };
 
                                 let build_request = BuildRequest {
-                                    git_ref,
+                                    branch,
                                     packages: &packages,
                                     archs: &archs,
                                     github_pr: Some(pr_number),
@@ -307,18 +308,34 @@ pub async fn answer(
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 3 {
-                let git_ref = parts[0];
+                let branch = parts[0];
                 let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
                 let archs: Vec<&str> = parts[2].split(',').collect();
-                let build_request = BuildRequest {
-                    git_ref,
-                    packages: &packages,
-                    archs: &archs,
-                    github_pr: None,
-                    sha: git_ref,
-                };
 
-                telegram_send_build_request(&bot, build_request, &msg, &channel).await?;
+                // resolve branch name to commit hash
+                let path = &ARGS.abbs_path;
+
+                if let Err(e) = update_abbs(branch, path).await {
+                    bot.send_message(msg.chat.id, format!("Failed to update ABBS tree: {e}"))
+                        .await?;
+                } else {
+                    let output = process::Command::new("git")
+                        .arg("rev-parse")
+                        .arg("HEAD")
+                        .current_dir(path)
+                        .output()
+                        .await?;
+                    let sha = String::from_utf8_lossy(&output.stdout).to_string();
+
+                    let build_request = BuildRequest {
+                        branch,
+                        packages: &packages,
+                        archs: &archs,
+                        github_pr: None,
+                        sha: &sha,
+                    };
+                    telegram_send_build_request(&bot, build_request, &msg, &channel).await?;
+                }
                 return Ok(());
             }
 

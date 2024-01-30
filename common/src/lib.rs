@@ -10,9 +10,9 @@ use std::time::Duration;
 pub struct Job {
     /// List of packages to build
     pub packages: Vec<String>,
-    /// Git reference, e.g. branch name
-    pub git_ref: String,
-    /// SHA hash of the commit point by `git_ref`
+    /// Git branch name
+    pub branch: String,
+    /// SHA hash of the commit pointed by `branch`, resolved in buildit server
     pub sha: String,
     /// Architecture to build
     pub arch: String,
@@ -62,8 +62,6 @@ pub struct JobOk {
     pub worker: WorkerIdentifier,
     /// Elapsed time of the job
     pub elapsed: Duration,
-    /// SHA hash of the commit of ABBS tree
-    pub git_commit: Option<String>,
     /// If pushpkg succeeded
     pub pushpkg_success: bool,
 }

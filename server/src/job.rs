@@ -464,7 +464,7 @@ async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {
 }
 
 pub async fn send_build_request(
-    git_ref: &str,
+    branch: &str,
     packages: &[String],
     archs: &[&str],
     github_pr: Option<u64>,
@@ -508,7 +508,7 @@ pub async fn send_build_request(
 
         let job = Job {
             packages: packages.iter().map(|s| s.to_string()).collect(),
-            git_ref: git_ref.to_string(),
+            branch: branch.to_string(),
             arch: if arch == &"noarch" {
                 "amd64".to_string()
             } else {

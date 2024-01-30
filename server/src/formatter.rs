@@ -37,7 +37,6 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         log,
         worker,
         elapsed,
-        git_commit,
         ..
     } = job;
 
@@ -61,11 +60,7 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
             String::new()
         },
         &format!("{:.2?}", elapsed),
-        if let Some(git_commit) = &git_commit {
-            format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", git_commit, &git_commit[..8])
-        } else {
-            String::new()
-        },
+        format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", job.sha, &job.sha[..8]),
         if let Some(pr) = job.github_pr {
             format!(
                 "<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>\n",
@@ -96,7 +91,6 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
         log,
         worker,
         elapsed,
-        git_commit,
         ..
     } = job;
 
@@ -111,11 +105,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
             String::new()
         },
         format_args!("{:.2?}", elapsed),
-        if let Some(git_commit) = &git_commit {
-            format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &git_commit[..8], git_commit)
-        } else {
-            String::new()
-        },
+        format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &job.sha[..8], job.sha),
         job.arch,
         teloxide::utils::markdown::escape(&job.packages.join(", ")),
         teloxide::utils::markdown::escape(&successful_packages.join(", ")),

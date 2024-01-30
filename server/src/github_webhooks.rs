@@ -164,7 +164,7 @@ async fn handle_webhook_comment(
         get_archs(path, &packages)
     };
 
-    let git_ref = if pr.merged_at.is_some() {
+    let branch = if pr.merged_at.is_some() {
         "stable"
     } else {
         &pr.head.ref_field
@@ -197,14 +197,14 @@ async fn handle_webhook_comment(
 
     let path = &ARGS.abbs_path;
 
-    if let Err(e) = update_abbs(git_ref, path).await {
+    if let Err(e) = update_abbs(branch, path).await {
         create_github_comment(&crab, retry, num, &e.to_string()).await;
     }
 
-    let s = to_html_new_job_summary(git_ref, Some(num), &archs, &packages);
+    let s = to_html_new_job_summary(branch, Some(num), &archs, &packages);
 
     match send_build_request(
-        git_ref,
+        branch,
         &packages,
         &archs,
         Some(num),
