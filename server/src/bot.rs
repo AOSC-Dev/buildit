@@ -233,10 +233,10 @@ pub async fn answer(
                         Ok(pr) => {
                             // If the pull request has been merged,
                             // build and push packages based on stable
-                            let branch = if pr.merged_at.is_some() {
-                                "stable"
+                            let (branch, sha) = if pr.merged_at.is_some() {
+                                ("stable", &pr.base.sha)
                             } else {
-                                &pr.head.ref_field
+                                (pr.head.ref_field.as_str(), &pr.head.sha)
                             };
 
                             if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
@@ -283,7 +283,7 @@ pub async fn answer(
                                     packages: &packages,
                                     archs: &archs,
                                     github_pr: Some(pr_number),
-                                    sha: &pr.head.sha,
+                                    sha,
                                 };
 
                                 telegram_send_build_request(&bot, build_request, &msg, &channel)

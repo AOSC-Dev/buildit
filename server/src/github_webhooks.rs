@@ -164,10 +164,10 @@ async fn handle_webhook_comment(
         get_archs(path, &packages)
     };
 
-    let branch = if pr.merged_at.is_some() {
-        "stable"
+    let (branch, sha) = if pr.merged_at.is_some() {
+        ("stable", &pr.base.sha)
     } else {
-        &pr.head.ref_field
+        (pr.head.ref_field.as_str(), &pr.head.sha)
     };
 
     let is_org_user = is_org_user(&comment.comment.user.login).await;
@@ -209,7 +209,7 @@ async fn handle_webhook_comment(
         &archs,
         Some(num),
         JobSource::Github(num),
-        &pr.head.sha,
+        sha,
         channel,
     )
     .await
