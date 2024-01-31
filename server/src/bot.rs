@@ -330,7 +330,7 @@ pub async fn answer(
                         .current_dir(path)
                         .output()
                         .await?;
-                    let sha = String::from_utf8_lossy(&output.stdout).to_string();
+                    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
                     let build_request = BuildRequest {
                         branch,
