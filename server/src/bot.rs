@@ -234,7 +234,12 @@ pub async fn answer(
                             // If the pull request has been merged,
                             // build and push packages based on stable
                             let (branch, sha) = if pr.merged_at.is_some() {
-                                ("stable", &pr.base.sha)
+                                (
+                                    "stable",
+                                    pr.merge_commit_sha
+                                        .as_ref()
+                                        .expect("merge_commit_sha should not be None"),
+                                )
                             } else {
                                 (pr.head.ref_field.as_str(), &pr.head.sha)
                             };
