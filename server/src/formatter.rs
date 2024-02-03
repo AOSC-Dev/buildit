@@ -54,12 +54,8 @@ pub fn to_html_build_result(job: &JobOk, success: bool) -> String {
         if success { SUCCESS } else { FAILED },
         &worker.hostname,
         worker.arch,
-        if let Some(enqueue_time) = &job.enqueue_time {
-            format!("<b>Enqueue time</b>: {}\n", enqueue_time)
-        } else {
-            String::new()
-        },
-        &format!("{:.2?}", elapsed),
+        format!("<b>Enqueue time</b>: {}\n", job.enqueue_time),
+        format!("{:.2?}", elapsed),
         format!("<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>\n", job.sha, &job.sha[..8]),
         if let Some(pr) = job.github_pr {
             format!(
@@ -99,11 +95,7 @@ pub fn to_markdown_build_result(job: &JobOk, success: bool) -> String {
         if success { SUCCESS } else { FAILED },
         worker.hostname,
         worker.arch,
-        if let Some(enqueue_time) = &job.enqueue_time {
-            format!("**Enqueue time**: {}\n", teloxide::utils::markdown::escape(&enqueue_time.to_string()))
-        } else {
-            String::new()
-        },
+        format!("**Enqueue time**: {}\n", teloxide::utils::markdown::escape(&job.enqueue_time.to_string())),
         format_args!("{:.2?}", elapsed),
         format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &job.sha[..8], job.sha),
         job.arch,
@@ -144,10 +136,8 @@ fn test_format_html_build_result() {
             source: JobSource::Telegram(484493567),
             github_pr: Some(4992),
             noarch: false,
-            enqueue_time: Some(
-                chrono::Utc
-                    .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
-            ),
+            enqueue_time: chrono::Utc
+                .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
         },
         successful_packages: vec!["fd".to_string()],
         failed_package: None,

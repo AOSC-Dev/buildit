@@ -518,7 +518,7 @@ pub async fn send_build_request(
             github_pr,
             noarch: arch == &"noarch",
             sha: sha.to_string(),
-            enqueue_time: Some(chrono::Utc::now()),
+            enqueue_time: chrono::Utc::now(),
             github_check_run_id,
         };
 
