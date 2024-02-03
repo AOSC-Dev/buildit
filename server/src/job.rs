@@ -1,10 +1,11 @@
 use crate::{
     bot::http_rabbitmq_api,
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
-    github::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64},
     ARGS,
 };
 use anyhow::anyhow;
+use buildit_utils::LOONGARCH64;
+use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64};
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, JobSource};
 use futures::StreamExt;
 use lapin::{
@@ -220,10 +221,7 @@ async fn handle_success_message(
                             "mips64r6el" => MIPS64R6EL,
                             "ppc64el" => PPC64EL,
                             "riscv64" => RISCV64,
-                            "loongarch64" => {
-                                // FIXME: loongarch64 does not in mainline for now
-                                return HandleSuccessResult::Ok;
-                            }
+                            "loongarch64" => LOONGARCH64,
                             x => {
                                 error!("Unknown architecture: {x}");
                                 return HandleSuccessResult::DoNotRetry;
