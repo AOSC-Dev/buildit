@@ -103,9 +103,8 @@ async fn telegram_send_build_request(
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     let mut archs = archs;
     if archs.contains(&"mainline") {
-        // FIXME: loongarch64 is not in mainline
         // archs
-        archs.extend(ALL_ARCH.iter().filter(|x| x != &&"loongarch64"));
+        archs.extend(ALL_ARCH.iter());
         archs.retain(|arch| *arch != "mainline");
     }
     archs.sort();
