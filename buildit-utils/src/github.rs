@@ -562,7 +562,11 @@ fn format_archs(archs: &[&str]) -> String {
     let mut newline = false;
 
     // Primary Architectures
-    if archs.contains(&"amd64") || archs.contains(&"arm64") || archs.contains(&"loongarch64") || archs.contains(&"noarch") {
+    if archs.contains(&"amd64")
+        || archs.contains(&"arm64")
+        || archs.contains(&"loongarch64")
+        || archs.contains(&"noarch")
+    {
         s.push_str("**Primary Architectures**\n\n");
         newline = true;
     }
@@ -660,26 +664,17 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
 
     if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
         if fail_archs.is_empty() {
-            return ALL_ARCH
-                .iter()
-                .map(|x| x.to_owned())
-                .collect();
+            return ALL_ARCH.iter().map(|x| x.to_owned()).collect();
         }
 
         if fail_archs.iter().any(|x| x.is_none()) {
-            ALL_ARCH
-                .iter()
-                .map(|x| x.to_owned())
-                .collect()
+            ALL_ARCH.iter().map(|x| x.to_owned()).collect()
         } else {
             let mut res = vec![];
 
             for i in fail_archs {
                 let r = i.unwrap();
-                for a in ALL_ARCH
-                    .iter()
-                    .map(|x| x.to_owned())
-                {
+                for a in ALL_ARCH.iter().map(|x| x.to_owned()) {
                     if !r.is_match(a).unwrap_or(false) && !res.contains(&a) {
                         res.push(a);
                     }

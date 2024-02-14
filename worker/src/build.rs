@@ -226,7 +226,7 @@ async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobRe
         gethostname::gethostname().to_string_lossy(),
         job.branch,
         job.arch,
-        Local::now().format("%Y-%m-%d-%H:%M")
+        Local::now().format("%Y-%m-%d-%H:%M:%S")
     );
 
     let path = format!("/tmp/{file_name}");
