@@ -7,10 +7,7 @@ use jsonwebtoken::EncodingKey;
 use log::{debug, error, info};
 use octocrab::{models::pulls::PullRequest, params};
 use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-    process::Output,
+    borrow::Cow, collections::{HashMap, HashSet}, fs, io::{BufRead, BufReader}, path::{Path, PathBuf}, process::Output
 };
 use tokio::{process, task};
 use walkdir::WalkDir;
@@ -114,8 +111,25 @@ pub async fn open_pr(
 fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
     let mut res = vec![];
 
+    let mut req_pkgs = vec![];
+
+    for i in pkgs {
+        if i.starts_with("groups/") {
+            let f = fs::File::open(p.join(i))?;
+            let lines = BufReader::new(f).lines();
+
+            for i in lines {
+                let i = i?;
+                let pkg = i.split('/').next_back().unwrap_or(&i);
+                req_pkgs.push(pkg.to_string());
+            }
+        } else {
+            req_pkgs.push(i.to_string());
+        }
+    }
+
     for_each_abbs(p, |pkg, path| {
-        if !pkgs.contains(&pkg.to_string()) {
+        if !req_pkgs.contains(&pkg.to_string()) {
             return;
         }
 
