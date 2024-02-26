@@ -7,7 +7,12 @@ use jsonwebtoken::EncodingKey;
 use log::{debug, error, info};
 use octocrab::{models::pulls::PullRequest, params};
 use std::{
-    borrow::Cow, collections::{HashMap, HashSet}, fs, io::{BufRead, BufReader}, path::{Path, PathBuf}, process::Output
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    fs,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    process::Output,
 };
 use tokio::{process, task};
 use walkdir::WalkDir;

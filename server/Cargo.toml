@@ -26,3 +26,4 @@ tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "process"
 console = "0.15.8"
 buildit-utils = { path = "../buildit-utils" }
 jsonwebtoken = "9.2.0"
+size = "0.4.1"

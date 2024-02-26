@@ -149,13 +149,15 @@ async fn status(args: &Args) -> anyhow::Result<String> {
     if let Ok(lock) = WORKERS.lock() {
         for (identifier, status) in lock.iter() {
             res += &teloxide::utils::markdown::escape(&format!(
-                "{} ({}{}): Online as of {}\n",
+                "{} ({}{}, {} core(s), {} memory): Online as of {}\n",
                 identifier.hostname,
                 identifier.arch,
                 match &status.git_commit {
                     Some(git_commit) => format!(" {}", git_commit),
                     None => String::new(),
                 },
+                status.logical_cores,
+                size::Size::from_bytes(status.memory_bytes),
                 fmt.convert_chrono(status.last_heartbeat, Local::now())
             ));
         }

@@ -43,12 +43,16 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
                 if let Some(status) = lock.get_mut(&heartbeat.identifier) {
                     status.last_heartbeat = Local::now();
                     status.git_commit = heartbeat.git_commit;
+                    status.logical_cores = heartbeat.logical_cores;
+                    status.memory_bytes = heartbeat.memory_bytes;
                 } else {
                     lock.insert(
                         heartbeat.identifier.clone(),
                         WorkerStatus {
                             last_heartbeat: Local::now(),
                             git_commit: heartbeat.git_commit,
+                            logical_cores: heartbeat.logical_cores,
+                            memory_bytes: heartbeat.memory_bytes,
                         },
                     );
                 }

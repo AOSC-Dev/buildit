@@ -18,6 +18,8 @@ pub mod job;
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,
     pub git_commit: Option<String>,
+    pub logical_cores: u64,
+    pub memory_bytes: u64,
 }
 
 pub static WORKERS: Lazy<Arc<Mutex<BTreeMap<WorkerIdentifier, WorkerStatus>>>> =
