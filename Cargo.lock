@@ -3466,6 +3466,7 @@ dependencies = [
  "libc",
  "ntapi",
  "once_cell",
+ "rayon",
  "windows",
 ]
 
@@ -4294,10 +4295,12 @@ dependencies = [
  "gethostname",
  "lapin",
  "log",
+ "num_cpus",
  "once_cell",
  "reqwest",
  "serde",
  "serde_json",
+ "sysinfo",
  "tokio",
  "vergen",
 ]

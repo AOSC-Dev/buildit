@@ -23,6 +23,8 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                         pid: std::process::id(),
                     },
                     git_commit: option_env!("VERGEN_GIT_DESCRIBE").map(String::from),
+                    memory_bytes: sysinfo::System::new_all().total_memory(),
+                    logical_cores: num_cpus::get() as u64,
                 })
                 .unwrap(),
                 BasicProperties::default(),

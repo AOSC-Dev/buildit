@@ -89,6 +89,10 @@ pub struct WorkerHeartbeat {
     pub identifier: WorkerIdentifier,
     /// The git commit of buildit
     pub git_commit: Option<String>,
+    /// Total memory in bytes
+    pub memory_bytes: u64,
+    /// Number of logical cores
+    pub logical_cores: u64,
 }
 
 pub async fn ensure_job_queue(queue_name: &str, channel: &Channel) -> anyhow::Result<Queue> {
