@@ -6,7 +6,7 @@ Build automation with Telegram and GitHub Integrations.
 
 Steps (as root):
 
-0. Install git, ciel, pushpkg
+0. Install git, ciel, pushpkg, rustc (with Cargo), compiler toolchain (LLVM/Clang)
 1. `mkdir -p /buildroots/buildit`
 2. `cd /buildroots/buildit && git clone https://github.com/AOSC-Dev/buildit`
 3. `cd /buildroots/buildit && ciel new`, making sure to create an instance named "main" when asked
