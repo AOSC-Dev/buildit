@@ -15,6 +15,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "abbs-meta-apml"
+version = "0.1.0"
+source = "git+https://github.com/AOSC-Dev/abbs-meta-rs#e94802f30f88a0cf88a5f9c7ff78d575ce4ede07"
+dependencies = [
+ "aho-corasick",
+ "annotate-snippets",
+ "anyhow",
+ "conch-parser",
+ "regex",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -201,6 +213,19 @@ dependencies = [
  "event-listener-strategy 0.5.0",
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "async-compression"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a116f46a969224200a0a97f29cfd4c50e7534e4b4826bd23ea2c3c533039c82c"
+dependencies = [
+ "flate2",
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -449,7 +474,7 @@ dependencies = [
 name = "buildit-utils"
 version = "0.1.0"
 dependencies = [
- "abbs-meta-apml",
+ "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs?rev=4a592937b44e8bb93103edd34eff384169a3248a)",
  "anyhow",
  "fancy-regex",
  "gix",
@@ -817,6 +842,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "debversion"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e65a0a572fa10f34b89addac251b7c8f40266606ee5847d769ab8db4d56ca11b"
+dependencies = [
+ "lazy-regex",
+]
+
+[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -858,6 +892,25 @@ dependencies = [
  "tempfile",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "dickens"
+version = "0.1.0"
+source = "git+https://github.com/AOSC-Dev/dickens.git#8256a4c3c3108cf660e9ae3b602dca2d8bd729b1"
+dependencies = [
+ "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs)",
+ "anyhow",
+ "clap",
+ "debversion",
+ "env_logger",
+ "libaosc",
+ "log",
+ "reqwest",
+ "sha2",
+ "tokio",
+ "walkdir",
+ "xz",
 ]
 
 [[package]]
@@ -2247,10 +2300,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy-regex"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d12be4595afdf58bd19e4a9f4e24187da2a66700786ff660a418e9059937a4c"
+dependencies = [
+ "lazy-regex-proc_macros",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
+name = "lazy-regex-proc_macros"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44bcd58e6c97a7fcbaffcdc95728b393b8d98933bfadad49ed4097845b57ef0b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.51",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
+name = "libaosc"
+version = "0.1.0"
+source = "git+https://github.com/AOSC-Dev/libaosc-rs#6d7a0dcfee930d360af2199663db1f0a7a31c758"
+dependencies = [
+ "libc",
+ "oma-debcontrol",
+ "reqwest",
+ "thiserror",
+ "tokio",
+ "xz2",
+]
 
 [[package]]
 name = "libc"
@@ -2317,6 +2406,17 @@ name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+
+[[package]]
+name = "lzma-sys"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fda04ab3764e6cde78b9974eec4f779acaba7c4e84b36eca3cf77c581b85d27"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+]
 
 [[package]]
 name = "memchr"
@@ -2518,6 +2618,15 @@ dependencies = [
  "tower-http",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "oma-debcontrol"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bde71c440ce7e679691b4f02d9a5cc66229449c030676e3fd4fb820d5ed5c106"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -2899,6 +3008,7 @@ version = "0.11.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6920094eb85afde5e4a138be3f2de8bbdf28000f0029e72c45025a56b042251"
 dependencies = [
+ "async-compression",
  "base64",
  "bytes",
  "encoding_rs",
@@ -3264,6 +3374,7 @@ dependencies = [
  "clap",
  "common",
  "console",
+ "dickens",
  "dotenv",
  "env_logger",
  "futures",
@@ -3307,6 +3418,17 @@ name = "sha1_smol"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
+
+[[package]]
+name = "sha2"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
 
 [[package]]
 name = "shell-words"
@@ -4308,6 +4430,24 @@ dependencies = [
  "sysinfo",
  "tokio",
  "vergen",
+]
+
+[[package]]
+name = "xz"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c887690ff2a2e233e8e49633461521f98ec57fbff9d59a884c9a4f04ec1da34"
+dependencies = [
+ "xz2",
+]
+
+[[package]]
+name = "xz2"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388c44dc09d76f1536602ead6d325eb532f5c122f17782bd57fb47baeeb767e2"
+dependencies = [
+ "lzma-sys",
 ]
 
 [[package]]

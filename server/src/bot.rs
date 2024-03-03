@@ -46,6 +46,8 @@ pub enum Command {
     Start(String),
     #[command(description = "Queue all ready messages: /queue [archs]")]
     Queue(String),
+    #[command(description = "Let dickens generate report for GitHub PR: /report pr-number")]
+    Report(String),
 }
 
 pub struct BuildRequest<'a> {
@@ -599,6 +601,76 @@ pub async fn answer(
                 }
             }
         }
+        Command::Report(arguments) => match str::parse::<u64>(&arguments) {
+            Ok(pr_number) => {
+                // create octocrab instance
+                let crab = match octocrab::Octocrab::builder()
+                    .user_access_token(ARGS.github_access_token.clone())
+                    .build()
+                {
+                    Ok(v) => v,
+                    Err(err) => {
+                        bot.send_message(
+                            msg.chat.id,
+                            format!("Cannot create octocrab instance: {err}"),
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+
+                // get topic of pr
+                match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_number).await {
+                    Ok(pr) => match dickens::topic::report(pr.head.ref_field.as_str()).await {
+                        Ok(report) => {
+                            // post report as github comment
+                            match crab
+                                .issues("AOSC-Dev", "aosc-os-abbs")
+                                .create_comment(pr_number, report)
+                                .await
+                            {
+                                Ok(comment) => {
+                                    bot_send_message_handle_length(
+                                        &bot,
+                                        &msg,
+                                        &format!("Report posted as comment: {}", comment.url),
+                                    )
+                                    .await?;
+                                }
+                                Err(err) => {
+                                    bot_send_message_handle_length(
+                                        &bot,
+                                        &msg,
+                                        &format!("Failed to create github comments: {err}."),
+                                    )
+                                    .await?;
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            bot_send_message_handle_length(
+                                &bot,
+                                &msg,
+                                &format!("Failed to generate dickens report: {err}."),
+                            )
+                            .await?;
+                        }
+                    },
+                    Err(err) => {
+                        bot_send_message_handle_length(
+                            &bot,
+                            &msg,
+                            &format!("Failed to get pr info: {err}."),
+                        )
+                        .await?;
+                    }
+                }
+            }
+            Err(err) => {
+                bot_send_message_handle_length(&bot, &msg, &format!("Bad PR number: {err}"))
+                    .await?;
+            }
+        },
     };
 
     Ok(())
