@@ -46,8 +46,8 @@ pub enum Command {
     Start(String),
     #[command(description = "Queue all ready messages: /queue [archs]")]
     Queue(String),
-    #[command(description = "Let dickens generate report for GitHub PR: /report pr-number")]
-    Report(String),
+    #[command(description = "Let dickens generate report for GitHub PR: /dickens pr-number")]
+    Dickens(String),
 }
 
 pub struct BuildRequest<'a> {
@@ -601,7 +601,7 @@ pub async fn answer(
                 }
             }
         }
-        Command::Report(arguments) => match str::parse::<u64>(&arguments) {
+        Command::Dickens(arguments) => match str::parse::<u64>(&arguments) {
             Ok(pr_number) => {
                 // create octocrab instance
                 let crab = match octocrab::Octocrab::builder()
