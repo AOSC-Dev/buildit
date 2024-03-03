@@ -633,7 +633,7 @@ pub async fn answer(
                                     bot_send_message_handle_length(
                                         &bot,
                                         &msg,
-                                        &format!("Report posted as comment: {}", comment.url),
+                                        &format!("Report posted as comment: {}", comment.html_url),
                                     )
                                     .await?;
                                 }
