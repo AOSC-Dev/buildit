@@ -897,7 +897,7 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#8256a4c3c3108cf660e9ae3b602dca2d8bd729b1"
+source = "git+https://github.com/AOSC-Dev/dickens.git#e5d035282454fc0d859dbfcf109072a09475f2da"
 dependencies = [
  "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs)",
  "anyhow",
@@ -2027,7 +2027,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.6",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
