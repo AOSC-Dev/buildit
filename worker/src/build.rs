@@ -1,4 +1,4 @@
-use crate::{ensure_channel, Args};
+use crate::Args;
 use chrono::Local;
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, WorkerIdentifier};
 use futures::StreamExt;
@@ -8,7 +8,7 @@ use lapin::{
         BasicQosOptions,
     },
     types::FieldTable,
-    BasicProperties,
+    BasicProperties, ConnectionProperties,
 };
 use log::{error, info, warn};
 use std::{
@@ -281,7 +281,8 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
-    let channel = ensure_channel(args).await?;
+    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
     let queue_name = format!("job-{}", &args.arch);
     ensure_job_queue(&queue_name, &channel).await?;
 
