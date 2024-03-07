@@ -7,9 +7,9 @@ use crate::{
 use buildit_utils::github::{get_archs, update_abbs, OpenPRError, OpenPRRequest};
 use chrono::Local;
 use common::{ensure_job_queue, JobSource};
-use lapin::{Channel, ConnectionProperties};
+
 use serde_json::Value;
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
@@ -61,7 +61,7 @@ async fn telegram_send_build_request(
     bot: &Bot,
     build_request: BuildRequest<'_>,
     msg: &Message,
-    channel: &Channel,
+    pool: deadpool_lapin::Pool,
 ) -> ResponseResult<()> {
     let BuildRequest {
         branch,
@@ -73,6 +73,29 @@ async fn telegram_send_build_request(
 
     let archs = handle_archs_args(archs.to_vec());
 
+    let conn = match pool.get().await {
+        Ok(conn) => conn,
+        Err(err) => {
+            bot.send_message(
+                msg.chat.id,
+                format!("Failed to connect to message queue: {}", err),
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    let channel = match conn.create_channel().await {
+        Ok(conn) => conn,
+        Err(err) => {
+            bot.send_message(
+                msg.chat.id,
+                format!("Failed to connect to create channel: {}", err),
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+
     match send_build_request(
         branch,
         packages,
@@ -80,7 +103,7 @@ async fn telegram_send_build_request(
         github_pr,
         JobSource::Telegram(msg.chat.id.0),
         sha,
-        channel,
+        &channel,
     )
     .await
     {
@@ -114,9 +137,9 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs
 }
 
-async fn status() -> anyhow::Result<String> {
+async fn status(pool: deadpool_lapin::Pool) -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
-    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
+    let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
 
     for arch in ALL_ARCH {
@@ -183,7 +206,7 @@ pub async fn answer(
     bot: Bot,
     msg: Message,
     cmd: Command,
-    channel: Arc<Channel>,
+    pool: deadpool_lapin::Pool,
 ) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
         .await?;
@@ -293,8 +316,13 @@ pub async fn answer(
                                     sha,
                                 };
 
-                                telegram_send_build_request(&bot, build_request, &msg, &channel)
-                                    .await?;
+                                telegram_send_build_request(
+                                    &bot,
+                                    build_request,
+                                    &msg,
+                                    pool.clone(),
+                                )
+                                .await?;
                             } else {
                                 bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
                                 .await?;
@@ -341,7 +369,7 @@ pub async fn answer(
                         github_pr: None,
                         sha: &sha,
                     };
-                    telegram_send_build_request(&bot, build_request, &msg, &channel).await?;
+                    telegram_send_build_request(&bot, build_request, &msg, pool.clone()).await?;
                 }
                 return Ok(());
             }
@@ -355,7 +383,7 @@ pub async fn answer(
             )
             .await?;
         }
-        Command::Status => match status().await {
+        Command::Status => match status(pool).await {
             Ok(status) => {
                 bot.send_message(msg.chat.id, status)
                     .parse_mode(ParseMode::MarkdownV2)
@@ -579,7 +607,7 @@ pub async fn answer(
                 archs.extend(ALL_ARCH);
             }
 
-            match get_ready_message(&ARGS.amqp_addr, &archs).await {
+            match get_ready_message(pool, &archs).await {
                 Ok(map) => {
                     let mut res = String::new();
                     for (k, v) in map {

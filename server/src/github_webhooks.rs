@@ -11,7 +11,7 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicConsumeOptions, QueueDeclareOptions},
     types::FieldTable,
-    Channel, ConnectionProperties,
+    Channel,
 };
 use log::{error, info};
 use octocrab::Octocrab;
@@ -36,18 +36,18 @@ struct User {
     login: String,
 }
 
-pub async fn get_webhooks_message() {
+pub async fn get_webhooks_message(pool: deadpool_lapin::Pool) {
     info!("Starting github webhook worker");
     loop {
-        if let Err(e) = get_webhooks_message_inner().await {
+        if let Err(e) = get_webhooks_message_inner(pool.clone()).await {
             error!("Error getting webhooks message: {e}");
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
 
-async fn get_webhooks_message_inner() -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
+async fn get_webhooks_message_inner(pool: deadpool_lapin::Pool) -> anyhow::Result<()> {
+    let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
     let _queue = channel
         .queue_declare(

@@ -28,3 +28,4 @@ buildit-utils = { path = "../buildit-utils" }
 jsonwebtoken = "9.2.0"
 size = "0.4.1"
 dickens = { git = "https://github.com/AOSC-Dev/dickens.git", version = "0.1.0" }
+deadpool-lapin = "0.11.0"

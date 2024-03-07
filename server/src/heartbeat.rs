@@ -5,14 +5,12 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions},
     types::FieldTable,
-    ConnectionProperties,
 };
 use log::{error, info, warn};
 use std::time::Duration;
 
-pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&amqp_addr, ConnectionProperties::default()).await?;
-
+pub async fn heartbeat_worker_inner(pool: deadpool_lapin::Pool) -> anyhow::Result<()> {
+    let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
     let queue_name = "worker-heartbeat";
     ensure_job_queue(queue_name, &channel).await?;
@@ -78,10 +76,10 @@ pub async fn heartbeat_worker_inner(amqp_addr: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn heartbeat_worker(amqp_addr: String) -> anyhow::Result<()> {
+pub async fn heartbeat_worker(pool: deadpool_lapin::Pool) -> anyhow::Result<()> {
     loop {
         info!("Starting heartbeat worker ...");
-        if let Err(err) = heartbeat_worker_inner(amqp_addr.clone()).await {
+        if let Err(err) = heartbeat_worker_inner(pool.clone()).await {
             error!("Got error while starting heartbeat worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;

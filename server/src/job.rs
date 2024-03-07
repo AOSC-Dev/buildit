@@ -12,7 +12,7 @@ use lapin::{
     message::Delivery,
     options::{BasicAckOptions, BasicConsumeOptions, BasicPublishOptions, QueueDeclareOptions},
     types::FieldTable,
-    BasicProperties, Channel, ConnectionProperties,
+    BasicProperties, Channel,
 };
 use log::{error, info, warn};
 use octocrab::params::checks::CheckRunConclusion;
@@ -26,9 +26,11 @@ use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
 
 /// Observe job completion messages
-pub async fn job_completion_worker_inner(bot: Bot, amqp_addr: &str) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
-
+pub async fn job_completion_worker_inner(
+    bot: Bot,
+    pool: deadpool_lapin::Pool,
+) -> anyhow::Result<()> {
+    let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
     let _queue = channel
         .queue_declare(
@@ -361,11 +363,11 @@ async fn handle_success_message(
 }
 
 pub async fn get_ready_message(
-    amqp_addr: &str,
+    pool: deadpool_lapin::Pool,
     archs: &[&str],
 ) -> anyhow::Result<Vec<(String, String)>> {
     let mut res = vec![];
-    let conn = lapin::Connection::connect(amqp_addr, ConnectionProperties::default()).await?;
+    let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
 
     for i in archs {
@@ -425,10 +427,10 @@ pub fn update_retry(retry: Option<u8>) -> HandleSuccessResult {
     }
 }
 
-pub async fn job_completion_worker(bot: Bot, amqp_addr: String) -> anyhow::Result<()> {
+pub async fn job_completion_worker(bot: Bot, pool: deadpool_lapin::Pool) -> anyhow::Result<()> {
     loop {
         info!("Starting job completion worker ...");
-        if let Err(err) = job_completion_worker_inner(bot.clone(), &amqp_addr).await {
+        if let Err(err) = job_completion_worker_inner(bot.clone(), pool.clone()).await {
             error!("Got error while starting job completion worker: {}", err);
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
