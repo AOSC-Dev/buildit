@@ -1,12 +1,11 @@
-use crate::Args;
+use crate::{ensure_channel, Args};
 use common::{ensure_job_queue, WorkerHeartbeat, WorkerIdentifier};
-use lapin::{options::BasicPublishOptions, BasicProperties, ConnectionProperties};
+use lapin::{options::BasicPublishOptions, BasicProperties};
 use log::{info, warn};
 use std::time::Duration;
 
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
-    let channel = conn.create_channel().await?;
+    let channel = ensure_channel(args).await?;
     let queue_name = "worker-heartbeat";
     ensure_job_queue(queue_name, &channel).await?;
 
