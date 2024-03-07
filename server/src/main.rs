@@ -40,7 +40,7 @@ async fn main() {
         .build();
 
     tokio::select! {
-        v = get_webhooks_message(channel, &ARGS.abbs_path) => v,
+        v = get_webhooks_message() => v,
         v = telegram.dispatch() => v,
     };
 }

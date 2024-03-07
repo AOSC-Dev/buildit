@@ -1,5 +1,9 @@
-use std::{path::Path, sync::Arc, time::Duration};
-
+use crate::{
+    formatter::to_html_new_job_summary,
+    github::get_packages_from_pr,
+    job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
+    ARGS,
+};
 use anyhow::{anyhow, bail};
 use buildit_utils::github::{get_archs, update_abbs};
 use common::JobSource;
@@ -7,19 +11,13 @@ use futures::StreamExt;
 use lapin::{
     options::{BasicConsumeOptions, QueueDeclareOptions},
     types::FieldTable,
-    Channel,
+    Channel, ConnectionProperties,
 };
 use log::{error, info};
 use octocrab::Octocrab;
 use reqwest::StatusCode;
 use serde::Deserialize;
-
-use crate::{
-    formatter::to_html_new_job_summary,
-    github::get_packages_from_pr,
-    job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
-    ARGS,
-};
+use std::{path::Path, time::Duration};
 
 #[derive(Debug, Deserialize)]
 struct WebhookComment {
@@ -38,16 +36,19 @@ struct User {
     login: String,
 }
 
-pub async fn get_webhooks_message(channel: Arc<Channel>, path: &Path) {
+pub async fn get_webhooks_message() {
+    info!("Starting github webhook worker");
     loop {
-        if let Err(e) = get_webhooks_message_inner(channel.clone(), path).await {
+        if let Err(e) = get_webhooks_message_inner().await {
             error!("Error getting webhooks message: {e}");
         }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
 
-async fn get_webhooks_message_inner(channel: Arc<Channel>, path: &Path) -> anyhow::Result<()> {
+async fn get_webhooks_message_inner() -> anyhow::Result<()> {
+    let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
     let _queue = channel
         .queue_declare(
             "github-webhooks",
@@ -80,20 +81,22 @@ async fn get_webhooks_message_inner(channel: Arc<Channel>, path: &Path) -> anyho
         };
 
         match serde_json::from_slice::<WebhookComment>(&delivery.data) {
-            Ok(comment) => match handle_webhook_comment(&comment, path, retry, &channel).await {
-                HandleSuccessResult::Ok | HandleSuccessResult::DoNotRetry => {
-                    ack_delivery(delivery).await
-                }
-                HandleSuccessResult::Retry(r) => {
-                    if r == 5 {
-                        ack_delivery(delivery).await;
-                        retry = None;
-                        continue;
+            Ok(comment) => {
+                match handle_webhook_comment(&comment, &ARGS.abbs_path, retry, &channel).await {
+                    HandleSuccessResult::Ok | HandleSuccessResult::DoNotRetry => {
+                        ack_delivery(delivery).await
                     }
+                    HandleSuccessResult::Retry(r) => {
+                        if r == 5 {
+                            ack_delivery(delivery).await;
+                            retry = None;
+                            continue;
+                        }
 
-                    retry = Some(r);
+                        retry = Some(r);
+                    }
                 }
-            },
+            }
             Err(e) => {
                 error!("{e}");
                 ack_delivery(delivery).await

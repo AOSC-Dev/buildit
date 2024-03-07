@@ -1,16 +1,15 @@
-use std::{borrow::Cow, sync::Arc};
-
 use crate::{
     formatter::{code_repr_string, to_html_new_job_summary},
     github::{get_github_token, get_packages_from_pr, login_github},
     job::{get_ready_message, send_build_request},
-    Args, ALL_ARCH, ARGS, WORKERS,
+    ALL_ARCH, ARGS, WORKERS,
 };
 use buildit_utils::github::{get_archs, update_abbs, OpenPRError, OpenPRRequest};
 use chrono::Local;
 use common::{ensure_job_queue, JobSource};
 use lapin::{Channel, ConnectionProperties};
 use serde_json::Value;
+use std::{borrow::Cow, sync::Arc};
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
@@ -115,7 +114,7 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs
 }
 
-async fn status(args: &Args) -> anyhow::Result<String> {
+async fn status() -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
     let conn = lapin::Connection::connect(&ARGS.amqp_addr, ConnectionProperties::default()).await?;
     let channel = conn.create_channel().await?;
@@ -127,7 +126,7 @@ async fn status(args: &Args) -> anyhow::Result<String> {
 
         // read unacknowledged job count
         let mut unacknowledged_str = String::new();
-        if let Some(api) = &args.rabbitmq_queue_api {
+        if let Some(api) = &ARGS.rabbitmq_queue_api {
             let res = http_rabbitmq_api(api, queue_name).await?;
             if let Some(unacknowledged) = res
                 .as_object()
@@ -356,7 +355,7 @@ pub async fn answer(
             )
             .await?;
         }
-        Command::Status => match status(&ARGS).await {
+        Command::Status => match status().await {
             Ok(status) => {
                 bot.send_message(msg.chat.id, status)
                     .parse_mode(ParseMode::MarkdownV2)
