@@ -21,6 +21,7 @@ The database should have the following tables:
 1. pipelines: pipeline is a series of jobs
 2. jobs: job is a specific task for worker to do
 3. packages: track the status of packages in stable branch
+4. users: track github and telegram user association
 
 The terms `pipelines` and `jobs` are taken from GitLab CI.
 
@@ -48,3 +49,17 @@ Job result:
 
 1. List of successful builds
 2. Failed package and link to build log (on buildit.aosc.io)
+
+## Authentication
+
+Authentication:
+
+1. Web: login via GitHub App
+2. Telegram: jump to GitHub App and authenticate, associate with Telegram user
+3. GitHub: username provided by GitHub
+
+User roles:
+
+1. Anonymous: not logged-in
+2. Guest: logged-in, but not in AOSC-Dev GitHub organization
+3. Developer: loggined and in AOSC-Dev GitHub organization
