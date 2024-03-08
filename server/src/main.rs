@@ -1,11 +1,28 @@
-use log::info;
-use server::bot::Command;
-use server::github_webhooks::get_webhooks_message;
-use server::{bot::answer, heartbeat::heartbeat_worker, job::job_completion_worker, ARGS};
-use teloxide::prelude::*;
+use axum::{routing::get, Router};
+
+// basic handler that responds with a static string
+async fn root() -> &'static str {
+    "Hello, World!"
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
+    tracing::info!("Starting http server");
+
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root))
+        .layer(tower_http::trace::TraceLayer::new_for_http());
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
+
+    /*
     dotenv::dotenv().ok();
     env_logger::init();
 
@@ -39,5 +56,6 @@ async fn main() -> anyhow::Result<()> {
         v = telegram.dispatch() => v,
     };
 
+    */
     Ok(())
 }

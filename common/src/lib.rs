@@ -34,7 +34,7 @@ pub struct Job {
 pub enum JobSource {
     /// Telegram user/group
     Telegram(i64),
-    /// GitHub PR Number
+    /// GitHub PR number
     Github(u64),
 }
 
