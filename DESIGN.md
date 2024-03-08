@@ -1,34 +1,38 @@
-# Buildit
+# BuildIt! 2
+
+## Overview
+
+BuildIt! 2 is the latest generation of BuildIt! build automation system for AOSC OS.
 
 ## Frontend
 
-The current frontend is Telegram bot @aosc_buildit_bot.
+BuildIt! 2 have the following frontends:
 
-## Backend Server
+1. Web: hosted at https://buildit.aosc.io
+2. Telegram: Telegram bot @aosc_buildit_bot
+3. GitHub: add @aosc-buildit-bot in pr comments
 
-Backend server handles new requests from Frontend. It sends new jobs to message queue.
+## Database
 
-If the request contains multiple architectures, it is split into multiple ones for each architecture.
+BuildIt! 2 uses PostgreSQL as the database.
 
-## Message Queue
+The database should have the following tables:
 
-Use RabbitMQ:
+1. pipelines: pipeline is a series of jobs
+2. jobs: job is a specific task for worker to do
+3. packages: track the status of packages in stable branch
 
-```shell
-docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.12-management
-# alternatively
-cd rabbitmq
-docker compose up -d
-```
+The terms `pipelines` and `jobs` are taken from GitLab CI.
 
-Queues:
+## Backend
 
-1. Job submission: job-[arch]
-2. Job completion: job-completion
+Backend server handles new requests from Frontend and create new pipeline. The pipeline may contain multi architectures, then it is split into multiple jobs for each architecture.
 
-## Worker Server
+Worker can grab new job from backend server. Workers need to send heartbeat to the server periodically reporting its current state, otherwise the job will be rescheduled.
 
-Worker server fetches jobs from message queue and runs ciel to do the actual build. The result is reported to backend server via message queue.
+## Worker
+
+Worker server fetches jobs from backend and runs ciel to do the actual build. The result is reported to backend server via HTTP api endpoint.
 
 Each worker can only build for one architecture.
 
@@ -43,4 +47,4 @@ Each job contains the following arguments:
 Job result:
 
 1. List of successful builds
-2. Failed package and link to build log (on paste.aosc.io)
+2. Failed package and link to build log (on buildit.aosc.io)
