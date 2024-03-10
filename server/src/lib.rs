@@ -1,6 +1,10 @@
 use chrono::{DateTime, Local};
 use clap::Parser;
 use common::WorkerIdentifier;
+use diesel::{
+    r2d2::{ConnectionManager, Pool},
+    PgConnection,
+};
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
@@ -18,6 +22,8 @@ pub mod job;
 pub mod models;
 pub mod routes;
 pub mod schema;
+
+pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,

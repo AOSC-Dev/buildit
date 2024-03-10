@@ -37,7 +37,7 @@ pub enum JobSource {
     /// GitHub PR number
     Github(u64),
     /// Manual
-    Manual
+    Manual,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

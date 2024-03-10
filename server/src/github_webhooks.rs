@@ -209,7 +209,12 @@ async fn handle_webhook_comment(
         create_github_comment(&crab, retry, num, &e.to_string()).await;
     }
 
-    let s = to_html_new_job_summary(branch, Some(num), &archs, &packages);
+    let s = to_html_new_job_summary(
+        branch,
+        Some(num),
+        &archs,
+        &packages.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+    );
 
     match send_build_request(
         branch,

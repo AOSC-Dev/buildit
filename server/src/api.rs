@@ -2,26 +2,24 @@ use crate::{
     github::get_packages_from_pr,
     job::get_crab_github_installation,
     models::{NewJob, NewPipeline, Pipeline},
-    ALL_ARCH, ARGS,
+    DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
 use buildit_utils::github::{get_archs, update_abbs};
 use common::JobSource;
-use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    PgConnection, RunQueryDsl, SelectableHelper,
-};
+use diesel::{RunQueryDsl, SelectableHelper};
 use tracing::warn;
 
 pub async fn pipeline_new(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    pool: DbPool,
     git_branch: &str,
     git_sha: Option<&str>,
+    github_pr: Option<u64>,
     packages: &str,
     archs: &str,
     source: &JobSource,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<Pipeline> {
     // resolve branch name to commit hash if not specified
     let git_sha = match git_sha {
         Some(git_sha) => git_sha.to_string(),
@@ -62,9 +60,9 @@ pub async fn pipeline_new(
         .context("Failed to get db connection from pool")?;
     use crate::schema::pipelines;
     let (source, github_pr, telegram_user) = match source {
-        JobSource::Telegram(id) => ("telegram", None, Some(id)),
-        JobSource::Github(id) => ("github", Some(id), None),
-        JobSource::Manual => ("manual", None, None),
+        JobSource::Telegram(id) => ("telegram", github_pr, Some(id)),
+        JobSource::Github(id) => ("github", Some(*id), None),
+        JobSource::Manual => ("manual", github_pr, None),
     };
     let new_pipeline = NewPipeline {
         packages: packages.to_string(),
@@ -73,7 +71,7 @@ pub async fn pipeline_new(
         git_sha: git_sha.clone(),
         creation_time: chrono::Utc::now(),
         source: source.to_string(),
-        github_pr: github_pr.map(|id| *id as i64),
+        github_pr: github_pr.map(|pr| pr as i64),
         telegram_user: telegram_user.map(|id| *id),
     };
     let pipeline = diesel::insert_into(pipelines::table)
@@ -132,14 +130,14 @@ pub async fn pipeline_new(
             .context("Failed to create job")?;
     }
 
-    Ok(pipeline.id)
+    Ok(pipeline)
 }
 
 pub async fn pipeline_new_pr(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    pool: DbPool,
     pr: u64,
     archs: Option<&str>,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<Pipeline> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
         .get(pr)
@@ -182,6 +180,7 @@ pub async fn pipeline_new_pr(
                     pool,
                     git_branch,
                     Some(&git_sha),
+                    Some(pr.number),
                     &packages.join(","),
                     &archs,
                     &JobSource::Github(pr.number),

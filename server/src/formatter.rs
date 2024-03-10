@@ -9,7 +9,7 @@ pub fn to_html_new_job_summary(
     git_ref: &str,
     github_pr: Option<u64>,
     archs: &[&str],
-    packages: &[String],
+    packages: &[&str],
 ) -> String {
     format!(
         r#"<b><u>New Job Summary</u></b>
@@ -117,7 +117,7 @@ pub fn code_repr_string(s: &str) -> String {
 
 #[test]
 fn test_format_html_new_job_summary() {
-    let s = to_html_new_job_summary("fd-9.0.0", Some(4992), &["amd64"], &["fd".to_string()]);
+    let s = to_html_new_job_summary("fd-9.0.0", Some(4992), &["amd64"], &["fd"]);
     assert_eq!(s, "<b><u>New Job Summary</u></b>\n\n<b>Git reference</b>: fd-9.0.0\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
 }
 
@@ -130,7 +130,7 @@ fn test_format_html_build_result() {
     let job = JobOk {
         job: Job {
             packages: vec!["fd".to_string()],
-            git_ref: "fd-9.0.0".to_string(),
+            branch: "fd-9.0.0".to_string(),
             sha: "12345".to_string(),
             arch: "amd64".to_owned(),
             source: JobSource::Telegram(484493567),
@@ -138,7 +138,9 @@ fn test_format_html_build_result() {
             noarch: false,
             enqueue_time: chrono::Utc
                 .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
+            github_check_run_id: None,
         },
+        success: true,
         successful_packages: vec!["fd".to_string()],
         failed_package: None,
         skipped_packages: vec![],
@@ -149,7 +151,6 @@ fn test_format_html_build_result() {
             pid: 54355,
         },
         elapsed: Duration::from_secs_f64(888.85),
-        git_commit: Some("34acef168fc5ec454d3825fc864964951b130b49".to_string()),
         pushpkg_success: true,
     };
 

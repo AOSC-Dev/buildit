@@ -1,9 +1,8 @@
 use crate::{
-    bot::http_rabbitmq_api,
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
-    ARGS,
+    DbPool, ARGS,
 };
-use anyhow::anyhow;
+
 use buildit_utils::LOONGARCH64;
 use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64};
 use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, JobSource};
@@ -21,7 +20,7 @@ use octocrab::{
     models::{CheckRunId, InstallationId},
     Octocrab,
 };
-use std::fmt::Write;
+
 use std::time::Duration;
 use teloxide::{prelude::*, types::ParseMode};
 
@@ -364,9 +363,11 @@ async fn handle_success_message(
 }
 
 pub async fn get_ready_message(
-    pool: deadpool_lapin::Pool,
-    archs: &[&str],
+    _pool: DbPool,
+    _archs: &[&str],
 ) -> anyhow::Result<Vec<(String, String)>> {
+    todo!()
+    /*
     let mut res = vec![];
     let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
@@ -419,6 +420,7 @@ pub async fn get_ready_message(
     }
 
     Ok(res)
+    */
 }
 
 pub fn update_retry(retry: Option<u8>) -> HandleSuccessResult {

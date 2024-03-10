@@ -1,15 +1,10 @@
+use crate::{api, DbPool};
 use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    PgConnection,
-};
 use serde::{Deserialize, Serialize};
-
-use crate::api;
 
 pub async fn ping() -> &'static str {
     "PONG"
@@ -46,19 +41,20 @@ pub struct PipelineNewResponse {
 }
 
 pub async fn pipeline_new(
-    State(pool): State<Pool<ConnectionManager<PgConnection>>>,
+    State(pool): State<DbPool>,
     Json(payload): Json<PipelineNewRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline_id = api::pipeline_new(
+    let pipeline = api::pipeline_new(
         pool,
         &payload.git_branch,
+        None,
         None,
         &payload.packages,
         &payload.archs,
         &common::JobSource::Manual,
     )
     .await?;
-    Ok(Json(PipelineNewResponse { id: pipeline_id }))
+    Ok(Json(PipelineNewResponse { id: pipeline.id }))
 }
 
 #[derive(Deserialize)]
@@ -68,10 +64,10 @@ pub struct PipelineNewPRRequest {
 }
 
 pub async fn pipeline_new_pr(
-    State(pool): State<Pool<ConnectionManager<PgConnection>>>,
+    State(pool): State<DbPool>,
     Json(payload): Json<PipelineNewPRRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline_id =
+    let pipeline =
         api::pipeline_new_pr(pool, payload.pr, payload.archs.as_ref().map(|s| s.as_str())).await?;
-    Ok(Json(PipelineNewResponse { id: pipeline_id }))
+    Ok(Json(PipelineNewResponse { id: pipeline.id }))
 }

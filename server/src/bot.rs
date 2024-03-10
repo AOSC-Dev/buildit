@@ -1,12 +1,13 @@
 use crate::{
+    api::{pipeline_new, pipeline_new_pr},
     formatter::{code_repr_string, to_html_new_job_summary},
-    github::{get_github_token, get_packages_from_pr, login_github},
-    job::{get_ready_message, send_build_request},
-    ALL_ARCH, ARGS, WORKERS,
+    github::{get_github_token, login_github},
+    job::get_ready_message,
+    DbPool, ALL_ARCH, ARGS,
 };
-use buildit_utils::github::{get_archs, update_abbs, OpenPRError, OpenPRRequest};
-use chrono::Local;
-use common::{ensure_job_queue, JobSource};
+use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
+
+use common::JobSource;
 
 use serde_json::Value;
 use std::borrow::Cow;
@@ -15,7 +16,6 @@ use teloxide::{
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
-use tokio::process;
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -49,81 +49,6 @@ pub enum Command {
     Dickens(String),
 }
 
-pub struct BuildRequest<'a> {
-    pub branch: &'a str,
-    pub packages: &'a [String],
-    pub archs: &'a [&'a str],
-    pub github_pr: Option<u64>,
-    pub sha: &'a str,
-}
-
-async fn telegram_send_build_request(
-    bot: &Bot,
-    build_request: BuildRequest<'_>,
-    msg: &Message,
-    pool: deadpool_lapin::Pool,
-) -> ResponseResult<()> {
-    let BuildRequest {
-        branch,
-        packages,
-        archs,
-        github_pr,
-        sha,
-    } = build_request;
-
-    let archs = handle_archs_args(archs.to_vec());
-
-    let conn = match pool.get().await {
-        Ok(conn) => conn,
-        Err(err) => {
-            bot.send_message(
-                msg.chat.id,
-                format!("Failed to connect to message queue: {}", err),
-            )
-            .await?;
-            return Ok(());
-        }
-    };
-    let channel = match conn.create_channel().await {
-        Ok(conn) => conn,
-        Err(err) => {
-            bot.send_message(
-                msg.chat.id,
-                format!("Failed to connect to create channel: {}", err),
-            )
-            .await?;
-            return Ok(());
-        }
-    };
-
-    match send_build_request(
-        branch,
-        packages,
-        &archs,
-        github_pr,
-        JobSource::Telegram(msg.chat.id.0),
-        sha,
-        &channel,
-    )
-    .await
-    {
-        Ok(()) => {
-            bot.send_message(
-                msg.chat.id,
-                to_html_new_job_summary(branch, github_pr, &archs, packages),
-            )
-            .parse_mode(ParseMode::Html)
-            .disable_web_page_preview(true)
-            .await?;
-        }
-        Err(err) => {
-            bot.send_message(msg.chat.id, format!("Failed to create job: {}", err))
-                .await?;
-        }
-    }
-    Ok(())
-}
-
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     let mut archs = archs;
     if archs.contains(&"mainline") {
@@ -137,7 +62,9 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs
 }
 
-async fn status(pool: deadpool_lapin::Pool) -> anyhow::Result<String> {
+async fn status(_pool: DbPool) -> anyhow::Result<String> {
+    todo!()
+    /*
     let mut res = String::from("__*Queue Status*__\n\n");
     let conn = pool.get().await?;
     let channel = conn.create_channel().await?;
@@ -187,6 +114,7 @@ async fn status(pool: deadpool_lapin::Pool) -> anyhow::Result<String> {
         }
     }
     Ok(res)
+    */
 }
 
 pub async fn http_rabbitmq_api(api: &str, queue_name: String) -> anyhow::Result<Value> {
@@ -202,12 +130,7 @@ pub async fn http_rabbitmq_api(api: &str, queue_name: String) -> anyhow::Result<
     Ok(res)
 }
 
-pub async fn answer(
-    bot: Bot,
-    msg: Message,
-    cmd: Command,
-    pool: deadpool_lapin::Pool,
-) -> ResponseResult<()> {
+pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
         .await?;
     match cmd {
@@ -249,92 +172,29 @@ pub async fn answer(
             }
 
             if parse_success {
+                let archs = if parts.len() == 1 {
+                    None
+                } else {
+                    Some(parts[1])
+                };
                 for pr_number in pr_numbers {
-                    match octocrab::instance()
-                        .pulls("AOSC-Dev", "aosc-os-abbs")
-                        .get(pr_number)
-                        .await
-                    {
-                        Ok(pr) => {
-                            // If the pull request has been merged,
-                            // build and push packages based on stable
-                            let (branch, sha) = if pr.merged_at.is_some() {
-                                (
-                                    "stable",
-                                    pr.merge_commit_sha
-                                        .as_ref()
-                                        .expect("merge_commit_sha should not be None"),
-                                )
-                            } else {
-                                (pr.head.ref_field.as_str(), &pr.head.sha)
-                            };
-
-                            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
-                                bot.send_message(
-                                    msg.chat.id,
-                                    "Failed to create job: Pull request is a fork",
-                                )
-                                .await?;
-                                return Ok(());
-                            }
-
-                            let path = &ARGS.abbs_path;
-
-                            if let Err(e) = update_abbs(branch, path).await {
-                                bot.send_message(msg.chat.id, e.to_string()).await?;
-                            }
-
-                            // find lines starting with #buildit
-                            let packages = get_packages_from_pr(&pr);
-                            if !packages.is_empty() {
-                                let archs = if parts.len() == 1 {
-                                    let path = &ARGS.abbs_path;
-
-                                    get_archs(path, &packages)
-                                } else {
-                                    let archs = parts[1].split(',').collect();
-
-                                    for a in &archs {
-                                        if !ALL_ARCH.contains(a) && a != &"mainline" {
-                                            bot.send_message(
-                                                msg.chat.id,
-                                                format!("Architecture {a} is not supported."),
-                                            )
-                                            .await?;
-                                            return Ok(());
-                                        }
-                                    }
-
-                                    archs
-                                };
-
-                                let build_request = BuildRequest {
-                                    branch,
-                                    packages: &packages,
-                                    archs: &archs,
-                                    github_pr: Some(pr_number),
-                                    sha,
-                                };
-
-                                telegram_send_build_request(
-                                    &bot,
-                                    build_request,
-                                    &msg,
-                                    pool.clone(),
-                                )
-                                .await?;
-                            } else {
-                                bot.send_message(msg.chat.id, "Please list packages to build in pr info starting with '#buildit'.".to_string())
-                                .await?;
-                            }
+                    match pipeline_new_pr(pool.clone(), pr_number, archs).await {
+                        Ok(pipeline) => {
+                            bot.send_message(
+                                msg.chat.id,
+                                to_html_new_job_summary(
+                                    &pipeline.git_branch,
+                                    pipeline.github_pr.map(|n| n as u64),
+                                    &pipeline.archs.split(",").collect::<Vec<_>>(),
+                                    &pipeline.packages.split(",").collect::<Vec<_>>(),
+                                ),
+                            )
+                            .parse_mode(ParseMode::Html)
+                            .disable_web_page_preview(true)
+                            .await?;
                         }
                         Err(err) => {
-                            bot_send_message_handle_length(
-                                &bot,
-                                &msg,
-                                &format!("Failed to get pr info: {err}."),
-                            )
-                            .await?;
+                            bot.send_message(msg.chat.id, format!("{err}")).await?;
                         }
                     }
                 }
@@ -343,33 +203,38 @@ pub async fn answer(
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 3 {
-                let branch = parts[0];
-                let packages: Vec<String> = parts[1].split(',').map(str::to_string).collect();
-                let archs: Vec<&str> = parts[2].split(',').collect();
+                let git_branch = parts[0];
+                let packages = parts[1];
+                let archs = parts[2];
 
-                // resolve branch name to commit hash
-                let path = &ARGS.abbs_path;
-
-                if let Err(e) = update_abbs(branch, path).await {
-                    bot.send_message(msg.chat.id, format!("Failed to update ABBS tree: {e}"))
+                match pipeline_new(
+                    pool,
+                    git_branch,
+                    None,
+                    None,
+                    packages,
+                    archs,
+                    &JobSource::Telegram(msg.chat.id.0),
+                )
+                .await
+                {
+                    Ok(pipeline) => {
+                        bot.send_message(
+                            msg.chat.id,
+                            to_html_new_job_summary(
+                                &pipeline.git_branch,
+                                pipeline.github_pr.map(|n| n as u64),
+                                &pipeline.archs.split(",").collect::<Vec<_>>(),
+                                &pipeline.packages.split(",").collect::<Vec<_>>(),
+                            ),
+                        )
+                        .parse_mode(ParseMode::Html)
+                        .disable_web_page_preview(true)
                         .await?;
-                } else {
-                    let output = process::Command::new("git")
-                        .arg("rev-parse")
-                        .arg("HEAD")
-                        .current_dir(path)
-                        .output()
-                        .await?;
-                    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-                    let build_request = BuildRequest {
-                        branch,
-                        packages: &packages,
-                        archs: &archs,
-                        github_pr: None,
-                        sha: &sha,
-                    };
-                    telegram_send_build_request(&bot, build_request, &msg, pool.clone()).await?;
+                    }
+                    Err(err) => {
+                        bot.send_message(msg.chat.id, format!("{err}")).await?;
+                    }
                 }
                 return Ok(());
             }
