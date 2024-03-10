@@ -29,8 +29,8 @@ jsonwebtoken = "9.2.0"
 size = "0.4.1"
 dickens = { git = "https://github.com/AOSC-Dev/dickens.git", version = "0.1.0" }
 deadpool-lapin = "0.11.0"
-sea-orm = { version = "0.12.14", features = ["macros", "sqlx-sqlite", "runtime-tokio-rustls"] }
 axum = "0.7.4"
 tracing-subscriber = "0.3.18"
 tracing = "0.1.40"
 tower-http = { version = "0.5.2", features = ["trace"] }
+diesel = { version = "2.1.4", features = ["postgres"] }
