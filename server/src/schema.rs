@@ -34,6 +34,7 @@ diesel::table! {
         git_commit -> Text,
         memory_bytes -> Int8,
         logical_cores -> Int4,
+        last_heartbeat_time -> Timestamptz,
     }
 }
 

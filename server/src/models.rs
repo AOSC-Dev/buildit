@@ -65,4 +65,17 @@ pub struct Worker {
     pub git_commit: String,
     pub memory_bytes: i64,
     pub logical_cores: i32,
+    pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Insertable, AsChangeset)]
+#[diesel(table_name = crate::schema::workers)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewWorker {
+    pub hostname: String,
+    pub arch: String,
+    pub git_commit: String,
+    pub memory_bytes: i64,
+    pub logical_cores: i32,
+    pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
 }
