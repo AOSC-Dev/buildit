@@ -9,6 +9,13 @@ diesel::table! {
         creation_time -> Timestamptz,
         status -> Text,
         github_check_run_id -> Nullable<Int8>,
+        build_success -> Nullable<Bool>,
+        pushpkg_success -> Nullable<Bool>,
+        successful_packages -> Nullable<Text>,
+        failed_package -> Nullable<Text>,
+        skipped_packages -> Nullable<Text>,
+        log_url -> Nullable<Text>,
+        finish_time -> Nullable<Timestamptz>,
     }
 }
 

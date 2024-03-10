@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     api,
     models::{Job, NewWorker, Pipeline},
@@ -176,4 +178,43 @@ pub async fn worker_poll(
         }
         None => Ok(Json(None)),
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum JobResult {
+    Ok(JobOk),
+    Error(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobOk {
+    /// Is the build successful?
+    pub success: bool,
+    /// List of packages successfully built
+    pub successful_packages: Vec<String>,
+    /// List of packages failed to build
+    pub failed_package: Option<String>,
+    /// List of packages skipped
+    pub skipped_packages: Vec<String>,
+    /// URL to build log
+    pub log: Option<String>,
+    /// Elapsed time of the job
+    pub elapsed: Duration,
+    /// If pushpkg succeeded
+    pub pushpkg_success: bool,
+}
+
+#[derive(Deserialize)]
+pub struct WorkerJobUpdateRequest {
+    hostname: String,
+    arch: String,
+    job_id: i32,
+    result: JobResult,
+}
+
+pub async fn worker_job_update(
+    State(pool): State<DbPool>,
+    Json(payload): Json<WorkerJobUpdateRequest>,
+) -> Result<(), AnyhowError> {
+    Ok(())
 }

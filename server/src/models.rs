@@ -41,6 +41,13 @@ pub struct Job {
     pub creation_time: chrono::DateTime<chrono::Utc>,
     pub status: String,
     pub github_check_run_id: Option<i64>,
+    pub build_success: Option<bool>,
+    pub pushpkg_success: Option<bool>,
+    pub successful_packages: Option<String>,
+    pub failed_package: Option<String>,
+    pub skipped_packages: Option<String>,
+    pub log_url: Option<String>,
+    pub finish_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Insertable)]
