@@ -1,13 +1,12 @@
+use axum::routing::post;
 use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use server::routes::ping;
+use server::routes::pipeline_new;
 use server::ARGS;
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
-}
+use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -16,22 +15,23 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Connecting to database");
     let manager = ConnectionManager::<PgConnection>::new(&ARGS.database_url);
-    let pool = Pool::builder()
-        .test_on_check_out(true)
-        .build(manager)?;
+    let pool = Pool::builder().test_on_check_out(true).build(manager)?;
 
     tracing::info!("Starting http server");
 
     // build our application with a route
+    let serve_dir = ServeDir::new("frontend/dist")
+        .not_found_service(ServeFile::new("frontend/dist/index.html"));
     let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root))
+        .route("/api/ping", get(ping))
+        .route("/api/pipeline/new", post(pipeline_new))
+        .fallback_service(serve_dir)
+        .with_state(pool)
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    tracing::debug!("listening on 127.0.0.1:3000");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    axum::serve(listener, app).await?;
 
     /*
     dotenv::dotenv().ok();

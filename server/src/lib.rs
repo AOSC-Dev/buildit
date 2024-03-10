@@ -16,6 +16,8 @@ pub mod heartbeat;
 pub mod job;
 pub mod models;
 pub mod schema;
+pub mod routes;
+pub mod api;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,
