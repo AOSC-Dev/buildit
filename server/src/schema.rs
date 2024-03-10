@@ -8,6 +8,7 @@ diesel::table! {
         arch -> Text,
         creation_time -> Timestamptz,
         status -> Text,
+        github_check_run_id -> Nullable<Int8>,
     }
 }
 
@@ -19,6 +20,9 @@ diesel::table! {
         git_branch -> Text,
         git_sha -> Text,
         creation_time -> Timestamptz,
+        source -> Text,
+        github_pr -> Nullable<Int8>,
+        telegram_user -> Nullable<Int8>,
     }
 }
 

@@ -10,6 +10,9 @@ pub struct Pipeline {
     pub git_branch: String,
     pub git_sha: String,
     pub creation_time: chrono::DateTime<chrono::Utc>,
+    pub source: String,
+    pub github_pr: Option<i64>,
+    pub telegram_user: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -21,6 +24,9 @@ pub struct NewPipeline {
     pub git_branch: String,
     pub git_sha: String,
     pub creation_time: chrono::DateTime<chrono::Utc>,
+    pub source: String,
+    pub github_pr: Option<i64>,
+    pub telegram_user: Option<i64>,
 }
 
 #[derive(Queryable, Selectable, Associations)]
@@ -34,6 +40,7 @@ pub struct Job {
     pub arch: String,
     pub creation_time: chrono::DateTime<chrono::Utc>,
     pub status: String,
+    pub github_check_run_id: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -45,6 +52,7 @@ pub struct NewJob {
     pub arch: String,
     pub creation_time: chrono::DateTime<chrono::Utc>,
     pub status: String,
+    pub github_check_run_id: Option<i64>,
 }
 
 #[derive(Queryable, Selectable)]

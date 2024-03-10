@@ -350,6 +350,7 @@ async fn handle_success_message(
                                 return update_retry(retry);
                             }
                         }
+                        JobSource::Manual => {}
                     }
                 }
             }
@@ -438,7 +439,7 @@ pub async fn job_completion_worker(bot: Bot, pool: deadpool_lapin::Pool) -> anyh
 }
 
 /// Create octocrab instance authenticated as github installation
-async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {
+pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {
     if let Some(id) = ARGS
         .github_app_id
         .as_ref()

@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+pub mod api;
 pub mod bot;
 pub mod formatter;
 pub mod github;
@@ -15,9 +16,8 @@ pub mod github_webhooks;
 pub mod heartbeat;
 pub mod job;
 pub mod models;
-pub mod schema;
 pub mod routes;
-pub mod api;
+pub mod schema;
 
 pub struct WorkerStatus {
     pub last_heartbeat: DateTime<Local>,

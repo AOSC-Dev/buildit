@@ -36,6 +36,8 @@ pub enum JobSource {
     Telegram(i64),
     /// GitHub PR number
     Github(u64),
+    /// Manual
+    Manual
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

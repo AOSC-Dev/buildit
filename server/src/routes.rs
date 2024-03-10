@@ -49,7 +49,13 @@ pub async fn pipeline_new(
     State(pool): State<Pool<ConnectionManager<PgConnection>>>,
     Json(payload): Json<PipelineNewRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline_id =
-        api::pipeline_new(pool, &payload.git_branch, &payload.packages, &payload.archs).await?;
+    let pipeline_id = api::pipeline_new(
+        pool,
+        &payload.git_branch,
+        &payload.packages,
+        &payload.archs,
+        &common::JobSource::Manual,
+    )
+    .await?;
     Ok(Json(PipelineNewResponse { id: pipeline_id }))
 }
