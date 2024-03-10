@@ -48,6 +48,8 @@ pub struct Job {
     pub skipped_packages: Option<String>,
     pub log_url: Option<String>,
     pub finish_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub error_message: Option<String>,
+    pub elapsed_secs: Option<i64>,
 }
 
 #[derive(Insertable)]

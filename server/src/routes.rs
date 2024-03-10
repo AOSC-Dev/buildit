@@ -189,7 +189,7 @@ pub enum JobResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobOk {
     /// Is the build successful?
-    pub success: bool,
+    pub build_success: bool,
     /// List of packages successfully built
     pub successful_packages: Vec<String>,
     /// List of packages failed to build
@@ -197,9 +197,9 @@ pub struct JobOk {
     /// List of packages skipped
     pub skipped_packages: Vec<String>,
     /// URL to build log
-    pub log: Option<String>,
+    pub log_url: Option<String>,
     /// Elapsed time of the job
-    pub elapsed: Duration,
+    pub elapsed_secs: i64,
     /// If pushpkg succeeded
     pub pushpkg_success: bool,
 }
@@ -216,5 +216,32 @@ pub async fn worker_job_update(
     State(pool): State<DbPool>,
     Json(payload): Json<WorkerJobUpdateRequest>,
 ) -> Result<(), AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    use crate::schema::jobs::dsl::*;
+    match payload.result {
+        JobResult::Ok(res) => {
+            diesel::update(jobs.filter(id.eq(payload.job_id)))
+                .set((
+                    status.eq("finished"),
+                    build_success.eq(res.build_success),
+                    pushpkg_success.eq(res.pushpkg_success),
+                    successful_packages.eq(res.successful_packages.join(",")),
+                    failed_package.eq(res.failed_package),
+                    skipped_packages.eq(res.skipped_packages.join(",")),
+                    log_url.eq(res.log_url),
+                    finish_time.eq(chrono::Utc::now()),
+                    elapsed_secs.eq(res.elapsed_secs),
+                ))
+                .execute(&mut conn)?;
+        }
+        JobResult::Error(err) => {
+            diesel::update(jobs.filter(id.eq(payload.job_id)))
+                .set((status.eq("error"), error_message.eq(err)))
+                .execute(&mut conn)?;
+        }
+    }
     Ok(())
 }

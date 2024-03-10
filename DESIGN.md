@@ -50,6 +50,13 @@ Job result:
 1. List of successful builds
 2. Failed package and link to build log (on buildit.aosc.io)
 
+Job status:
+
+1. created: can be assigned to worker
+2. assigned: assigned to worker
+3. error: unexpected error
+4. finished: finished, successful or failed
+
 ## Authentication
 
 Authentication:
