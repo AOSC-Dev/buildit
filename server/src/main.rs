@@ -1,4 +1,8 @@
 use axum::{routing::get, Router};
+use diesel::pg::PgConnection;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use server::ARGS;
 
 // basic handler that responds with a static string
 async fn root() -> &'static str {
@@ -7,7 +11,14 @@ async fn root() -> &'static str {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv()?;
     tracing_subscriber::fmt::init();
+
+    tracing::info!("Connecting to database");
+    let manager = ConnectionManager::<PgConnection>::new(&ARGS.database_url);
+    let pool = Pool::builder()
+        .test_on_check_out(true)
+        .build(manager)?;
 
     tracing::info!("Starting http server");
 

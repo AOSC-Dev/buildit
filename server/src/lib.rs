@@ -34,13 +34,20 @@ pub struct Args {
     #[arg(env = "BUILDIT_AMQP_ADDR")]
     pub amqp_addr: String,
 
-    /// RabbitMQ address to access queue api e.g. http://user:password@host:port/api/queues/vhost/
-    #[arg(env = "BUILDIT_RABBITMQ_QUEUE_API")]
-    pub rabbitmq_queue_api: Option<String>,
+    /// Database connection url
+    #[arg(env = "DATABASE_URL")]
+    pub database_url: String,
 
     /// GitHub access token
     #[arg(env = "BUILDIT_GITHUB_ACCESS_TOKEN")]
     pub github_access_token: String,
+
+    #[arg(env = "ABBS_PATH")]
+    pub abbs_path: PathBuf,
+
+    /// RabbitMQ address to access queue api e.g. http://user:password@host:port/api/queues/vhost/
+    #[arg(env = "BUILDIT_RABBITMQ_QUEUE_API")]
+    pub rabbitmq_queue_api: Option<String>,
 
     /// Secret
     #[arg(env = "SECRET")]
@@ -51,9 +58,6 @@ pub struct Args {
 
     #[arg(env = "GITHUB_APP_KEY_PEM_PATH")]
     pub github_app_key: Option<PathBuf>,
-
-    #[arg(env = "ABBS_PATH")]
-    pub abbs_path: PathBuf,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
