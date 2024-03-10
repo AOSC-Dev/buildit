@@ -539,6 +539,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
         ("r6", vec![String::from("cip-pilot")]),
         ("linux-kernel", vec![String::from("kernel")]),
         ("new", vec![String::from("new-packages")]),
+        ("preview", vec![String::from("preview")]),
         (
             "ftbfs",
             vec![String::from("has-fix"), String::from("ftbfs")],
