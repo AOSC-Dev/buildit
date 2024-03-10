@@ -1,11 +1,15 @@
-use crate::{api, models::NewWorker, DbPool};
+use crate::{
+    api,
+    models::{Job, NewWorker, Pipeline},
+    DbPool,
+};
 use anyhow::Context;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use diesel::RunQueryDsl;
+use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 
 pub async fn ping() -> &'static str {
@@ -87,6 +91,7 @@ pub async fn worker_heartbeat(
     State(pool): State<DbPool>,
     Json(payload): Json<WorkerHeartbeatRequest>,
 ) -> Result<(), AnyhowError> {
+    // insert or update worker
     let new_worker = NewWorker {
         hostname: payload.hostname.clone(),
         arch: payload.arch.clone(),
@@ -109,4 +114,66 @@ pub async fn worker_heartbeat(
         .set(&new_worker)
         .execute(&mut conn)?;
     Ok(())
+}
+
+#[derive(Deserialize)]
+pub struct WorkerPollRequest {
+    hostname: String,
+    arch: String,
+}
+
+#[derive(Serialize)]
+pub struct WorkerPollResponse {
+    pipeline_id: i32,
+    job_id: i32,
+    git_branch: String,
+    git_sha: String,
+    packages: String,
+}
+
+pub async fn worker_poll(
+    State(pool): State<DbPool>,
+    Json(payload): Json<WorkerPollRequest>,
+) -> Result<Json<Option<WorkerPollResponse>>, AnyhowError> {
+    // find a job that can be assigned to the worker
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    match conn.transaction::<Option<(Pipeline, Job)>, diesel::result::Error, _>(|conn| {
+        use crate::schema::jobs::dsl::*;
+        match jobs
+            .filter(status.eq("created"))
+            .filter(arch.eq(payload.arch))
+            .first::<Job>(conn)
+            .optional()?
+        {
+            Some(job) => {
+                // allocate to the worker
+                diesel::update(&job)
+                    .set(status.eq("assigned"))
+                    .execute(conn)?;
+
+                // get pipeline the job belongs to
+                let pipeline = crate::schema::pipelines::dsl::pipelines
+                    .find(job.pipeline_id)
+                    .get_result::<Pipeline>(conn)?;
+
+                Ok(Some((pipeline, job)))
+            }
+            None => Ok(None),
+        }
+    })? {
+        Some((pipeline, job)) => {
+            // job allocated
+            Ok(Json(Some(WorkerPollResponse {
+                pipeline_id: job.pipeline_id,
+                job_id: job.id,
+                git_branch: pipeline.git_branch,
+                git_sha: pipeline.git_sha,
+                packages: job.packages,
+            })))
+        }
+        None => Ok(Json(None)),
+    }
 }

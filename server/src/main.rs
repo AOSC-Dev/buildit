@@ -3,7 +3,7 @@ use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use server::routes::{ping, pipeline_new_pr};
+use server::routes::{ping, pipeline_new_pr, worker_poll};
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::ARGS;
 use tower_http::services::{ServeDir, ServeFile};
@@ -27,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/pipeline/new", post(pipeline_new))
         .route("/api/pipeline/new_pr", post(pipeline_new_pr))
         .route("/api/worker/heartbeat", post(worker_heartbeat))
+        .route("/api/worker/poll", post(worker_poll))
         .fallback_service(serve_dir)
         .with_state(pool)
         .layer(tower_http::trace::TraceLayer::new_for_http());

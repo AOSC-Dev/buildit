@@ -29,7 +29,7 @@ pub struct NewPipeline {
     pub telegram_user: Option<i64>,
 }
 
-#[derive(Queryable, Selectable, Associations)]
+#[derive(Queryable, Selectable, Associations, Identifiable)]
 #[diesel(belongs_to(Pipeline))]
 #[diesel(table_name = crate::schema::jobs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
