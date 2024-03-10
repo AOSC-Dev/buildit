@@ -1,10 +1,12 @@
 use crate::{
+    github::get_packages_from_pr,
     job::get_crab_github_installation,
     models::{NewJob, NewPipeline, Pipeline},
     ALL_ARCH, ARGS,
 };
+use anyhow::anyhow;
 use anyhow::Context;
-use buildit_utils::github::update_abbs;
+use buildit_utils::github::{get_archs, update_abbs};
 use common::JobSource;
 use diesel::{
     r2d2::{ConnectionManager, Pool},
@@ -15,23 +17,29 @@ use tracing::warn;
 pub async fn pipeline_new(
     pool: Pool<ConnectionManager<PgConnection>>,
     git_branch: &str,
+    git_sha: Option<&str>,
     packages: &str,
     archs: &str,
     source: &JobSource,
 ) -> anyhow::Result<i32> {
-    // resolve branch name to commit hash
-    update_abbs(git_branch, &ARGS.abbs_path)
-        .await
-        .context("Failed to update ABBS tree")?;
+    // resolve branch name to commit hash if not specified
+    let git_sha = match git_sha {
+        Some(git_sha) => git_sha.to_string(),
+        None => {
+            update_abbs(git_branch, &ARGS.abbs_path)
+                .await
+                .context("Failed to update ABBS tree")?;
 
-    let output = tokio::process::Command::new("git")
-        .arg("rev-parse")
-        .arg("HEAD")
-        .current_dir(&ARGS.abbs_path)
-        .output()
-        .await
-        .context("Failed to resolve branch to git commit")?;
-    let git_sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let output = tokio::process::Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .current_dir(&ARGS.abbs_path)
+                .output()
+                .await
+                .context("Failed to resolve branch to git commit")?;
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        }
+    };
 
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(",").collect();
@@ -39,6 +47,11 @@ pub async fn pipeline_new(
         // archs
         archs.extend(ALL_ARCH.iter());
         archs.retain(|arch| *arch != "mainline");
+    }
+    for arch in &archs {
+        if !ALL_ARCH.contains(arch) && arch != &"mainline" {
+            return Err(anyhow!("Architecture {arch} is not supported"));
+        }
     }
     archs.sort();
     archs.dedup();
@@ -120,4 +133,68 @@ pub async fn pipeline_new(
     }
 
     Ok(pipeline.id)
+}
+
+pub async fn pipeline_new_pr(
+    pool: Pool<ConnectionManager<PgConnection>>,
+    pr: u64,
+    archs: Option<&str>,
+) -> anyhow::Result<i32> {
+    match octocrab::instance()
+        .pulls("AOSC-Dev", "aosc-os-abbs")
+        .get(pr)
+        .await
+    {
+        Ok(pr) => {
+            // If the pull request has been merged,
+            // build and push packages based on stable
+            let (git_branch, git_sha) = if pr.merged_at.is_some() {
+                (
+                    "stable",
+                    pr.merge_commit_sha
+                        .as_ref()
+                        .context("merge_commit_sha should not be None")?,
+                )
+            } else {
+                (pr.head.ref_field.as_str(), &pr.head.sha)
+            };
+
+            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
+                return Err(anyhow!("Failed to create job: Pull request is a fork"));
+            }
+
+            update_abbs(git_branch, &ARGS.abbs_path)
+                .await
+                .context("Failed to update ABBS tree")?;
+
+            // find lines starting with #buildit
+            let packages = get_packages_from_pr(&pr);
+            if !packages.is_empty() {
+                let archs = if let Some(archs) = archs {
+                    archs.to_string()
+                } else {
+                    let path = &ARGS.abbs_path;
+
+                    get_archs(path, &packages).join(",")
+                };
+
+                pipeline_new(
+                    pool,
+                    git_branch,
+                    Some(&git_sha),
+                    &packages.join(","),
+                    &archs,
+                    &JobSource::Github(pr.number),
+                )
+                .await
+            } else {
+                return Err(anyhow!(
+                    "Please list packages to build in pr info starting with '#buildit'"
+                ));
+            }
+        }
+        Err(err) => {
+            return Err(anyhow!("Failed to get pr info: {err}"));
+        }
+    }
 }

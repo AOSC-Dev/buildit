@@ -52,10 +52,26 @@ pub async fn pipeline_new(
     let pipeline_id = api::pipeline_new(
         pool,
         &payload.git_branch,
+        None,
         &payload.packages,
         &payload.archs,
         &common::JobSource::Manual,
     )
     .await?;
+    Ok(Json(PipelineNewResponse { id: pipeline_id }))
+}
+
+#[derive(Deserialize)]
+pub struct PipelineNewPRRequest {
+    pr: u64,
+    archs: Option<String>,
+}
+
+pub async fn pipeline_new_pr(
+    State(pool): State<Pool<ConnectionManager<PgConnection>>>,
+    Json(payload): Json<PipelineNewPRRequest>,
+) -> Result<Json<PipelineNewResponse>, AnyhowError> {
+    let pipeline_id =
+        api::pipeline_new_pr(pool, payload.pr, payload.archs.as_ref().map(|s| s.as_str())).await?;
     Ok(Json(PipelineNewResponse { id: pipeline_id }))
 }
