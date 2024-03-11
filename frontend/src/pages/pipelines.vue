@@ -35,7 +35,7 @@
     data: () => ({
       itemsPerPage: 10,
       headers: [
-        { title: 'ID', key: 'id' },
+        { title: 'Pipeline ID', key: 'id' },
         { title: 'Branch', key: 'git_branch' },
         { title: 'Packages', key: 'packages' },
         { title: 'Architectures', key: 'archs' },

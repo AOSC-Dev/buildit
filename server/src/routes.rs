@@ -784,6 +784,7 @@ pub async fn pipeline_list(
                 .get_result(conn)?;
 
             let pipelines = crate::schema::pipelines::dsl::pipelines
+                .order_by(crate::schema::pipelines::dsl::id)
                 .offset((query.page - 1) * query.items_per_page)
                 .limit(query.items_per_page)
                 .load::<Pipeline>(conn)?;
@@ -799,6 +800,64 @@ pub async fn pipeline_list(
             }
 
             Ok(PipelineListResponse {
+                total_items,
+                items
+            })
+        })?,
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct JobListRequest {
+    page: i64,
+    items_per_page: i64,
+}
+
+#[derive(Serialize)]
+pub struct JobListResponseItem {
+    id: i32,
+    pipeline_id: i32,
+    packages: String,
+    arch: String,
+}
+
+#[derive(Serialize)]
+pub struct JobListResponse {
+    total_items: i64,
+    items: Vec<JobListResponseItem>,
+}
+
+pub async fn job_list(
+    Query(query): Query<JobListRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<JobListResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<JobListResponse, diesel::result::Error, _>(|conn| {
+            let total_items = crate::schema::jobs::dsl::jobs
+                .count()
+                .get_result(conn)?;
+
+            let jobs = crate::schema::jobs::dsl::jobs
+                .order_by(crate::schema::jobs::dsl::id)
+                .offset((query.page - 1) * query.items_per_page)
+                .limit(query.items_per_page)
+                .load::<Job>(conn)?;
+
+            let mut items = vec![];
+            for job in jobs {
+                items.push(JobListResponseItem {
+                    id: job.id,
+                    pipeline_id: job.pipeline_id,
+                    packages: job.packages,
+                    arch: job.arch
+                });
+            }
+
+            Ok(JobListResponse {
                 total_items,
                 items
             })

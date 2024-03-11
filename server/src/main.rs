@@ -8,7 +8,7 @@ use diesel::r2d2::Pool;
 use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
-    dashboard_status, ping, pipeline_list, pipeline_new_pr, worker_job_update, worker_poll, AppState
+    dashboard_status, ping, job_list, pipeline_list, pipeline_new_pr, worker_job_update, worker_poll, AppState
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
@@ -65,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/pipeline/new_pr", post(pipeline_new_pr))
         .route("/api/pipeline/status", get(pipeline_status))
         .route("/api/pipeline/list", get(pipeline_list))
+        .route("/api/job/list", get(job_list))
         .route("/api/worker/heartbeat", post(worker_heartbeat))
         .route("/api/worker/poll", post(worker_poll))
         .route("/api/worker/job_update", post(worker_job_update))
