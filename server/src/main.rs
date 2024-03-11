@@ -1,4 +1,5 @@
 use axum::extract::MatchedPath;
+use axum::http::Method;
 use axum::routing::post;
 use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
@@ -13,6 +14,7 @@ use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
 use teloxide::prelude::*;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info_span;
 
@@ -57,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
         pool: pool.clone(),
         bot,
     };
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/api/ping", get(ping))
         .route("/api/pipeline/new", post(pipeline_new))
         .route("/api/pipeline/new_pr", post(pipeline_new_pr))
@@ -88,6 +90,15 @@ async fn main() -> anyhow::Result<()> {
                 },
             ),
         );
+
+    if ARGS.development_mode == Some(true) {
+        let cors = CorsLayer::new()
+            // allow `GET` and `POST` when accessing the resource
+            .allow_methods([Method::GET, Method::POST])
+            // allow requests from any origin
+            .allow_origin(Any);
+        app = app.layer(cors);
+    }
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     handles.push(tokio::spawn(async {

@@ -44,6 +44,10 @@ pub struct Args {
 
     #[arg(env = "BUILDIT_GITHUB_APP_KEY_PEM_PATH")]
     pub github_app_key: Option<PathBuf>,
+
+    /// Development mode
+    #[arg(env = "BUILDIT_DEVELOPMENT")]
+    pub development_mode: Option<bool>,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);

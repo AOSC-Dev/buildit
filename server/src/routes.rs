@@ -12,8 +12,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use buildit_utils::{LOONGARCH64, NOARCH};
 use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, PPC64EL, RISCV64};
+use buildit_utils::{LOONGARCH64, NOARCH};
 use chrono::Utc;
 use common::{
     JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
@@ -649,7 +649,7 @@ pub async fn dashboard_status(
 
             let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
             let live_worker_count = crate::schema::workers::dsl::workers
-                .filter(crate::schema::workers::last_heartbeat_time.lt(deadline))
+                .filter(crate::schema::workers::last_heartbeat_time.gt(deadline))
                 .count()
                 .get_result(conn)?;
 
@@ -673,7 +673,7 @@ pub async fn dashboard_status(
             }
 
             for (arch, count) in crate::schema::workers::dsl::workers
-                .filter(crate::schema::workers::last_heartbeat_time.lt(deadline))
+                .filter(crate::schema::workers::last_heartbeat_time.gt(deadline))
                 .group_by(crate::schema::workers::dsl::arch)
                 .select((
                     crate::schema::workers::dsl::arch,
