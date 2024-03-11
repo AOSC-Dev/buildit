@@ -44,7 +44,7 @@
       <v-col v-for="arch in archs" :link="arch" cols="3">
         <v-card height="200">
           <v-card-item>
-            <v-card-title>Status for {{ arch }}</v-card-title>
+            <v-card-title>{{ arch }}</v-card-title>
           </v-card-item>
           <v-card-text>
             Total Workers: {{status.by_arch && status.by_arch[arch].total_worker_count}}
