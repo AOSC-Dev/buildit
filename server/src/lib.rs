@@ -25,16 +25,16 @@ pub struct Args {
     #[arg(env = "DATABASE_URL")]
     pub database_url: String,
 
+    #[arg(env = "ABBS_PATH")]
+    pub abbs_path: PathBuf,
+
     /// GitHub access token
     #[arg(env = "BUILDIT_GITHUB_ACCESS_TOKEN")]
     pub github_access_token: String,
 
-    #[arg(env = "ABBS_PATH")]
-    pub abbs_path: PathBuf,
-
     /// Secret
-    #[arg(env = "SECRET")]
-    pub secret: Option<String>,
+    #[arg(env = "GITHUB_SECRET")]
+    pub github_secret: Option<String>,
 
     #[arg(env = "GITHUB_APP_ID")]
     pub github_app_id: Option<String>,

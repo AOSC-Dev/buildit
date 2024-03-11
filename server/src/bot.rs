@@ -232,10 +232,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 return Ok(());
             }
 
-            let secret = match ARGS.secret.as_ref() {
+            let secret = match ARGS.github_secret.as_ref() {
                 Some(s) => s,
                 None => {
-                    bot.send_message(msg.chat.id, "SECRET is not set").await?;
+                    bot.send_message(msg.chat.id, "GITHUB_SECRET is not set").await?;
                     return Ok(());
                 }
             };
