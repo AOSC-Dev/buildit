@@ -20,23 +20,31 @@ async fn main() -> anyhow::Result<()> {
     let manager = ConnectionManager::<PgConnection>::new(&ARGS.database_url);
     let pool = Pool::builder().test_on_check_out(true).build(manager)?;
 
-    let bot = Bot::from_env();
+    let mut handles = vec![];
+    let bot = if std::env::var("TELOXIDE_TOKEN").is_ok() {
+        tracing::info!("Starting telegram bot");
+        let bot = Bot::from_env();
 
-    let handler =
-        Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(
-            |bot: Bot, pool: DbPool, msg: Message, cmd: Command| async move {
-                answer(bot, msg, cmd, pool).await
-            },
-        ));
+        let handler =
+            Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(
+                |bot: Bot, pool: DbPool, msg: Message, cmd: Command| async move {
+                    answer(bot, msg, cmd, pool).await
+                },
+            ));
 
-    let mut telegram = Dispatcher::builder(bot.clone(), handler)
-        // Pass the shared state to the handler as a dependency.
-        .dependencies(dptree::deps![pool.clone()])
-        .enable_ctrlc_handler()
-        .build();
+        let mut telegram = Dispatcher::builder(bot.clone(), handler)
+            // Pass the shared state to the handler as a dependency.
+            .dependencies(dptree::deps![pool.clone()])
+            .enable_ctrlc_handler()
+            .build();
+
+        handles.push(tokio::spawn(async move { telegram.dispatch().await }));
+        Some(bot)
+    } else {
+        None
+    };
 
     tracing::info!("Starting http server");
-
     // build our application with a route
     let serve_dir = ServeDir::new("frontend/dist")
         .not_found_service(ServeFile::new("frontend/dist/index.html"));
@@ -54,11 +62,14 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state)
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
-    tracing::debug!("listening on 127.0.0.1:3000");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    tokio::spawn(async { axum::serve(listener, app).await.unwrap() });
+    handles.push(tokio::spawn(async {
+        axum::serve(listener, app).await.unwrap()
+    }));
 
-    telegram.dispatch().await;
+    for handle in handles {
+        handle.await?;
+    }
 
     Ok(())
 }

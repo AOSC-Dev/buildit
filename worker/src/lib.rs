@@ -7,8 +7,8 @@ pub mod heartbeat;
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// buildit server hostname
-    #[arg(short = 'H', long, env = "BUILDIT_HOSTNAME")]
+    /// buildit server url e.g. https://buildit.aosc.io
+    #[arg(short = 'H', long, env = "BUILDIT_SERVER")]
     pub server: String,
 
     /// Architecture that can build
@@ -30,7 +30,7 @@ pub struct Args {
 
     /// SSH key for repo uploading
     #[arg(short = 's', long, env = "BUILDIT_SSH_KEY")]
-    pub upload_ssh_key: String,
+    pub upload_ssh_key: Option<String>,
 
     /// rsync host (server)
     #[arg(

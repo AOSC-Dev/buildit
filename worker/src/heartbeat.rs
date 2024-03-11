@@ -8,7 +8,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     loop {
         info!("Sending heartbeat");
         client
-            .post(format!("https://{}/api/worker/heartbeat", args.server))
+            .post(format!("{}/api/worker/heartbeat", args.server))
             .json(&WorkerHeartbeatRequest {
                 hostname: gethostname::gethostname().to_string_lossy().to_string(),
                 arch: args.arch.clone(),

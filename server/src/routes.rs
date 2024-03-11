@@ -33,7 +33,7 @@ pub async fn ping() -> &'static str {
 #[derive(Clone)]
 pub struct AppState {
     pub pool: DbPool,
-    pub bot: Bot,
+    pub bot: Option<Bot>,
 }
 
 // learned from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs
@@ -254,7 +254,7 @@ pub async fn handle_success_message(
     job: &Job,
     pipeline: &Pipeline,
     req: &WorkerJobUpdateRequest,
-    bot: &Bot,
+    bot: &Option<Bot>,
     retry: Option<u8>,
 ) -> HandleSuccessResult {
     match &req.result {
@@ -270,23 +270,28 @@ pub async fn handle_success_message(
             let success = *build_success && *pushpkg_success;
 
             if pipeline.source == "telegram" {
-                let s = to_html_build_result(
-                    &pipeline,
-                    &job,
-                    &job_ok,
-                    &req.hostname,
-                    &req.arch,
-                    success,
-                );
+                if let Some(bot) = bot {
+                    let s = to_html_build_result(
+                        &pipeline,
+                        &job,
+                        &job_ok,
+                        &req.hostname,
+                        &req.arch,
+                        success,
+                    );
 
-                if let Err(e) = bot
-                    .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
-                    .parse_mode(ParseMode::Html)
-                    .disable_web_page_preview(true)
-                    .await
-                {
-                    error!("{}", e);
-                    return update_retry(retry);
+                    if let Err(e) = bot
+                        .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
+                        .parse_mode(ParseMode::Html)
+                        .disable_web_page_preview(true)
+                        .await
+                    {
+                        error!("{}", e);
+                        return update_retry(retry);
+                    }
+                } else {
+                    error!("Telegram bot not configured");
+                    return HandleSuccessResult::DoNotRetry;
                 }
             }
 
@@ -465,18 +470,23 @@ pub async fn handle_success_message(
         }
         JobResult::Error(error) => {
             if pipeline.source == "telegram" {
-                if let Err(e) = bot
-                    .send_message(
-                        ChatId(pipeline.telegram_user.unwrap()),
-                        format!(
-                            "{}({}) build packages: {:?} Got Error: {}",
-                            req.hostname, job.arch, pipeline.packages, error
-                        ),
-                    )
-                    .await
-                {
-                    error!("{e}");
-                    return update_retry(retry);
+                if let Some(bot) = bot {
+                    if let Err(e) = bot
+                        .send_message(
+                            ChatId(pipeline.telegram_user.unwrap()),
+                            format!(
+                                "{}({}) build packages: {:?} Got Error: {}",
+                                req.hostname, job.arch, pipeline.packages, error
+                            ),
+                        )
+                        .await
+                    {
+                        error!("{e}");
+                        return update_retry(retry);
+                    }
+                } else {
+                    error!("Telegram bot not configured");
+                    return HandleSuccessResult::DoNotRetry;
                 }
             } else if pipeline.source == "github" {
                 let crab = match octocrab::Octocrab::builder()

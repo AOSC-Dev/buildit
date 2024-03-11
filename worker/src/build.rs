@@ -1,6 +1,6 @@
 use crate::Args;
 use chrono::Local;
-use common::{JobOk, WorkerJobUpdateRequest, WorkerPollResponse};
+use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
 use log::{error, info, warn};
 use std::{
     path::Path,
@@ -203,20 +203,22 @@ async fn build(
             }
 
             if failed_package.is_none() {
-                pushpkg_success = run_logged_with_retry(
-                    "pushpkg",
-                    &[
-                        "--host",
-                        &args.rsync_host,
-                        "-i",
-                        &args.upload_ssh_key,
-                        "maintainers",
-                        &job.git_branch,
-                    ],
-                    &output_path,
-                    &mut logs,
-                )
-                .await?;
+                if let Some(upload_ssh_key) = &args.upload_ssh_key {
+                    pushpkg_success = run_logged_with_retry(
+                        "pushpkg",
+                        &[
+                            "--host",
+                            &args.rsync_host,
+                            "-i",
+                            upload_ssh_key,
+                            "maintainers",
+                            &job.git_branch,
+                        ],
+                        &output_path,
+                        &mut logs,
+                    )
+                    .await?;
+                }
             }
         }
     }
@@ -232,31 +234,33 @@ async fn build(
     let path = format!("/tmp/{file_name}");
     fs::write(&path, logs).await?;
 
-    let output = Command::new("scp")
-        .args([
-            "-i",
-            &args.upload_ssh_key,
-            &path,
-            "maintainers@repo.aosc.io:/buildit/logs",
-        ])
-        .output()
-        .await?;
+    let mut log_url = None;
+    if let Some(upload_ssh_key) = &args.upload_ssh_key {
+        let output = Command::new("scp")
+            .args([
+                "-i",
+                &upload_ssh_key,
+                &path,
+                "maintainers@repo.aosc.io:/buildit/logs",
+            ])
+            .output()
+            .await?;
+        if output.status.success() {
+            fs::remove_file(&path).await?;
+            log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
+        } else {
+            error!("scp return error code: {:?}", output.status.code());
+            error!("`scp' stdout: {}", String::from_utf8_lossy(&output.stdout));
+            error!("`scp' stderr: {}", String::from_utf8_lossy(&output.stderr));
+        };
+    }
 
-    let log_url = if output.status.success() {
-        fs::remove_file(path).await?;
-        Some(format!("https://buildit.aosc.io/logs/{file_name}"))
-    } else {
-        error!("scp return error code: {:?}", output.status.code());
-        error!("`scp' stdout: {}", String::from_utf8_lossy(&output.stdout));
-        error!("`scp' stderr: {}", String::from_utf8_lossy(&output.stderr));
-
+    if log_url.is_none() {
         let dir = Path::new("./push_failed_logs");
         let to = dir.join(file_name);
         fs::create_dir_all(dir).await?;
-        fs::copy(path, to).await?;
-
-        None
-    };
+        fs::copy(&path, to).await?;
+    }
 
     let result = WorkerJobUpdateRequest {
         hostname: gethostname::gethostname().to_string_lossy().to_string(),
@@ -283,9 +287,15 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
     info!("Receiving new messages");
 
     let client = reqwest::Client::new();
+    let req = WorkerPollRequest {
+        hostname: gethostname::gethostname().to_string_lossy().to_string(),
+        arch: args.arch.clone(),
+    };
+
     loop {
         if let Some(job) = client
-            .post(format!("https://{}/api/worker/poll", args.server))
+            .post(format!("{}/api/worker/poll", args.server))
+            .json(&req)
             .send()
             .await?
             .json::<Option<WorkerPollResponse>>()
@@ -298,7 +308,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                     // post result
                     warn!("Finished to run job {:?} with result {:?}", job, result);
                     client
-                        .post(format!("https://{}/api/worker/job_update", args.server))
+                        .post(format!("{}/api/worker/job_update", args.server))
                         .json(&result)
                         .send()
                         .await?;
@@ -306,7 +316,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                 Err(err) => {
                     warn!("Failed to run job {:?} with err {:?}", job, err);
                     client
-                        .post(format!("https://{}/api/worker/job_update", args.server))
+                        .post(format!("{}/api/worker/job_update", args.server))
                         .json(&WorkerJobUpdateRequest {
                             hostname: gethostname::gethostname().to_string_lossy().to_string(),
                             arch: args.arch.clone(),
