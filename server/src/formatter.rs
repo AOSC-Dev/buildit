@@ -48,7 +48,7 @@ pub fn to_html_build_result(
     } = job_ok;
 
     format!(
-        r#"{} Job completed on {} ({}s)
+        r#"{} Job completed on {} ({})
 
 {}<b>Time elapsed</b>: {}
 {}{}<b>Architecture</b>: {}
