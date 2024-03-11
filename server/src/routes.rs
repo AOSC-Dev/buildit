@@ -104,27 +104,46 @@ pub async fn worker_heartbeat(
     Json(payload): Json<WorkerHeartbeatRequest>,
 ) -> Result<(), AnyhowError> {
     // insert or update worker
-    let new_worker = NewWorker {
-        hostname: payload.hostname.clone(),
-        arch: payload.arch.clone(),
-        git_commit: payload.git_commit.clone(),
-        memory_bytes: payload.memory_bytes,
-        logical_cores: payload.logical_cores,
-        last_heartbeat_time: chrono::Utc::now(),
-    };
 
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;
-    diesel::insert_into(crate::schema::workers::table)
-        .values(&new_worker)
-        .on_conflict((
-            crate::schema::workers::hostname,
-            crate::schema::workers::arch,
-        ))
-        .do_update()
-        .set(&new_worker)
-        .execute(&mut conn)?;
+
+    conn.transaction::<(), diesel::result::Error, _>(|conn| {
+        use crate::schema::workers::dsl::*;
+        match workers
+            .filter(hostname.eq(&payload.hostname))
+            .filter(arch.eq(&payload.arch))
+            .first::<Worker>(conn)
+            .optional()?
+        {
+            Some(worker) => {
+                // existing worker, update it
+                diesel::update(workers.find(worker.id))
+                    .set((
+                        git_commit.eq(payload.git_commit),
+                        memory_bytes.eq(payload.memory_bytes),
+                        logical_cores.eq(payload.logical_cores),
+                        last_heartbeat_time.eq(chrono::Utc::now()),
+                    ))
+                    .execute(conn)?;
+            }
+            None => {
+                let new_worker = NewWorker {
+                    hostname: payload.hostname.clone(),
+                    arch: payload.arch.clone(),
+                    git_commit: payload.git_commit.clone(),
+                    memory_bytes: payload.memory_bytes,
+                    logical_cores: payload.logical_cores,
+                    last_heartbeat_time: chrono::Utc::now(),
+                };
+                diesel::insert_into(crate::schema::workers::table)
+                    .values(&new_worker)
+                    .execute(conn)?;
+            }
+        }
+        Ok(())
+    })?;
     Ok(())
 }
 
