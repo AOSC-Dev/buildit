@@ -148,6 +148,7 @@ pub async fn pipeline_new_pr(
     pool: DbPool,
     pr: u64,
     archs: Option<&str>,
+    source: &JobSource
 ) -> anyhow::Result<Pipeline> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
@@ -194,7 +195,7 @@ pub async fn pipeline_new_pr(
                     Some(pr.number),
                     &packages.join(","),
                     &archs,
-                    &JobSource::Github(pr.number),
+                    &source,
                 )
                 .await
             } else {

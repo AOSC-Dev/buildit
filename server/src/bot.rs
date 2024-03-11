@@ -134,7 +134,14 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Some(parts[1])
                 };
                 for pr_number in pr_numbers {
-                    match pipeline_new_pr(pool.clone(), pr_number, archs).await {
+                    match pipeline_new_pr(
+                        pool.clone(),
+                        pr_number,
+                        archs,
+                        &JobSource::Telegram(msg.chat.id.0 as i64),
+                    )
+                    .await
+                    {
                         Ok(pipeline) => {
                             bot.send_message(
                                 msg.chat.id,

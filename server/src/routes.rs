@@ -94,8 +94,13 @@ pub async fn pipeline_new_pr(
     State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<PipelineNewPRRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline =
-        api::pipeline_new_pr(pool, payload.pr, payload.archs.as_ref().map(|s| s.as_str())).await?;
+    let pipeline = api::pipeline_new_pr(
+        pool,
+        payload.pr,
+        payload.archs.as_ref().map(|s| s.as_str()),
+        &JobSource::Manual,
+    )
+    .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
 }
 
