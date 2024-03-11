@@ -1,6 +1,5 @@
 use crate::Args;
 use chrono::Local;
-use common::{ensure_job_queue, Job, JobError, JobOk, JobResult, WorkerIdentifier};
 use futures::StreamExt;
 use lapin::{
     options::{
@@ -95,7 +94,7 @@ async fn run_logged_with_retry(
     Ok(false)
 }
 
-async fn build(job: &Job, tree_path: &Path, args: &Args) -> anyhow::Result<JobResult> {
+async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyhow::Result<WorkerJobUpdateRequest> {
     let begin = Instant::now();
     let mut successful_packages = vec![];
     let mut failed_package = None;

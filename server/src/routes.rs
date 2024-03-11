@@ -1,7 +1,9 @@
 use crate::{
-    api::{self, PipelineStatus},
+    api::{self, JobSource, PipelineStatus},
+    formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
+    job::get_crab_github_installation,
     models::{Job, NewWorker, Pipeline, Worker},
-    DbPool,
+    DbPool, ARGS,
 };
 use anyhow::Context;
 use axum::{
@@ -9,11 +11,32 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use buildit_utils::LOONGARCH64;
+use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64};
+use common::{
+    JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
+    WorkerPollResponse,
+};
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use octocrab::params::checks::CheckRunConclusion;
+use octocrab::params::checks::CheckRunOutput;
+use octocrab::{
+    models::{CheckRunId, InstallationId},
+    Octocrab,
+};
 use serde::{Deserialize, Serialize};
+use teloxide::types::ChatId;
+use teloxide::{prelude::*, types::ParseMode};
+use tracing::{error, info, warn};
 
 pub async fn ping() -> &'static str {
     "PONG"
+}
+
+#[derive(Clone)]
+pub struct AppState {
+    pub pool: DbPool,
+    pub bot: Bot,
 }
 
 // learned from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs
@@ -47,7 +70,7 @@ pub struct PipelineNewResponse {
 }
 
 pub async fn pipeline_new(
-    State(pool): State<DbPool>,
+    State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<PipelineNewRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
     let pipeline = api::pipeline_new(
@@ -57,7 +80,7 @@ pub async fn pipeline_new(
         None,
         &payload.packages,
         &payload.archs,
-        &common::JobSource::Manual,
+        &JobSource::Manual,
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
@@ -70,7 +93,7 @@ pub struct PipelineNewPRRequest {
 }
 
 pub async fn pipeline_new_pr(
-    State(pool): State<DbPool>,
+    State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<PipelineNewPRRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
     let pipeline =
@@ -78,17 +101,8 @@ pub async fn pipeline_new_pr(
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
 }
 
-#[derive(Deserialize)]
-pub struct WorkerHeartbeatRequest {
-    hostname: String,
-    arch: String,
-    git_commit: String,
-    memory_bytes: i64,
-    logical_cores: i32,
-}
-
 pub async fn worker_heartbeat(
-    State(pool): State<DbPool>,
+    State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<WorkerHeartbeatRequest>,
 ) -> Result<(), AnyhowError> {
     // insert or update worker
@@ -116,23 +130,8 @@ pub async fn worker_heartbeat(
     Ok(())
 }
 
-#[derive(Deserialize)]
-pub struct WorkerPollRequest {
-    hostname: String,
-    arch: String,
-}
-
-#[derive(Serialize)]
-pub struct WorkerPollResponse {
-    pipeline_id: i32,
-    job_id: i32,
-    git_branch: String,
-    git_sha: String,
-    packages: String,
-}
-
 pub async fn worker_poll(
-    State(pool): State<DbPool>,
+    State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<WorkerPollRequest>,
 ) -> Result<Json<Option<WorkerPollResponse>>, AnyhowError> {
     // find a job that can be assigned to the worker
@@ -178,7 +177,6 @@ pub async fn worker_poll(
         Some((pipeline, job)) => {
             // job allocated
             Ok(Json(Some(WorkerPollResponse {
-                pipeline_id: job.pipeline_id,
                 job_id: job.id,
                 git_branch: pipeline.git_branch,
                 git_sha: pipeline.git_sha,
@@ -189,45 +187,38 @@ pub async fn worker_poll(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum JobResult {
-    Ok(JobOk),
-    Error(String),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JobOk {
-    /// Is the build successful?
-    pub build_success: bool,
-    /// List of packages successfully built
-    pub successful_packages: Vec<String>,
-    /// List of packages failed to build
-    pub failed_package: Option<String>,
-    /// List of packages skipped
-    pub skipped_packages: Vec<String>,
-    /// URL to build log
-    pub log_url: Option<String>,
-    /// Elapsed time of the job
-    pub elapsed_secs: i64,
-    /// If pushpkg succeeded
-    pub pushpkg_success: bool,
-}
-
-#[derive(Deserialize)]
-pub struct WorkerJobUpdateRequest {
-    hostname: String,
-    arch: String,
-    job_id: i32,
-    result: JobResult,
-}
-
 pub async fn worker_job_update(
-    State(pool): State<DbPool>,
+    State(AppState { pool, bot }): State<AppState>,
     Json(payload): Json<WorkerJobUpdateRequest>,
 ) -> Result<(), AnyhowError> {
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;
+
+    let job = crate::schema::jobs::dsl::jobs
+        .find(payload.job_id)
+        .first::<Job>(&mut conn)?;
+
+    let pipeline = crate::schema::pipelines::dsl::pipelines
+        .find(job.pipeline_id)
+        .first::<Pipeline>(&mut conn)?;
+
+    let mut retry = None;
+    loop {
+        if retry.map(|x| x < 5).unwrap_or(true) {
+            match handle_success_message(&job, &pipeline, &payload, &bot, retry).await {
+                HandleSuccessResult::Ok | HandleSuccessResult::DoNotRetry => {
+                    break;
+                }
+                HandleSuccessResult::Retry(x) => {
+                    retry = Some(x);
+                    continue;
+                }
+            }
+        } else {
+            break;
+        }
+    }
 
     use crate::schema::jobs::dsl::*;
     match payload.result {
@@ -256,12 +247,288 @@ pub async fn worker_job_update(
     Ok(())
 }
 
+pub enum HandleSuccessResult {
+    Ok,
+    Retry(u8),
+    DoNotRetry,
+}
+
+pub async fn handle_success_message(
+    job: &Job,
+    pipeline: &Pipeline,
+    req: &WorkerJobUpdateRequest,
+    bot: &Bot,
+    retry: Option<u8>,
+) -> HandleSuccessResult {
+    match &req.result {
+        JobResult::Ok(job_ok) => {
+            info!("Processing job result {:?} ...", job_ok);
+
+            let JobOk {
+                build_success,
+                pushpkg_success,
+                ..
+            } = &job_ok;
+
+            let success = *build_success && *pushpkg_success;
+
+            if pipeline.source == "telegram" {
+                let s = to_html_build_result(
+                    &pipeline,
+                    &job,
+                    &job_ok,
+                    &req.hostname,
+                    &req.arch,
+                    success,
+                );
+
+                if let Err(e) = bot
+                    .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
+                    .parse_mode(ParseMode::Html)
+                    .disable_web_page_preview(true)
+                    .await
+                {
+                    error!("{}", e);
+                    return update_retry(retry);
+                }
+            }
+
+            // if associated with github pr, update comments
+            let new_content = to_markdown_build_result(
+                &pipeline,
+                &job,
+                &job_ok,
+                &req.hostname,
+                &req.arch,
+                success,
+            );
+            if let Some(pr_num) = pipeline.github_pr {
+                let crab = match octocrab::Octocrab::builder()
+                    .user_access_token(ARGS.github_access_token.clone())
+                    .build()
+                {
+                    Ok(crab) => crab,
+                    Err(e) => {
+                        error!("{e}");
+                        return HandleSuccessResult::DoNotRetry;
+                    }
+                };
+
+                let comments = crab
+                    .issues("AOSC-Dev", "aosc-os-abbs")
+                    .list_comments(pr_num as u64)
+                    .send()
+                    .await;
+
+                let comments = match comments {
+                    Ok(c) => c,
+                    Err(e) => {
+                        error!("{e}");
+                        return update_retry(retry);
+                    }
+                };
+
+                for c in comments {
+                    if c.user.login == "aosc-buildit-bot" {
+                        let body = c.body.unwrap_or_else(String::new);
+                        if !body
+                            .split_ascii_whitespace()
+                            .next()
+                            .map(|x| x == SUCCESS || x == FAILED)
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+
+                        for line in body.split('\n') {
+                            let arch = line.strip_prefix("Architecture:").map(|x| x.trim());
+                            if arch.map(|x| x == job.arch).unwrap_or(false) {
+                                if let Err(e) = crab
+                                    .issues("AOSC-Dev", "aosc-os-abbs")
+                                    .delete_comment(c.id)
+                                    .await
+                                {
+                                    error!("{e}");
+                                    return update_retry(retry);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Disable comment posting, since we have check run reporting
+                /*
+                if let Err(e) = crab
+                    .issues("AOSC-Dev", "aosc-os-abbs")
+                    .create_comment(pr_num, new_content.clone())
+                    .await
+                {
+                    error!("{e}");
+                    return update_retry(retry);
+                }
+                */
+
+                // update checklist
+                let pr = match crab
+                    .pulls("AOSC-Dev", "aosc-os-abbs")
+                    .get(pr_num as u64)
+                    .await
+                {
+                    Ok(pr) => pr,
+                    Err(e) => {
+                        error!("{e}");
+                        return update_retry(retry);
+                    }
+                };
+
+                let body = if let Some(body) = pr.body {
+                    body
+                } else {
+                    return HandleSuccessResult::DoNotRetry;
+                };
+
+                let pr_arch = match job.arch.as_str() {
+                    // "amd64" if job_parent.noarch => NOARCH,
+                    "amd64" => AMD64,
+                    "arm64" => ARM64,
+                    "loongson3" => LOONGSON3,
+                    "mips64r6el" => MIPS64R6EL,
+                    "ppc64el" => PPC64EL,
+                    "riscv64" => RISCV64,
+                    "loongarch64" => LOONGARCH64,
+                    x => {
+                        error!("Unknown architecture: {x}");
+                        return HandleSuccessResult::DoNotRetry;
+                    }
+                };
+
+                let body = if success {
+                    body.replace(&format!("- [ ] {pr_arch}"), &format!("- [x] {pr_arch}"))
+                } else {
+                    body.replace(&format!("- [x] {pr_arch}"), &format!("- [ ] {pr_arch}"))
+                };
+
+                if let Err(e) = crab
+                    .pulls("AOSC-Dev", "aosc-os-abbs")
+                    .update(pr_num as u64)
+                    .body(body)
+                    .send()
+                    .await
+                {
+                    error!("{e}");
+                    return update_retry(retry);
+                }
+            }
+
+            // if associated with github check run, update status
+            if let Some(github_check_run_id) = job.github_check_run_id {
+                // authenticate with github app
+                match get_crab_github_installation().await {
+                    Ok(Some(crab)) => {
+                        let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
+                        let output = CheckRunOutput {
+                            title: format!(
+                                "Built {} packages in {}s",
+                                job_ok.successful_packages.len(),
+                                job_ok.elapsed_secs,
+                            ),
+                            summary: new_content,
+                            text: None,
+                            annotations: vec![],
+                            images: vec![],
+                        };
+                        let mut builder = handler
+                            .update_check_run(CheckRunId(github_check_run_id as u64))
+                            .status(octocrab::params::checks::CheckRunStatus::Completed)
+                            .output(output)
+                            .conclusion(if success {
+                                CheckRunConclusion::Success
+                            } else {
+                                CheckRunConclusion::Failure
+                            });
+
+                        if let Some(log) = &job_ok.log_url {
+                            builder = builder.details_url(log);
+                        }
+
+                        if let Err(e) = builder.send().await {
+                            error!("{e}");
+                            return update_retry(retry);
+                        }
+                    }
+                    Ok(None) => {
+                        // github app unavailable
+                    }
+                    Err(err) => {
+                        warn!("Failed to get installation token: {}", err);
+                        return update_retry(retry);
+                    }
+                }
+            }
+        }
+        JobResult::Error(error) => {
+            if pipeline.source == "telegram" {
+                if let Err(e) = bot
+                    .send_message(
+                        ChatId(pipeline.telegram_user.unwrap()),
+                        format!(
+                            "{}({}) build packages: {:?} Got Error: {}",
+                            req.hostname, job.arch, pipeline.packages, error
+                        ),
+                    )
+                    .await
+                {
+                    error!("{e}");
+                    return update_retry(retry);
+                }
+            } else if pipeline.source == "github" {
+                let crab = match octocrab::Octocrab::builder()
+                    .user_access_token(ARGS.github_access_token.clone())
+                    .build()
+                {
+                    Ok(crab) => crab,
+                    Err(e) => {
+                        error!("{e}");
+                        return HandleSuccessResult::DoNotRetry;
+                    }
+                };
+
+                if let Err(e) = crab
+                    .issues("AOSC-Dev", "aosc-os-abbs")
+                    .create_comment(
+                        pipeline.github_pr.unwrap() as u64,
+                        format!(
+                            "{}({}) build packages: {:?} Got Error: {}",
+                            req.hostname, job.arch, pipeline.packages, error
+                        ),
+                    )
+                    .await
+                {
+                    error!("{e}");
+                    return update_retry(retry);
+                }
+            }
+        }
+    }
+
+    HandleSuccessResult::Ok
+}
+
+pub fn update_retry(retry: Option<u8>) -> HandleSuccessResult {
+    match retry {
+        Some(retry) => HandleSuccessResult::Retry(retry + 1),
+        None => HandleSuccessResult::Retry(1),
+    }
+}
+
 pub async fn pipeline_status(
-    State(pool): State<DbPool>,
+    State(AppState { pool, .. }): State<AppState>,
 ) -> Result<Json<Vec<PipelineStatus>>, AnyhowError> {
     Ok(Json(api::pipeline_status(pool).await?))
 }
 
-pub async fn worker_status(State(pool): State<DbPool>) -> Result<Json<Vec<Worker>>, AnyhowError> {
+pub async fn worker_status(
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<Vec<Worker>>, AnyhowError> {
     Ok(Json(api::worker_status(pool).await?))
 }

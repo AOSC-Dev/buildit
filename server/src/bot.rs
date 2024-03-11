@@ -1,15 +1,11 @@
 use crate::{
-    api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status},
+    api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
     formatter::{code_repr_string, to_html_new_job_summary},
     github::{get_github_token, login_github},
-    job::get_ready_message,
     DbPool, ALL_ARCH, ARGS,
 };
 use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
-
 use chrono::Local;
-use common::JobSource;
-
 use serde_json::Value;
 use std::borrow::Cow;
 use teloxide::{
@@ -44,8 +40,6 @@ pub enum Command {
     Login,
     #[command(description = "Start bot")]
     Start(String),
-    #[command(description = "Queue all ready messages: /queue [archs]")]
-    Queue(String),
     #[command(description = "Let dickens generate report for GitHub PR: /dickens pr-number")]
     Dickens(String),
 }
@@ -89,19 +83,6 @@ async fn status(pool: DbPool) -> anyhow::Result<String> {
             fmt.convert_chrono(status.last_heartbeat_time, Local::now())
         ));
     }
-    Ok(res)
-}
-
-pub async fn http_rabbitmq_api(api: &str, queue_name: String) -> anyhow::Result<Value> {
-    let client = reqwest::Client::new();
-
-    let res = client
-        .get(format!("{}{}", api, queue_name))
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
-
     Ok(res)
 }
 
@@ -437,35 +418,6 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         .await?
                     }
                 };
-            }
-        }
-        Command::Queue(arguments) => {
-            let mut archs = vec![];
-            if !arguments.is_empty() {
-                archs.extend(arguments.split(','));
-            } else {
-                archs.extend(ALL_ARCH);
-            }
-
-            match get_ready_message(pool, &archs).await {
-                Ok(map) => {
-                    let mut res = String::new();
-                    for (k, v) in map {
-                        res.push_str(&format!("{k}:\n"));
-                        res.push_str(&format!("{}\n", code_repr_string(&v)));
-                    }
-
-                    if res.is_empty() {
-                        bot.send_message(msg.chat.id, "Queue is empty").await?;
-                    } else {
-                        bot.send_message(msg.chat.id, res)
-                            .parse_mode(ParseMode::Html)
-                            .await?;
-                    }
-                }
-                Err(e) => {
-                    bot.send_message(msg.chat.id, e.to_string()).await?;
-                }
             }
         }
         Command::Dickens(arguments) => match str::parse::<u64>(&arguments) {

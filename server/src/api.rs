@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-
 use crate::{
     github::get_packages_from_pr,
     job::get_crab_github_installation,
@@ -9,10 +8,19 @@ use crate::{
 use anyhow::anyhow;
 use anyhow::Context;
 use buildit_utils::github::{get_archs, update_abbs};
-use common::JobSource;
 use diesel::{dsl::count, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::warn;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum JobSource {
+    /// Telegram user/group
+    Telegram(i64),
+    /// GitHub PR number
+    Github(u64),
+    /// Manual
+    Manual,
+}
 
 pub async fn pipeline_new(
     pool: DbPool,

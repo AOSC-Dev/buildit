@@ -1,19 +1,11 @@
 use crate::{
     formatter::to_html_new_job_summary,
     github::get_packages_from_pr,
-    job::{ack_delivery, send_build_request, update_retry, HandleSuccessResult},
     ARGS,
 };
 use anyhow::{anyhow, bail};
 use buildit_utils::github::{get_archs, update_abbs};
-use common::JobSource;
 use futures::StreamExt;
-use lapin::{
-    options::{BasicConsumeOptions, QueueDeclareOptions},
-    types::FieldTable,
-    Channel,
-};
-use log::{error, info};
 use octocrab::Octocrab;
 use reqwest::StatusCode;
 use serde::Deserialize;
@@ -36,6 +28,7 @@ struct User {
     login: String,
 }
 
+/*
 pub async fn get_webhooks_message(pool: deadpool_lapin::Pool) {
     info!("Starting github webhook worker");
     loop {
@@ -302,3 +295,5 @@ async fn is_org_user(user: &str) -> anyhow::Result<bool> {
         },
     }
 }
+
+*/
