@@ -602,6 +602,7 @@ pub struct DashboardStatusResponseByArch {
     live_worker_count: i64,
     total_logical_cores: i64,
     total_memory_bytes: bigdecimal::BigDecimal,
+    total_job_count: i64,
     pending_job_count: i64,
     running_job_count: i64,
 }
@@ -682,6 +683,22 @@ pub async fn dashboard_status(
                 .load::<(String, i64)>(conn)?
             {
                 by_arch.entry(arch).or_default().live_worker_count = count;
+            }
+
+            for (arch, count) in crate::schema::jobs::dsl::jobs
+                .group_by(crate::schema::jobs::dsl::arch)
+                .select((
+                    crate::schema::jobs::dsl::arch,
+                    count(crate::schema::jobs::dsl::id),
+                ))
+                .load::<(String, i64)>(conn)?
+            {
+                let arch = if arch == "noarch" {
+                    "amd64".to_string()
+                } else {
+                    arch
+                };
+                by_arch.entry(arch).or_default().total_job_count = count;
             }
 
             for (arch, count) in crate::schema::jobs::dsl::jobs

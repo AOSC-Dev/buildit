@@ -2,7 +2,7 @@
   <v-container>
     <v-row>
       <v-col>
-        <v-card height="200">
+        <v-card height="180">
           <v-card-item>
             <v-card-title>Pipelines</v-card-title>
           </v-card-item>
@@ -12,7 +12,7 @@
         </v-card>
       </v-col>
       <v-col>
-        <v-card height="200">
+        <v-card height="180">
           <v-card-item>
             <v-card-title>Jobs</v-card-title>
           </v-card-item>
@@ -28,7 +28,7 @@
         </v-card>
       </v-col>
       <v-col>
-        <v-card height="200">
+        <v-card height="180">
           <v-card-item>
             <v-card-title>Workers</v-card-title>
           </v-card-item>
@@ -55,6 +55,8 @@
             <p></p>
             Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes))}}
             <p></p>
+            Total Jobs: {{status.by_arch && status.by_arch[arch].total_job_count}}
+            <p></p>
             Pending Jobs: {{status.by_arch && status.by_arch[arch].pending_job_count}}
             <p></p>
             Running Jobs: {{status.by_arch && status.by_arch[arch].running_job_count}}
@@ -77,6 +79,7 @@
     live_worker_count: number;
     total_logical_cores: number;
     total_memory_bytes: string;
+    total_job_count: number;
     pending_job_count: number;
     running_job_count: number;
   }
