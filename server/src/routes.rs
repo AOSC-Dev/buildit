@@ -3,7 +3,7 @@ use crate::{
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
     github::get_crab_github_installation,
     models::{Job, NewWorker, Pipeline, Worker},
-    DbPool, ALL_ARCH, ARGS,
+    DbPool, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
@@ -46,6 +46,7 @@ pub struct AnyhowError(anyhow::Error);
 
 impl IntoResponse for AnyhowError {
     fn into_response(self) -> Response {
+        info!("Returing internal server error for {}", self.0);
         (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
     }
 }
@@ -783,11 +784,17 @@ pub async fn pipeline_list(
                 .count()
                 .get_result(conn)?;
 
-            let pipelines = crate::schema::pipelines::dsl::pipelines
-                .order_by(crate::schema::pipelines::dsl::id)
-                .offset((query.page - 1) * query.items_per_page)
-                .limit(query.items_per_page)
-                .load::<Pipeline>(conn)?;
+            let pipelines = if query.items_per_page == -1 {
+                crate::schema::pipelines::dsl::pipelines
+                    .order_by(crate::schema::pipelines::dsl::id)
+                    .load::<Pipeline>(conn)?
+            } else {
+                crate::schema::pipelines::dsl::pipelines
+                    .order_by(crate::schema::pipelines::dsl::id)
+                    .offset((query.page - 1) * query.items_per_page)
+                    .limit(query.items_per_page)
+                    .load::<Pipeline>(conn)?
+            };
 
             let mut items = vec![];
             for pipeline in pipelines {
@@ -795,14 +802,11 @@ pub async fn pipeline_list(
                     id: pipeline.id,
                     git_branch: pipeline.git_branch,
                     packages: pipeline.packages,
-                    archs: pipeline.archs
+                    archs: pipeline.archs,
                 });
             }
 
-            Ok(PipelineListResponse {
-                total_items,
-                items
-            })
+            Ok(PipelineListResponse { total_items, items })
         })?,
     ))
 }
@@ -837,15 +841,19 @@ pub async fn job_list(
 
     Ok(Json(
         conn.transaction::<JobListResponse, diesel::result::Error, _>(|conn| {
-            let total_items = crate::schema::jobs::dsl::jobs
-                .count()
-                .get_result(conn)?;
+            let total_items = crate::schema::jobs::dsl::jobs.count().get_result(conn)?;
 
-            let jobs = crate::schema::jobs::dsl::jobs
-                .order_by(crate::schema::jobs::dsl::id)
-                .offset((query.page - 1) * query.items_per_page)
-                .limit(query.items_per_page)
-                .load::<Job>(conn)?;
+            let jobs = if query.items_per_page == -1 {
+                crate::schema::jobs::dsl::jobs
+                    .order_by(crate::schema::jobs::dsl::id)
+                    .load::<Job>(conn)?
+            } else {
+                crate::schema::jobs::dsl::jobs
+                    .order_by(crate::schema::jobs::dsl::id)
+                    .offset((query.page - 1) * query.items_per_page)
+                    .limit(query.items_per_page)
+                    .load::<Job>(conn)?
+            };
 
             let mut items = vec![];
             for job in jobs {
@@ -853,14 +861,11 @@ pub async fn job_list(
                     id: job.id,
                     pipeline_id: job.pipeline_id,
                     packages: job.packages,
-                    arch: job.arch
+                    arch: job.arch,
                 });
             }
 
-            Ok(JobListResponse {
-                total_items,
-                items
-            })
+            Ok(JobListResponse { total_items, items })
         })?,
     ))
 }
