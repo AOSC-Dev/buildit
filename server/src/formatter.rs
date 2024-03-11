@@ -108,7 +108,7 @@ pub fn to_markdown_build_result(
         worker_hostname,
         worker_arch,
         format!("**Enqueue time**: {}\n", teloxide::utils::markdown::escape(&job.creation_time.to_string())),
-        format_args!("{}", elapsed_secs),
+        format!("{}s", elapsed_secs),
         format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &pipeline.git_sha[..8], pipeline.git_sha),
         job.arch,
         teloxide::utils::markdown::escape(&job.packages),
