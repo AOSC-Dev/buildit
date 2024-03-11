@@ -108,8 +108,11 @@ pub async fn worker_heartbeat(
     State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<WorkerHeartbeatRequest>,
 ) -> Result<(), AnyhowError> {
-    // insert or update worker
+    if payload.worker_secret != ARGS.worker_secret {
+        return Err(anyhow!("Invalid worker secret").into());
+    }
 
+    // insert or update worker
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;
@@ -156,6 +159,10 @@ pub async fn worker_poll(
     State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<WorkerPollRequest>,
 ) -> Result<Json<Option<WorkerPollResponse>>, AnyhowError> {
+    if payload.worker_secret != ARGS.worker_secret {
+        return Err(anyhow!("Invalid worker secret").into());
+    }
+
     // find a job that can be assigned to the worker
     let mut conn = pool
         .get()
@@ -213,6 +220,10 @@ pub async fn worker_job_update(
     State(AppState { pool, bot }): State<AppState>,
     Json(payload): Json<WorkerJobUpdateRequest>,
 ) -> Result<(), AnyhowError> {
+    if payload.worker_secret != ARGS.worker_secret {
+        return Err(anyhow!("Invalid worker secret").into());
+    }
+
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;

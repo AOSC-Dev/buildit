@@ -11,6 +11,10 @@ pub struct Args {
     #[arg(short = 'H', long, env = "BUILDIT_SERVER")]
     pub server: String,
 
+    /// Worker secret
+    #[arg(short = 'S', long, env = "BUILDIT_WORKER_SECRET")]
+    pub worker_secret: String,
+
     /// Architecture that can build
     #[arg(short = 'A', long, env = "BUILDIT_ARCH")]
     pub arch: String,

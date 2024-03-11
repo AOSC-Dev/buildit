@@ -12,6 +12,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
             .json(&WorkerHeartbeatRequest {
                 hostname: gethostname::gethostname().to_string_lossy().to_string(),
                 arch: args.arch.clone(),
+                worker_secret: args.worker_secret.clone(),
                 git_commit: env!("VERGEN_GIT_DESCRIBE").to_string(),
                 memory_bytes: sysinfo::System::new_all().total_memory() as i64,
                 logical_cores: num_cpus::get() as i32,

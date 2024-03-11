@@ -265,6 +265,7 @@ async fn build(
     let result = WorkerJobUpdateRequest {
         hostname: gethostname::gethostname().to_string_lossy().to_string(),
         arch: args.arch.clone(),
+        worker_secret: args.worker_secret.clone(),
         job_id: job.job_id,
         result: common::JobResult::Ok(JobOk {
             build_success: success,
@@ -290,6 +291,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
     let req = WorkerPollRequest {
         hostname: gethostname::gethostname().to_string_lossy().to_string(),
         arch: args.arch.clone(),
+        worker_secret: args.worker_secret.clone(),
     };
 
     loop {
@@ -320,6 +322,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
                         .json(&WorkerJobUpdateRequest {
                             hostname: gethostname::gethostname().to_string_lossy().to_string(),
                             arch: args.arch.clone(),
+                            worker_secret: args.worker_secret.clone(),
                             job_id: job.job_id,
                             result: common::JobResult::Error(err.to_string()),
                         })

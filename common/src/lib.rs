@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct WorkerPollRequest {
     pub hostname: String,
     pub arch: String,
+    pub worker_secret: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -21,6 +22,7 @@ pub struct WorkerHeartbeatRequest {
     pub git_commit: String,
     pub memory_bytes: i64,
     pub logical_cores: i32,
+    pub worker_secret: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,4 +55,5 @@ pub struct WorkerJobUpdateRequest {
     pub arch: String,
     pub job_id: i32,
     pub result: JobResult,
+    pub worker_secret: String,
 }
