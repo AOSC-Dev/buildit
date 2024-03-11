@@ -12,7 +12,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use buildit_utils::LOONGARCH64;
+use buildit_utils::{LOONGARCH64, NOARCH};
 use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, PPC64EL, RISCV64};
 use chrono::Utc;
 use common::{
@@ -446,7 +446,7 @@ pub async fn handle_success_message(
                 };
 
                 let pr_arch = match job.arch.as_str() {
-                    // "amd64" if job_parent.noarch => NOARCH,
+                    "noarch" => NOARCH,
                     "amd64" => AMD64,
                     "arm64" => ARM64,
                     "loongson3" => LOONGSON3,
