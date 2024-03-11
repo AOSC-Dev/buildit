@@ -16,7 +16,7 @@ pub async fn recycler_worker_inner(pool: DbPool) -> anyhow::Result<()> {
             .get()
             .context("Failed to get db connection from pool")?;
 
-        let deadline = Utc::now() - chrono::Duration::try_seconds(-300).unwrap();
+        let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
         let res = jobs::dsl::jobs
             .inner_join(workers::dsl::workers)
             .filter(workers::dsl::last_heartbeat_time.lt(deadline))
