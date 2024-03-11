@@ -10,7 +10,11 @@
           :loading="loading"
           item-value="id"
           @update:options="loadItems">
-
+          <template #item.id="{ item }">
+            <router-link :to="{ path: `/jobs/${item.id}`, params: { id: item.id } }">
+              {{ item.id }}
+            </router-link>
+          </template>
         </v-data-table-server>
       </v-col>
     </v-row>
