@@ -3,7 +3,7 @@ use crate::{
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
     github::get_crab_github_installation,
     models::{Job, NewWorker, Pipeline, Worker},
-    DbPool, ARGS,
+    DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
@@ -14,16 +14,19 @@ use axum::{
 };
 use buildit_utils::LOONGARCH64;
 use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, PPC64EL, RISCV64};
+use chrono::Utc;
 use common::{
     JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
     WorkerPollResponse,
 };
+use diesel::dsl::{count, sum};
 use diesel::BoolExpressionMethods;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use octocrab::models::CheckRunId;
 use octocrab::params::checks::CheckRunConclusion;
 use octocrab::params::checks::CheckRunOutput;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use teloxide::types::ChatId;
 use teloxide::{prelude::*, types::ParseMode};
 use tracing::{error, info, warn};
@@ -591,4 +594,151 @@ pub async fn worker_status(
     State(AppState { pool, .. }): State<AppState>,
 ) -> Result<Json<Vec<Worker>>, AnyhowError> {
     Ok(Json(api::worker_status(pool).await?))
+}
+
+#[derive(Serialize, Default)]
+pub struct DashboardStatusResponseByArch {
+    total_worker_count: i64,
+    live_worker_count: i64,
+    total_logical_cores: i64,
+    total_memory_bytes: bigdecimal::BigDecimal,
+    pending_job_count: i64,
+    running_job_count: i64,
+}
+
+#[derive(Serialize)]
+pub struct DashboardStatusResponse {
+    total_pipeline_count: i64,
+    total_job_count: i64,
+    pending_job_count: i64,
+    running_job_count: i64,
+    finished_job_count: i64,
+    total_worker_count: i64,
+    live_worker_count: i64,
+    by_arch: BTreeMap<String, DashboardStatusResponseByArch>,
+}
+
+pub async fn dashboard_status(
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<DashboardStatusResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<DashboardStatusResponse, diesel::result::Error, _>(|conn| {
+            let total_pipeline_count = crate::schema::pipelines::dsl::pipelines
+                .count()
+                .get_result(conn)?;
+            let total_job_count = crate::schema::jobs::dsl::jobs.count().get_result(conn)?;
+            let pending_job_count = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("created"))
+                .count()
+                .get_result(conn)?;
+            let running_job_count = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+                .count()
+                .get_result(conn)?;
+            let finished_job_count = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("finished"))
+                .count()
+                .get_result(conn)?;
+            let total_worker_count = crate::schema::workers::dsl::workers
+                .count()
+                .get_result(conn)?;
+
+            let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
+            let live_worker_count = crate::schema::workers::dsl::workers
+                .filter(crate::schema::workers::last_heartbeat_time.lt(deadline))
+                .count()
+                .get_result(conn)?;
+
+            // collect information by arch
+            let mut by_arch: BTreeMap<String, DashboardStatusResponseByArch> = BTreeMap::new();
+
+            for (arch, count, cores, bytes) in crate::schema::workers::dsl::workers
+                .group_by(crate::schema::workers::dsl::arch)
+                .select((
+                    crate::schema::workers::dsl::arch,
+                    count(crate::schema::workers::dsl::id),
+                    sum(crate::schema::workers::dsl::logical_cores),
+                    sum(crate::schema::workers::dsl::memory_bytes),
+                ))
+                .load::<(String, i64, Option<i64>, Option<bigdecimal::BigDecimal>)>(conn)?
+            {
+                by_arch.entry(arch.clone()).or_default().total_worker_count = count;
+                by_arch.entry(arch.clone()).or_default().total_logical_cores =
+                    cores.unwrap_or_default();
+                by_arch.entry(arch).or_default().total_memory_bytes = bytes.unwrap_or_default();
+            }
+
+            for (arch, count) in crate::schema::workers::dsl::workers
+                .filter(crate::schema::workers::last_heartbeat_time.lt(deadline))
+                .group_by(crate::schema::workers::dsl::arch)
+                .select((
+                    crate::schema::workers::dsl::arch,
+                    count(crate::schema::workers::dsl::id),
+                ))
+                .load::<(String, i64)>(conn)?
+            {
+                by_arch.entry(arch).or_default().live_worker_count = count;
+            }
+
+            for (arch, count) in crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("created"))
+                .group_by(crate::schema::jobs::dsl::arch)
+                .select((
+                    crate::schema::jobs::dsl::arch,
+                    count(crate::schema::jobs::dsl::id),
+                ))
+                .load::<(String, i64)>(conn)?
+            {
+                let arch = if arch == "noarch" {
+                    "amd64".to_string()
+                } else {
+                    arch
+                };
+                by_arch.entry(arch).or_default().pending_job_count = count;
+            }
+
+            for (arch, count) in crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+                .group_by(crate::schema::jobs::dsl::arch)
+                .select((
+                    crate::schema::jobs::dsl::arch,
+                    count(crate::schema::jobs::dsl::id),
+                ))
+                .load::<(String, i64)>(conn)?
+            {
+                let arch = if arch == "noarch" {
+                    "amd64".to_string()
+                } else {
+                    arch
+                };
+                by_arch.entry(arch).or_default().pending_job_count = count;
+            }
+
+            let mut pending: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::status.eq("created"))
+                .group_by(crate::schema::jobs::dsl::arch)
+                .select((
+                    crate::schema::jobs::dsl::arch,
+                    count(crate::schema::jobs::dsl::id),
+                ))
+                .load::<(String, i64)>(conn)?
+                .into_iter()
+                .collect();
+
+            Ok(DashboardStatusResponse {
+                total_pipeline_count,
+                total_job_count,
+                pending_job_count,
+                running_job_count,
+                finished_job_count,
+                total_worker_count,
+                live_worker_count,
+                by_arch,
+            })
+        })?,
+    ))
 }

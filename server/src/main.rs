@@ -6,7 +6,9 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
-use server::routes::{ping, pipeline_new_pr, worker_job_update, worker_poll, AppState};
+use server::routes::{
+    dashboard_status, ping, pipeline_new_pr, worker_job_update, worker_poll, AppState,
+};
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
@@ -64,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/poll", post(worker_poll))
         .route("/api/worker/job_update", post(worker_job_update))
         .route("/api/worker/status", get(worker_status))
+        .route("/api/dashboard/status", get(dashboard_status))
         .fallback_service(serve_dir)
         .with_state(state)
         .layer(
