@@ -51,9 +51,9 @@
             <p></p>
             Live Workers: {{status.by_arch && status.by_arch[arch].live_worker_count}}
             <p></p>
-            Total Logical Cores: {{status.by_arch && prettyBytes(status.by_arch[arch].total_logical_cores)}}
+            Total Logical Cores: {{status.by_arch && status.by_arch[arch].total_logical_cores}}
             <p></p>
-            Total Memory: {{status.by_arch && status.by_arch[arch].total_memory_bytes}}
+            Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes))}}
             <p></p>
             Pending Jobs: {{status.by_arch && status.by_arch[arch].pending_job_count}}
             <p></p>
