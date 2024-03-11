@@ -837,6 +837,7 @@ pub struct JobListResponseItem {
     pipeline_id: i32,
     packages: String,
     arch: String,
+    status: String,
 }
 
 #[derive(Serialize)]
@@ -876,6 +877,7 @@ pub async fn job_list(
                     pipeline_id: job.pipeline_id,
                     packages: job.packages,
                     arch: job.arch,
+                    status: job.status,
                 });
             }
 
@@ -943,6 +945,81 @@ pub async fn worker_list(
             }
 
             Ok(WorkerListResponse { total_items, items })
+        })?,
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct JobInfoRequest {
+    job_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct JobInfoResponse {
+    // from job
+    job_id: i32,
+    pipeline_id: i32,
+    packages: String,
+    arch: String,
+    creation_time: chrono::DateTime<chrono::Utc>,
+    status: String,
+    build_success: Option<bool>,
+    pushpkg_success: Option<bool>,
+    successful_packages: Option<String>,
+    failed_package: Option<String>,
+    skipped_packages: Option<String>,
+    log_url: Option<String>,
+    finish_time: Option<chrono::DateTime<chrono::Utc>>,
+    error_message: Option<String>,
+    elapsed_secs: Option<i64>,
+    assigned_worker_id: Option<i32>,
+
+    // from pipeline
+    git_branch: String,
+    git_sha: String,
+    github_pr: Option<i64>,
+}
+
+pub async fn job_info(
+    Query(query): Query<JobInfoRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<JobInfoResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<JobInfoResponse, diesel::result::Error, _>(|conn| {
+            let job = crate::schema::jobs::dsl::jobs
+                .find(query.job_id)
+                .get_result::<Job>(conn)?;
+
+            let pipeline = crate::schema::pipelines::dsl::pipelines
+                .find(job.pipeline_id)
+                .get_result::<Pipeline>(conn)?;
+
+            Ok(JobInfoResponse {
+                job_id: job.id,
+                pipeline_id: job.pipeline_id,
+                packages: job.packages,
+                arch: job.arch,
+                creation_time: job.creation_time,
+                status: job.status,
+                build_success: job.build_success,
+                pushpkg_success: job.pushpkg_success,
+                successful_packages: job.successful_packages,
+                failed_package: job.failed_package,
+                skipped_packages: job.skipped_packages,
+                log_url: job.log_url,
+                finish_time: job.finish_time,
+                error_message: job.error_message,
+                elapsed_secs: job.elapsed_secs,
+                assigned_worker_id: job.assigned_worker_id,
+                // from pipeline
+                git_branch: pipeline.git_branch,
+                git_sha: pipeline.git_sha,
+                github_pr: pipeline.github_pr,
+            })
         })?,
     ))
 }
