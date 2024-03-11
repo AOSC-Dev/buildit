@@ -12,6 +12,7 @@ pub mod formatter;
 pub mod github;
 pub mod github_webhooks;
 pub mod models;
+pub mod recycler;
 pub mod routes;
 pub mod schema;
 

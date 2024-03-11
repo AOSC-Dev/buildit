@@ -4,6 +4,7 @@ use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use server::bot::{answer, Command};
+use server::recycler::recycler_worker;
 use server::routes::{ping, pipeline_new_pr, worker_job_update, worker_poll, AppState};
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
@@ -48,7 +49,10 @@ async fn main() -> anyhow::Result<()> {
     // build our application with a route
     let serve_dir = ServeDir::new("frontend/dist")
         .not_found_service(ServeFile::new("frontend/dist/index.html"));
-    let state = AppState { pool, bot };
+    let state = AppState {
+        pool: pool.clone(),
+        bot,
+    };
     let app = Router::new()
         .route("/api/ping", get(ping))
         .route("/api/pipeline/new", post(pipeline_new))
@@ -66,6 +70,8 @@ async fn main() -> anyhow::Result<()> {
     handles.push(tokio::spawn(async {
         axum::serve(listener, app).await.unwrap()
     }));
+
+    handles.push(tokio::spawn(recycler_worker(pool)));
 
     for handle in handles {
         handle.await?;

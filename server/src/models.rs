@@ -30,7 +30,7 @@ pub struct NewPipeline {
     pub telegram_user: Option<i64>,
 }
 
-#[derive(Queryable, Selectable, Associations, Identifiable)]
+#[derive(Queryable, Selectable, Associations, Identifiable, Debug)]
 #[diesel(belongs_to(Pipeline))]
 #[diesel(table_name = crate::schema::jobs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -66,7 +66,7 @@ pub struct NewJob {
     pub github_check_run_id: Option<i64>,
 }
 
-#[derive(Queryable, Selectable, Serialize)]
+#[derive(Queryable, Selectable, Serialize, Debug)]
 #[diesel(table_name = crate::schema::workers)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Worker {
