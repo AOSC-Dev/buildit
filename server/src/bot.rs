@@ -1,12 +1,12 @@
 use crate::{
     api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
-    formatter::{code_repr_string, to_html_new_job_summary},
+    formatter::to_html_new_job_summary,
     github::{get_github_token, login_github},
     DbPool, ALL_ARCH, ARGS,
 };
 use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 use chrono::Local;
-use serde_json::Value;
+
 use std::borrow::Cow;
 use teloxide::{
     prelude::*,

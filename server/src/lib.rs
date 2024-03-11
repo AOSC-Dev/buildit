@@ -1,15 +1,10 @@
-use chrono::{DateTime, Local};
 use clap::Parser;
 use diesel::{
     r2d2::{ConnectionManager, Pool},
     PgConnection,
 };
 use once_cell::sync::Lazy;
-use std::{
-    collections::BTreeMap,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::path::PathBuf;
 
 pub mod api;
 pub mod bot;

@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use crate::{
     github::get_packages_from_pr,
     job::get_crab_github_installation,
@@ -10,6 +9,7 @@ use anyhow::Context;
 use buildit_utils::github::{get_archs, update_abbs};
 use diesel::{dsl::count, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

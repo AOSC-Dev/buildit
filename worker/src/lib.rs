@@ -7,9 +7,9 @@ pub mod heartbeat;
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// AMQP address to access message queue
-    #[arg(short, long, env = "BUILDIT_AMQP_ADDR")]
-    pub amqp_addr: String,
+    /// buildit server hostname
+    #[arg(short = 'H', long, env = "BUILDIT_HOSTNAME")]
+    pub server: String,
 
     /// Architecture that can build
     #[arg(short = 'A', long, env = "BUILDIT_ARCH")]

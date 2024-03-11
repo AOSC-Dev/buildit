@@ -1,38 +1,24 @@
 use crate::Args;
-use common::{ensure_job_queue, WorkerHeartbeat, WorkerIdentifier};
-use lapin::{options::BasicPublishOptions, BasicProperties, ConnectionProperties};
+use common::WorkerHeartbeatRequest;
 use log::{info, warn};
 use std::time::Duration;
 
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
-    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
-    let channel = conn.create_channel().await?;
-    let queue_name = "worker-heartbeat";
-    ensure_job_queue(queue_name, &channel).await?;
-
+    let client = reqwest::Client::new();
     loop {
         info!("Sending heartbeat");
-        channel
-            .basic_publish(
-                "",
-                "worker-heartbeat",
-                BasicPublishOptions::default(),
-                &serde_json::to_vec(&WorkerHeartbeat {
-                    identifier: WorkerIdentifier {
-                        hostname: gethostname::gethostname().to_string_lossy().to_string(),
-                        arch: args.arch.clone(),
-                        pid: std::process::id(),
-                    },
-                    git_commit: option_env!("VERGEN_GIT_DESCRIBE").map(String::from),
-                    memory_bytes: sysinfo::System::new_all().total_memory(),
-                    logical_cores: num_cpus::get() as u64,
-                })
-                .unwrap(),
-                BasicProperties::default(),
-            )
-            .await?
+        client
+            .post(format!("https://{}/api/worker/heartbeat", args.server))
+            .json(&WorkerHeartbeatRequest {
+                hostname: gethostname::gethostname().to_string_lossy().to_string(),
+                arch: args.arch.clone(),
+                git_commit: env!("VERGEN_GIT_DESCRIBE").to_string(),
+                memory_bytes: sysinfo::System::new_all().total_memory() as i64,
+                logical_cores: num_cpus::get() as i32,
+            })
+            .send()
             .await?;
-        tokio::time::sleep(Duration::from_secs(3600)).await;
+        tokio::time::sleep(Duration::from_secs(60)).await;
     }
 }
 

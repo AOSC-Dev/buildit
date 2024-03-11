@@ -1,10 +1,4 @@
-use lapin::{
-    options::QueueDeclareOptions,
-    types::{AMQPValue, FieldTable},
-    Channel, Queue,
-};
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
 #[derive(Serialize, Deserialize)]
 pub struct WorkerPollRequest {
@@ -12,7 +6,7 @@ pub struct WorkerPollRequest {
     pub arch: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkerPollResponse {
     pub job_id: i32,
     pub git_branch: String,
@@ -53,7 +47,7 @@ pub struct JobOk {
     pub pushpkg_success: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkerJobUpdateRequest {
     pub hostname: String,
     pub arch: String,

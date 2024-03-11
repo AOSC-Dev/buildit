@@ -1,15 +1,4 @@
-use crate::{
-    formatter::to_html_new_job_summary,
-    github::get_packages_from_pr,
-    ARGS,
-};
-use anyhow::{anyhow, bail};
-use buildit_utils::github::{get_archs, update_abbs};
-use futures::StreamExt;
-use octocrab::Octocrab;
-use reqwest::StatusCode;
 use serde::Deserialize;
-use std::{path::Path, time::Duration};
 
 #[derive(Debug, Deserialize)]
 struct WebhookComment {

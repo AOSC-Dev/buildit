@@ -1,19 +1,8 @@
-use crate::{
-    formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
-    DbPool, ARGS,
-};
+use crate::ARGS;
 
-use buildit_utils::LOONGARCH64;
-use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64};
-use futures::StreamExt;
-use octocrab::params::checks::CheckRunConclusion;
-use octocrab::params::checks::CheckRunOutput;
-use octocrab::{
-    models::{CheckRunId, InstallationId},
-    Octocrab,
-};
-use std::time::Duration;
-use teloxide::{prelude::*, types::ParseMode};
+use octocrab::{models::InstallationId, Octocrab};
+
+use teloxide::prelude::*;
 
 /// Create octocrab instance authenticated as github installation
 pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {

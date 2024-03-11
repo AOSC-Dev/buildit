@@ -1,14 +1,6 @@
 use crate::Args;
 use chrono::Local;
-use futures::StreamExt;
-use lapin::{
-    options::{
-        BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
-        BasicQosOptions,
-    },
-    types::FieldTable,
-    BasicProperties, ConnectionProperties,
-};
+use common::{JobOk, WorkerJobUpdateRequest, WorkerPollResponse};
 use log::{error, info, warn};
 use std::{
     path::Path,
@@ -94,7 +86,11 @@ async fn run_logged_with_retry(
     Ok(false)
 }
 
-async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyhow::Result<WorkerJobUpdateRequest> {
+async fn build(
+    job: &WorkerPollResponse,
+    tree_path: &Path,
+    args: &Args,
+) -> anyhow::Result<WorkerJobUpdateRequest> {
     let begin = Instant::now();
     let mut successful_packages = vec![];
     let mut failed_package = None;
@@ -103,7 +99,7 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
     let mut logs = vec![];
 
     let mut output_path = args.ciel_path.clone();
-    output_path.push(format!("OUTPUT-{}", job.branch));
+    output_path.push(format!("OUTPUT-{}", job.git_branch));
 
     // clear output directory
     if output_path.exists() {
@@ -116,7 +112,7 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
         &[
             "fetch",
             "https://github.com/AOSC-Dev/aosc-os-abbs.git",
-            &job.branch,
+            &job.git_branch,
         ],
         tree_path,
         &mut logs,
@@ -130,18 +126,23 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
         // ensure branch exists
         get_output_logged(
             "git",
-            &["checkout", "-b", &job.branch],
+            &["checkout", "-b", &job.git_branch],
             tree_path,
             &mut logs,
         )
         .await?;
         // checkout to branch
-        get_output_logged("git", &["checkout", &job.branch], tree_path, &mut logs).await?;
+        get_output_logged("git", &["checkout", &job.git_branch], tree_path, &mut logs).await?;
 
         // switch to the commit by sha
         // to avoid race condition, resolve branch name to sha in server
-        let output =
-            get_output_logged("git", &["reset", &job.sha, "--hard"], tree_path, &mut logs).await?;
+        let output = get_output_logged(
+            "git",
+            &["reset", &job.git_sha, "--hard"],
+            tree_path,
+            &mut logs,
+        )
+        .await?;
 
         if output.status.success() {
             // update container
@@ -149,7 +150,7 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
 
             // build packages
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
-            ciel_args.extend(job.packages.iter().map(String::as_str));
+            ciel_args.extend(job.packages.split(","));
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
             success = output.status.success();
@@ -210,7 +211,7 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
                         "-i",
                         &args.upload_ssh_key,
                         "maintainers",
-                        &job.branch,
+                        &job.git_branch,
                     ],
                     &output_path,
                     &mut logs,
@@ -223,8 +224,8 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
     let file_name = format!(
         "{}-{}-{}-{}.txt",
         gethostname::gethostname().to_string_lossy(),
-        job.branch,
-        job.arch,
+        job.git_branch,
+        args.arch,
         Local::now().format("%Y-%m-%d-%H:%M:%S")
     );
 
@@ -257,21 +258,20 @@ async fn build(job: &WorkerPollResponse, tree_path: &Path, args: &Args) -> anyho
         None
     };
 
-    let result = JobResult::Ok(JobOk {
-        job: job.clone(),
-        successful_packages,
-        failed_package,
-        skipped_packages,
-        log: log_url,
-        worker: WorkerIdentifier {
-            hostname: gethostname::gethostname().to_string_lossy().to_string(),
-            arch: args.arch.clone(),
-            pid: std::process::id(),
-        },
-        elapsed: begin.elapsed(),
-        pushpkg_success,
-        success,
-    });
+    let result = WorkerJobUpdateRequest {
+        hostname: gethostname::gethostname().to_string_lossy().to_string(),
+        arch: args.arch.clone(),
+        job_id: job.job_id,
+        result: common::JobResult::Ok(JobOk {
+            build_success: success,
+            successful_packages,
+            failed_package,
+            skipped_packages,
+            log_url,
+            elapsed_secs: begin.elapsed().as_secs() as i64,
+            pushpkg_success,
+        }),
+    };
 
     Ok(result)
 }
@@ -280,97 +280,46 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
-    let conn = lapin::Connection::connect(&args.amqp_addr, ConnectionProperties::default()).await?;
-    let channel = conn.create_channel().await?;
-    let queue_name = format!("job-{}", &args.arch);
-    ensure_job_queue(&queue_name, &channel).await?;
-
-    let hostname = gethostname::gethostname().to_string_lossy().to_string();
-
-    // set prefetch count to 1
-    channel.basic_qos(1, BasicQosOptions::default()).await?;
-
-    let mut consumer = channel
-        .basic_consume(
-            &queue_name,
-            &hostname,
-            BasicConsumeOptions::default(),
-            FieldTable::default(),
-        )
-        .await?;
-
     info!("Receiving new messages");
-    while let Some(delivery) = consumer.next().await {
-        let delivery = match delivery {
-            Ok(delivery) => delivery,
-            Err(err) => {
-                error!("Got error in lapin delivery: {}", err);
-                continue;
-            }
-        };
 
-        match serde_json::from_slice::<Job>(&delivery.data) {
-            Ok(job) => {
-                info!("Processing job {:?}", job);
+    let client = reqwest::Client::new();
+    loop {
+        if let Some(job) = client
+            .post(format!("https://{}/api/worker/poll", args.server))
+            .send()
+            .await?
+            .json::<Option<WorkerPollResponse>>()
+            .await?
+        {
+            info!("Processing job {:?}", job);
 
-                match build(&job, &tree_path, args).await {
-                    Ok(result) => {
-                        channel
-                            .basic_publish(
-                                "",
-                                "job-completion",
-                                BasicPublishOptions::default(),
-                                &serde_json::to_vec(&result).unwrap(),
-                                BasicProperties::default(),
-                            )
-                            .await?
-                            .await?;
-
-                        // finish
-                        if let Err(err) = delivery.ack(BasicAckOptions::default()).await {
-                            warn!("Failed to ack job {:?} with err {:?}", delivery, err);
-                        } else {
-                            info!("Finish ack-ing job {:?}", delivery.delivery_tag);
-                        }
-                    }
-                    Err(err) => {
-                        warn!("Failed to run job {:?} with err {:?}", delivery, err);
-
-                        channel
-                            .basic_publish(
-                                "",
-                                "job-completion",
-                                BasicPublishOptions::default(),
-                                &serde_json::to_vec(&JobResult::Error(JobError {
-                                    job,
-                                    worker: WorkerIdentifier {
-                                        hostname: hostname.clone(),
-                                        arch: args.arch.clone(),
-                                        pid: std::process::id(),
-                                    },
-                                    error: err.to_string(),
-                                }))
-                                .unwrap(),
-                                BasicProperties::default(),
-                            )
-                            .await?
-                            .await?;
-
-                        // finish
-                        if let Err(err) = delivery.nack(BasicNackOptions::default()).await {
-                            warn!("Failed to nack job {:?} with err {:?}", delivery, err);
-                        } else {
-                            info!("Finish nack-ing job {:?}", delivery.delivery_tag);
-                        }
-                    }
+            match build(&job, &tree_path, args).await {
+                Ok(result) => {
+                    // post result
+                    warn!("Finished to run job {:?} with result {:?}", job, result);
+                    client
+                        .post(format!("https://{}/api/worker/job_update", args.server))
+                        .json(&result)
+                        .send()
+                        .await?;
+                }
+                Err(err) => {
+                    warn!("Failed to run job {:?} with err {:?}", job, err);
+                    client
+                        .post(format!("https://{}/api/worker/job_update", args.server))
+                        .json(&WorkerJobUpdateRequest {
+                            hostname: gethostname::gethostname().to_string_lossy().to_string(),
+                            arch: args.arch.clone(),
+                            job_id: job.job_id,
+                            result: common::JobResult::Error(err.to_string()),
+                        })
+                        .send()
+                        .await?;
                 }
             }
-            Err(err) => {
-                warn!("Got invalid job description: {:?}", err);
-            }
         }
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
-    Ok(())
 }
 
 pub async fn build_worker(args: Args) -> ! {

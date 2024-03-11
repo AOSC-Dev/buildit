@@ -12,18 +12,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use buildit_utils::LOONGARCH64;
-use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, NOARCH, PPC64EL, RISCV64};
+use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, PPC64EL, RISCV64};
 use common::{
     JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
     WorkerPollResponse,
 };
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use octocrab::models::CheckRunId;
 use octocrab::params::checks::CheckRunConclusion;
 use octocrab::params::checks::CheckRunOutput;
-use octocrab::{
-    models::{CheckRunId, InstallationId},
-    Octocrab,
-};
 use serde::{Deserialize, Serialize};
 use teloxide::types::ChatId;
 use teloxide::{prelude::*, types::ParseMode};
