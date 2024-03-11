@@ -33,13 +33,18 @@ pub async fn pipeline_new(
 ) -> anyhow::Result<Pipeline> {
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(",").collect();
+    archs.sort();
+    archs.dedup();
+    if archs.contains(&"noarch") && archs.len() > 1 {
+        return Err(anyhow!("Architecture noarch must not be mixed with others"));
+    }
     if archs.contains(&"mainline") {
         // archs
         archs.extend(ALL_ARCH.iter());
         archs.retain(|arch| *arch != "mainline");
     }
     for arch in &archs {
-        if !ALL_ARCH.contains(arch) && arch != &"mainline" {
+        if !ALL_ARCH.contains(arch) && arch != &"noarch" {
             return Err(anyhow!("Architecture {arch} is not supported"));
         }
     }
@@ -49,7 +54,7 @@ pub async fn pipeline_new(
     // sanitize packages arg
     if !packages
         .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == ',' || ch == '-')
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == ',' || ch == '-' || ch == '+')
     {
         return Err(anyhow!("Invalid packages: {packages}"));
     }
