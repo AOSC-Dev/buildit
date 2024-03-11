@@ -1,3 +1,4 @@
+use axum::extract::MatchedPath;
 use axum::routing::post;
 use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
@@ -11,6 +12,7 @@ use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
 use teloxide::prelude::*;
 use tower_http::services::{ServeDir, ServeFile};
+use tracing::info_span;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -64,7 +66,23 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/status", get(worker_status))
         .fallback_service(serve_dir)
         .with_state(state)
-        .layer(tower_http::trace::TraceLayer::new_for_http());
+        .layer(
+            tower_http::trace::TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+                // learned from https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
+                // Log the matched route's path (with placeholders not filled in).
+                // Use request.uri() or OriginalUri if you want the real path.
+                let matched_path = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str);
+
+                info_span!(
+                    "http_request",
+                    method = ?request.method(),
+                    matched_path,
+                )
+            }),
+        );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     handles.push(tokio::spawn(async {
