@@ -733,7 +733,7 @@ pub async fn dashboard_status(
                 } else {
                     arch
                 };
-                by_arch.entry(arch).or_default().pending_job_count = count;
+                by_arch.entry(arch).or_default().running_job_count = count;
             }
 
             Ok(DashboardStatusResponse {

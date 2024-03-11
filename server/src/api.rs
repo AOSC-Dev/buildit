@@ -1,5 +1,7 @@
 use crate::{
-    github::{get_crab_github_installation, get_packages_from_pr}, models::{NewJob, NewPipeline, Pipeline, Worker}, DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS
+    github::{get_crab_github_installation, get_packages_from_pr},
+    models::{NewJob, NewPipeline, Pipeline, Worker},
+    DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
