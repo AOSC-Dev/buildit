@@ -31,25 +31,6 @@ pub async fn pipeline_new(
     archs: &str,
     source: &JobSource,
 ) -> anyhow::Result<Pipeline> {
-    // resolve branch name to commit hash if not specified
-    let git_sha = match git_sha {
-        Some(git_sha) => git_sha.to_string(),
-        None => {
-            update_abbs(git_branch, &ARGS.abbs_path)
-                .await
-                .context("Failed to update ABBS tree")?;
-
-            let output = tokio::process::Command::new("git")
-                .arg("rev-parse")
-                .arg("HEAD")
-                .current_dir(&ARGS.abbs_path)
-                .output()
-                .await
-                .context("Failed to resolve branch to git commit")?;
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
-        }
-    };
-
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(",").collect();
     if archs.contains(&"mainline") {
@@ -65,6 +46,45 @@ pub async fn pipeline_new(
     archs.sort();
     archs.dedup();
 
+    // sanitize packages arg
+    if !packages
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == ',' || ch == '-')
+    {
+        return Err(anyhow!("Invalid packages: {packages}"));
+    }
+
+    // sanitize git_branch arg
+    if !git_branch
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-')
+    {
+        return Err(anyhow!("Invalid branch: {git_branch}"));
+    }
+
+    // resolve branch name to commit hash if not specified
+    let git_sha = match git_sha {
+        Some(git_sha) => {
+            if !git_sha.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+                return Err(anyhow!("Invalid git sha: {git_sha}"));
+            }
+            git_sha.to_string()
+        }
+        None => {
+            update_abbs(git_branch, &ARGS.abbs_path)
+                .await
+                .context("Failed to update ABBS tree")?;
+
+            let output = tokio::process::Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .current_dir(&ARGS.abbs_path)
+                .output()
+                .await
+                .context("Failed to resolve branch to git commit")?;
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        }
+    };
     // create a new pipeline
     let mut conn = pool
         .get()
@@ -148,7 +168,7 @@ pub async fn pipeline_new_pr(
     pool: DbPool,
     pr: u64,
     archs: Option<&str>,
-    source: &JobSource
+    source: &JobSource,
 ) -> anyhow::Result<Pipeline> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
