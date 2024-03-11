@@ -5,6 +5,7 @@ use crate::{
     models::{Job, NewWorker, Pipeline, Worker},
     DbPool, ARGS,
 };
+use anyhow::anyhow;
 use anyhow::Context;
 use axum::{
     extract::{Json, State},
@@ -195,6 +196,15 @@ pub async fn worker_job_update(
     let job = crate::schema::jobs::dsl::jobs
         .find(payload.job_id)
         .first::<Job>(&mut conn)?;
+
+    let worker = crate::schema::workers::dsl::workers
+        .filter(crate::schema::workers::dsl::hostname.eq(&payload.hostname))
+        .filter(crate::schema::workers::dsl::arch.eq(&payload.arch))
+        .first::<Worker>(&mut conn)?;
+
+    if job.status != "assigned" || job.assigned_worker_id != Some(worker.id) {
+        return Err(anyhow!("Worker not assigned to the job").into());
+    }
 
     let pipeline = crate::schema::pipelines::dsl::pipelines
         .find(job.pipeline_id)
