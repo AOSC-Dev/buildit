@@ -248,7 +248,7 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
         .get()
         .context("Failed to get db connection from pool")?;
     // find pending/running jobs
-    let pending: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
+    let mut pending: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
         .filter(crate::schema::jobs::dsl::status.eq("created"))
         .group_by(crate::schema::jobs::dsl::arch)
         .select((
@@ -258,7 +258,7 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
         .load::<(String, i64)>(&mut conn)?
         .into_iter()
         .collect();
-    let running: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
+    let mut running: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
         .filter(crate::schema::jobs::dsl::status.eq("assigned"))
         .group_by(crate::schema::jobs::dsl::arch)
         .select((
@@ -276,6 +276,10 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
         .load::<(String, i64)>(&mut conn)?
         .into_iter()
         .collect();
+
+    // fold noarch into amd64
+    *pending.entry("amd64".to_string()).or_default() += pending.get("noarch").unwrap_or(0);
+    *running.entry("amd64".to_string()).or_default() += running.get("noarch").unwrap_or(0);
 
     let mut res = vec![];
     for a in ALL_ARCH {
