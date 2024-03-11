@@ -1,4 +1,5 @@
 use diesel::prelude::*;
+use serde::Serialize;
 
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::pipelines)]
@@ -65,7 +66,7 @@ pub struct NewJob {
     pub github_check_run_id: Option<i64>,
 }
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Serialize)]
 #[diesel(table_name = crate::schema::workers)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Worker {

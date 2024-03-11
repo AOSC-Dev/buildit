@@ -1,14 +1,17 @@
+use std::collections::BTreeMap;
+
 use crate::{
     github::get_packages_from_pr,
     job::get_crab_github_installation,
-    models::{NewJob, NewPipeline, Pipeline},
+    models::{NewJob, NewPipeline, Pipeline, Worker},
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
 use buildit_utils::github::{get_archs, update_abbs};
 use common::JobSource;
-use diesel::{RunQueryDsl, SelectableHelper};
+use diesel::{dsl::count, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper};
+use serde::Serialize;
 use tracing::warn;
 
 pub async fn pipeline_new(
@@ -196,4 +199,68 @@ pub async fn pipeline_new_pr(
             return Err(anyhow!("Failed to get pr info: {err}"));
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct PipelineStatus {
+    pub arch: String,
+    pub pending: u64,
+    pub running: u64,
+    pub available_servers: u64,
+}
+
+pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+    // find pending/running jobs
+    let pending: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
+        .filter(crate::schema::jobs::dsl::status.eq("created"))
+        .group_by(crate::schema::jobs::dsl::arch)
+        .select((
+            crate::schema::jobs::dsl::arch,
+            count(crate::schema::jobs::dsl::id),
+        ))
+        .load::<(String, i64)>(&mut conn)?
+        .into_iter()
+        .collect();
+    let running: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
+        .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+        .group_by(crate::schema::jobs::dsl::arch)
+        .select((
+            crate::schema::jobs::dsl::arch,
+            count(crate::schema::jobs::dsl::id),
+        ))
+        .load::<(String, i64)>(&mut conn)?
+        .into_iter()
+        .collect();
+
+    use crate::schema::workers::dsl::*;
+    let available_servers: BTreeMap<String, i64> = workers
+        .group_by(arch)
+        .select((arch, count(id)))
+        .load::<(String, i64)>(&mut conn)?
+        .into_iter()
+        .collect();
+
+    let mut res = vec![];
+    for a in ALL_ARCH {
+        res.push(PipelineStatus {
+            arch: a.to_string(),
+            pending: *pending.get(*a).unwrap_or(&0) as u64,
+            running: *running.get(*a).unwrap_or(&0) as u64,
+            available_servers: *available_servers.get(*a).unwrap_or(&0) as u64,
+        });
+    }
+
+    Ok(res)
+}
+
+pub async fn worker_status(pool: DbPool) -> anyhow::Result<Vec<Worker>> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    let workers = crate::schema::workers::dsl::workers.load::<Worker>(&mut conn)?;
+    Ok(workers)
 }

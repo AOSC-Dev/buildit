@@ -1,5 +1,5 @@
 use crate::{
-    api,
+    api::{self, PipelineStatus},
     models::{Job, NewWorker, Pipeline, Worker},
     DbPool,
 };
@@ -254,4 +254,14 @@ pub async fn worker_job_update(
         }
     }
     Ok(())
+}
+
+pub async fn pipeline_status(
+    State(pool): State<DbPool>,
+) -> Result<Json<Vec<PipelineStatus>>, AnyhowError> {
+    Ok(Json(api::pipeline_status(pool).await?))
+}
+
+pub async fn worker_status(State(pool): State<DbPool>) -> Result<Json<Vec<Worker>>, AnyhowError> {
+    Ok(Json(api::worker_status(pool).await?))
 }

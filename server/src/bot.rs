@@ -1,5 +1,5 @@
 use crate::{
-    api::{pipeline_new, pipeline_new_pr},
+    api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status},
     formatter::{code_repr_string, to_html_new_job_summary},
     github::{get_github_token, login_github},
     job::get_ready_message,
@@ -7,6 +7,7 @@ use crate::{
 };
 use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 
+use chrono::Local;
 use common::JobSource;
 
 use serde_json::Value;
@@ -62,59 +63,33 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs
 }
 
-async fn status(_pool: DbPool) -> anyhow::Result<String> {
-    todo!()
-    /*
+async fn status(pool: DbPool) -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
-    let conn = pool.get().await?;
-    let channel = conn.create_channel().await?;
 
-    for arch in ALL_ARCH {
-        let queue_name = format!("job-{}", arch);
-
-        let queue = ensure_job_queue(&queue_name, &channel).await?;
-
-        // read unacknowledged job count
-        let mut unacknowledged_str = String::new();
-        if let Some(api) = &ARGS.rabbitmq_queue_api {
-            let res = http_rabbitmq_api(api, queue_name).await?;
-            if let Some(unacknowledged) = res
-                .as_object()
-                .and_then(|m| m.get("messages_unacknowledged"))
-                .and_then(|v| v.as_i64())
-            {
-                unacknowledged_str = format!("{} job\\(s\\) running, ", unacknowledged);
-            }
-        }
+    for status in pipeline_status(pool.clone()).await? {
         res += &format!(
-            "*{}*: {}{} jobs\\(s\\) pending, {} available server\\(s\\)\n",
-            teloxide::utils::markdown::escape(arch),
-            unacknowledged_str,
-            queue.message_count(),
-            queue.consumer_count()
+            "*{}*: {} jobs \\(s\\) pending, {} jobs\\(s\\) running, {} available server\\(s\\)\n",
+            teloxide::utils::markdown::escape(&status.arch),
+            status.pending,
+            status.running,
+            status.available_servers
         );
     }
 
     res += "\n__*Server Status*__\n\n";
     let fmt = timeago::Formatter::new();
-    if let Ok(lock) = WORKERS.lock() {
-        for (identifier, status) in lock.iter() {
-            res += &teloxide::utils::markdown::escape(&format!(
-                "{} ({}{}, {} core(s), {} memory): Online as of {}\n",
-                identifier.hostname,
-                identifier.arch,
-                match &status.git_commit {
-                    Some(git_commit) => format!(" {}", git_commit),
-                    None => String::new(),
-                },
-                status.logical_cores,
-                size::Size::from_bytes(status.memory_bytes),
-                fmt.convert_chrono(status.last_heartbeat, Local::now())
-            ));
-        }
+    for status in worker_status(pool).await? {
+        res += &teloxide::utils::markdown::escape(&format!(
+            "{} ({} {}, {} core(s), {} memory): Online as of {}\n",
+            status.hostname,
+            status.arch,
+            status.git_commit,
+            status.logical_cores,
+            size::Size::from_bytes(status.memory_bytes),
+            fmt.convert_chrono(status.last_heartbeat_time, Local::now())
+        ));
     }
     Ok(res)
-    */
 }
 
 pub async fn http_rabbitmq_api(api: &str, queue_name: String) -> anyhow::Result<Value> {
