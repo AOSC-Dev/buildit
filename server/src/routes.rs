@@ -869,3 +869,66 @@ pub async fn job_list(
         })?,
     ))
 }
+
+#[derive(Deserialize)]
+pub struct WorkerListRequest {
+    page: i64,
+    items_per_page: i64,
+}
+
+#[derive(Serialize)]
+pub struct WorkerListResponseItem {
+    id: i32,
+    hostname: String,
+    arch: String,
+    logical_cores: i32,
+    memory_bytes: i64,
+}
+
+#[derive(Serialize)]
+pub struct WorkerListResponse {
+    total_items: i64,
+    items: Vec<WorkerListResponseItem>,
+}
+
+pub async fn worker_list(
+    Query(query): Query<WorkerListRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<WorkerListResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<WorkerListResponse, diesel::result::Error, _>(|conn| {
+            let total_items = crate::schema::workers::dsl::workers
+                .count()
+                .get_result(conn)?;
+
+            let workers = if query.items_per_page == -1 {
+                crate::schema::workers::dsl::workers
+                    .order_by(crate::schema::workers::dsl::id)
+                    .load::<Worker>(conn)?
+            } else {
+                crate::schema::workers::dsl::workers
+                    .order_by(crate::schema::workers::dsl::id)
+                    .offset((query.page - 1) * query.items_per_page)
+                    .limit(query.items_per_page)
+                    .load::<Worker>(conn)?
+            };
+
+            let mut items = vec![];
+            for worker in workers {
+                items.push(WorkerListResponseItem {
+                    id: worker.id,
+                    hostname: worker.hostname,
+                    arch: worker.arch,
+                    logical_cores: worker.logical_cores,
+                    memory_bytes: worker.memory_bytes,
+                });
+            }
+
+            Ok(WorkerListResponse { total_items, items })
+        })?,
+    ))
+}
