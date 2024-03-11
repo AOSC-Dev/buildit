@@ -1,7 +1,7 @@
 use crate::{
     api::{self, JobSource, PipelineStatus},
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
-    job::get_crab_github_installation,
+    github::get_crab_github_installation,
     models::{Job, NewWorker, Pipeline, Worker},
     DbPool, ARGS,
 };

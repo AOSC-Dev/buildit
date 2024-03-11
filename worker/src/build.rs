@@ -333,8 +333,8 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 }
 
 pub async fn build_worker(args: Args) -> ! {
-    info!("Starting build worker");
     loop {
+        info!("Starting build worker");
         if let Err(err) = build_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);
         }

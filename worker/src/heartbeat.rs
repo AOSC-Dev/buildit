@@ -6,7 +6,7 @@ use std::time::Duration;
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     loop {
-        info!("Sending heartbeat");
+        // info!("Sending heartbeat");
         client
             .post(format!("{}/api/worker/heartbeat", args.server))
             .json(&WorkerHeartbeatRequest {
@@ -23,8 +23,8 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
 }
 
 pub async fn heartbeat_worker(args: Args) -> ! {
-    info!("Starting heartbeat worker");
     loop {
+        info!("Starting heartbeat worker");
         if let Err(err) = heartbeat_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);
         }

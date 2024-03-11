@@ -11,7 +11,6 @@ pub mod bot;
 pub mod formatter;
 pub mod github;
 pub mod github_webhooks;
-pub mod job;
 pub mod models;
 pub mod routes;
 pub mod schema;

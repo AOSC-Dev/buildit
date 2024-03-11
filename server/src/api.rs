@@ -1,6 +1,6 @@
 use crate::{
+    github::get_crab_github_installation,
     github::get_packages_from_pr,
-    job::get_crab_github_installation,
     models::{NewJob, NewPipeline, Pipeline, Worker},
     DbPool, ALL_ARCH, ARGS,
 };
