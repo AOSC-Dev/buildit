@@ -74,6 +74,7 @@
 <script lang="ts">
   import prettyBytes from 'pretty-bytes';
   import axios from 'axios';
+  import { hostname } from '@/common';
   interface DashboardStatusResponseByArch {
     total_worker_count: number;
     live_worker_count: number;
@@ -95,7 +96,6 @@
     by_arch: { [key:string]: DashboardStatusResponseByArch };
   }
 
-  const hostname = process.env.NODE_ENV === "development" ? "http://localhost:3000" : "";
   export default {
     mounted() {
       this.fetchData();

@@ -8,7 +8,7 @@ use crate::{
 use anyhow::anyhow;
 use anyhow::Context;
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -735,17 +735,6 @@ pub async fn dashboard_status(
                 by_arch.entry(arch).or_default().pending_job_count = count;
             }
 
-            let mut pending: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
-                .filter(crate::schema::jobs::dsl::status.eq("created"))
-                .group_by(crate::schema::jobs::dsl::arch)
-                .select((
-                    crate::schema::jobs::dsl::arch,
-                    count(crate::schema::jobs::dsl::id),
-                ))
-                .load::<(String, i64)>(conn)?
-                .into_iter()
-                .collect();
-
             Ok(DashboardStatusResponse {
                 total_pipeline_count,
                 total_job_count,
@@ -755,6 +744,63 @@ pub async fn dashboard_status(
                 total_worker_count,
                 live_worker_count,
                 by_arch,
+            })
+        })?,
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct PipelineListRequest {
+    page: i64,
+    items_per_page: i64,
+}
+
+#[derive(Serialize)]
+pub struct PipelineListResponseItem {
+    id: i32,
+    git_branch: String,
+    packages: String,
+    archs: String,
+}
+
+#[derive(Serialize)]
+pub struct PipelineListResponse {
+    total_items: i64,
+    items: Vec<PipelineListResponseItem>,
+}
+
+pub async fn pipeline_list(
+    Query(query): Query<PipelineListRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<PipelineListResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<PipelineListResponse, diesel::result::Error, _>(|conn| {
+            let total_items = crate::schema::pipelines::dsl::pipelines
+                .count()
+                .get_result(conn)?;
+
+            let pipelines = crate::schema::pipelines::dsl::pipelines
+                .offset((query.page - 1) * query.items_per_page)
+                .limit(query.items_per_page)
+                .load::<Pipeline>(conn)?;
+
+            let mut items = vec![];
+            for pipeline in pipelines {
+                items.push(PipelineListResponseItem {
+                    id: pipeline.id,
+                    git_branch: pipeline.git_branch,
+                    packages: pipeline.packages,
+                    archs: pipeline.archs
+                });
+            }
+
+            Ok(PipelineListResponse {
+                total_items,
+                items
             })
         })?,
     ))

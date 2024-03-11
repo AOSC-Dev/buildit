@@ -4,10 +4,12 @@
       <v-container class="mx-auto d-flex align-center justify-center">
         <v-btn
           v-for="link in links"
-          :key="link"
-          :text="link"
+          :key="link.name"
+          :text="link.name"
+          @click="$router.push(link.url)"
           variant="text"
-        ></v-btn>
+        >
+        </v-btn>
         <v-spacer></v-spacer>
         <v-btn text="Login" variant="text"></v-btn>
       </v-container>
@@ -26,10 +28,22 @@
   export default {
     data: () => ({
       links: [
-        'Dashboard',
-        'Pipelines',
-        'Jobs',
-        'Workers',
+        {
+          'name': 'Dashboard',
+          'url': '/'
+        },
+        {
+          'name': 'Pipelines',
+          'url': '/pipelines'
+        },
+        {
+          'name': 'Jobs',
+          'url': '/jobs'
+        },
+        {
+          'name': 'Workers',
+          'url': '/workers'
+        },
       ],
     }),
   }
