@@ -3,12 +3,11 @@
     <v-row>
       <v-col>
         <v-data-table-server
-          v-model:items-per-page="itemsPerPage"
+          :items-per-page="itemsPerPage"
           :headers="headers"
           :items="serverItems"
           :items-length="totalItems"
           :loading="loading"
-          :sortable="false"
           item-value="id"
           @update:options="loadItems">
 
@@ -35,10 +34,10 @@
     data: () => ({
       itemsPerPage: 10,
       headers: [
-        { title: 'Job ID', key: 'id' },
-        { title: 'Pipeline ID', key: 'pipeline_id' },
-        { title: 'Packages', key: 'packages' },
-        { title: 'Architecture', key: 'arch' },
+        { title: 'Job ID', key: 'id', sortable: false },
+        { title: 'Pipeline ID', key: 'pipeline_id', sortable: false },
+        { title: 'Packages', key: 'packages', sortable: false },
+        { title: 'Architecture', key: 'arch', sortable: false },
       ],
       loading: true,
       totalItems: 0,
