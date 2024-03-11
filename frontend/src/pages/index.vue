@@ -36,6 +36,11 @@
             Total: {{status.total_worker_count}}
             <p></p>
             Live: {{status.live_worker_count}}
+            <p></p>
+            Total Logical Cores: {{status.total_logical_cores}}
+            <p></p>
+            Total Memory: {{status.total_memory_bytes && prettyBytes(Number(status.total_memory_bytes))}}
+            <p></p>
           </v-card-text>
         </v-card>
       </v-col>
@@ -80,6 +85,7 @@
     live_worker_count: number;
     total_logical_cores: number;
     total_memory_bytes: string;
+
     total_job_count: number;
     pending_job_count: number;
     running_job_count: number;
@@ -87,12 +93,17 @@
 
   interface DashboardStatusResponse {
     total_pipeline_count: number;
+
     total_job_count: number;
     pending_job_count: number;
     running_job_count: number;
     finished_job_count: number;
+
     total_worker_count: number;
     live_worker_count: number;
+    total_logical_cores: number;
+    total_memory_bytes: string;
+
     by_arch: { [key:string]: DashboardStatusResponseByArch };
   }
 

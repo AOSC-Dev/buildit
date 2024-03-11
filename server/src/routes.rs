@@ -603,6 +603,7 @@ pub struct DashboardStatusResponseByArch {
     live_worker_count: i64,
     total_logical_cores: i64,
     total_memory_bytes: bigdecimal::BigDecimal,
+
     total_job_count: i64,
     pending_job_count: i64,
     running_job_count: i64,
@@ -611,12 +612,17 @@ pub struct DashboardStatusResponseByArch {
 #[derive(Serialize)]
 pub struct DashboardStatusResponse {
     total_pipeline_count: i64,
+
     total_job_count: i64,
     pending_job_count: i64,
     running_job_count: i64,
     finished_job_count: i64,
+
     total_worker_count: i64,
     live_worker_count: i64,
+    total_logical_cores: i64,
+    total_memory_bytes: bigdecimal::BigDecimal,
+
     by_arch: BTreeMap<String, DashboardStatusResponseByArch>,
 }
 
@@ -648,6 +654,12 @@ pub async fn dashboard_status(
             let total_worker_count = crate::schema::workers::dsl::workers
                 .count()
                 .get_result(conn)?;
+            let (total_logical_cores, total_memory_bytes) = crate::schema::workers::dsl::workers
+                .select((
+                    sum(crate::schema::workers::dsl::logical_cores),
+                    sum(crate::schema::workers::dsl::memory_bytes),
+                ))
+                .get_result::<(Option<i64>, Option<bigdecimal::BigDecimal>)>(conn)?;
 
             let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
             let live_worker_count = crate::schema::workers::dsl::workers
@@ -744,6 +756,8 @@ pub async fn dashboard_status(
                 finished_job_count,
                 total_worker_count,
                 live_worker_count,
+                total_logical_cores: total_logical_cores.unwrap_or(0),
+                total_memory_bytes: total_memory_bytes.unwrap_or_default(),
                 by_arch,
             })
         })?,
