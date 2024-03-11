@@ -18,6 +18,7 @@ use common::{
     JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
     WorkerPollResponse,
 };
+use diesel::BoolExpressionMethods;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use octocrab::models::CheckRunId;
 use octocrab::params::checks::CheckRunConclusion;
@@ -170,12 +171,19 @@ pub async fn worker_poll(
 
     match conn.transaction::<Option<(Pipeline, Job)>, diesel::result::Error, _>(|conn| {
         use crate::schema::jobs::dsl::*;
-        match jobs
-            .filter(status.eq("created"))
-            .filter(arch.eq(&payload.arch))
-            .first::<Job>(conn)
-            .optional()?
-        {
+        let res = if payload.arch == "amd64" {
+            // route noarch to amd64
+            jobs.filter(status.eq("created"))
+                .filter(arch.eq(&payload.arch).or(arch.eq("noarch")))
+                .first::<Job>(conn)
+                .optional()?
+        } else {
+            jobs.filter(status.eq("created"))
+                .filter(arch.eq(&payload.arch))
+                .first::<Job>(conn)
+                .optional()?
+        };
+        match res {
             Some(job) => {
                 // find worker id
                 let worker = crate::schema::workers::dsl::workers
