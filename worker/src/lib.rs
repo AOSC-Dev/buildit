@@ -7,9 +7,9 @@ pub mod heartbeat;
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// AMQP address to access message queue
-    #[arg(short, long, env = "BUILDIT_AMQP_ADDR")]
-    pub amqp_addr: String,
+    /// buildit server url e.g. https://buildit.aosc.io
+    #[arg(short = 'H', long, env = "BUILDIT_SERVER")]
+    pub server: String,
 
     /// Architecture that can build
     #[arg(short = 'A', long, env = "BUILDIT_ARCH")]
@@ -30,7 +30,7 @@ pub struct Args {
 
     /// SSH key for repo uploading
     #[arg(short = 's', long, env = "BUILDIT_SSH_KEY")]
-    pub upload_ssh_key: String,
+    pub upload_ssh_key: Option<String>,
 
     /// rsync host (server)
     #[arg(

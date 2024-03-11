@@ -1,4 +1,4 @@
-# AOSC Buildit! Bot
+# AOSC BuildIt! Bot
 
 Build automation with Telegram and GitHub Integrations.
 

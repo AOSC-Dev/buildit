@@ -806,6 +806,7 @@ fn test_get_archs() {
         vec![
             "amd64",
             "arm64",
+            "loongarch64",
             "loongson3",
             "mips64r6el",
             "ppc64el",
