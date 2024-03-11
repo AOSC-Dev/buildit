@@ -50,6 +50,7 @@ pub struct Job {
     pub finish_time: Option<chrono::DateTime<chrono::Utc>>,
     pub error_message: Option<String>,
     pub elapsed_secs: Option<i64>,
+    pub assigned_worker_id: Option<i32>,
 }
 
 #[derive(Insertable)]

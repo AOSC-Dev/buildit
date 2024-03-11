@@ -18,6 +18,7 @@ diesel::table! {
         finish_time -> Nullable<Timestamptz>,
         error_message -> Nullable<Text>,
         elapsed_secs -> Nullable<Int8>,
+        assigned_worker_id -> Nullable<Int4>,
     }
 }
 
@@ -48,9 +49,6 @@ diesel::table! {
 }
 
 diesel::joinable!(jobs -> pipelines (pipeline_id));
+diesel::joinable!(jobs -> workers (assigned_worker_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    jobs,
-    pipelines,
-    workers,
-);
+diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, workers,);

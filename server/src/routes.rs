@@ -1,8 +1,6 @@
-use std::time::Duration;
-
 use crate::{
     api,
-    models::{Job, NewWorker, Pipeline},
+    models::{Job, NewWorker, Pipeline, Worker},
     DbPool,
 };
 use anyhow::Context;
@@ -146,14 +144,25 @@ pub async fn worker_poll(
         use crate::schema::jobs::dsl::*;
         match jobs
             .filter(status.eq("created"))
-            .filter(arch.eq(payload.arch))
+            .filter(arch.eq(&payload.arch))
             .first::<Job>(conn)
             .optional()?
         {
             Some(job) => {
+                // find worker id
+                let worker = crate::schema::workers::dsl::workers
+                    .filter(crate::schema::workers::dsl::hostname.eq(&payload.hostname))
+                    .filter(crate::schema::workers::dsl::arch.eq(&payload.arch))
+                    .first::<Worker>(conn)?;
+
+                // remove if already allocated to the worker
+                diesel::update(jobs.filter(assigned_worker_id.eq(worker.id)))
+                    .set((status.eq("created"), assigned_worker_id.eq(None::<i32>)))
+                    .execute(conn)?;
+
                 // allocate to the worker
                 diesel::update(&job)
-                    .set(status.eq("assigned"))
+                    .set((status.eq("assigned"), assigned_worker_id.eq(worker.id)))
                     .execute(conn)?;
 
                 // get pipeline the job belongs to
@@ -234,6 +243,7 @@ pub async fn worker_job_update(
                     log_url.eq(res.log_url),
                     finish_time.eq(chrono::Utc::now()),
                     elapsed_secs.eq(res.elapsed_secs),
+                    assigned_worker_id.eq(None::<i32>),
                 ))
                 .execute(&mut conn)?;
         }
