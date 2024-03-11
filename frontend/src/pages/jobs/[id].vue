@@ -73,7 +73,7 @@
     }),
     methods: {
       async fetchData() {
-        let job_id = this.$route.params.id;
+        let job_id = (this.$route.params as { id: string }).id;
         this.job = (await axios.get(hostname + `/api/job/info?job_id=${job_id}`)).data;
       }
     }
