@@ -1,8 +1,5 @@
 use crate::{
-    github::get_crab_github_installation,
-    github::get_packages_from_pr,
-    models::{NewJob, NewPipeline, Pipeline, Worker},
-    DbPool, ALL_ARCH, ARGS,
+    github::{get_crab_github_installation, get_packages_from_pr}, models::{NewJob, NewPipeline, Pipeline, Worker}, DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS
 };
 use anyhow::anyhow;
 use anyhow::Context;
@@ -76,6 +73,7 @@ pub async fn pipeline_new(
             git_sha.to_string()
         }
         None => {
+            let _lock = ABBS_REPO_LOCK.lock().await;
             update_abbs(git_branch, &ARGS.abbs_path)
                 .await
                 .context("Failed to update ABBS tree")?;
@@ -198,6 +196,7 @@ pub async fn pipeline_new_pr(
                 return Err(anyhow!("Failed to create job: Pull request is a fork"));
             }
 
+            let _lock = ABBS_REPO_LOCK.lock().await;
             update_abbs(git_branch, &ARGS.abbs_path)
                 .await
                 .context("Failed to update ABBS tree")?;
