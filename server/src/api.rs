@@ -61,7 +61,7 @@ pub async fn pipeline_new(
     // sanitize git_branch arg
     if !git_branch
         .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-')
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '+')
     {
         return Err(anyhow!("Invalid branch: {git_branch}"));
     }
