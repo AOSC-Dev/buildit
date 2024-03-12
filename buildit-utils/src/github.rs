@@ -653,7 +653,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
                 }
                 let defines_path = i.path().join("defines");
                 if defines_path.exists() {
-                    defines_list.push(i.into_path());
+                    defines_list.push(defines_path);
                 }
             }
 
