@@ -6,6 +6,7 @@ use crate::{
 };
 use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 use chrono::Local;
+use serde::Deserialize;
 
 use std::borrow::Cow;
 use teloxide::{
@@ -42,6 +43,10 @@ pub enum Command {
     Start(String),
     #[command(description = "Let dickens generate report for GitHub PR: /dickens pr-number")]
     Dickens(String),
+    #[command(
+        description = "Build lagging/missing packages for quality assurance: /qa arch lagging/missing"
+    )]
+    QA(String),
 }
 
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
@@ -84,6 +89,56 @@ async fn status(pool: DbPool) -> anyhow::Result<String> {
         ));
     }
     Ok(res)
+}
+
+#[derive(Deserialize)]
+pub struct QAResponsePackage {
+    name: String,
+}
+
+#[derive(Deserialize)]
+pub struct QAResponse {
+    packages: Vec<QAResponsePackage>,
+}
+
+async fn pipeline_new_and_report(
+    bot: &Bot,
+    pool: DbPool,
+    git_branch: &str,
+    packages: &str,
+    archs: &str,
+    msg: &Message,
+) -> ResponseResult<()> {
+    match pipeline_new(
+        pool,
+        git_branch,
+        None,
+        None,
+        packages,
+        archs,
+        &JobSource::Telegram(msg.chat.id.0),
+    )
+    .await
+    {
+        Ok(pipeline) => {
+            bot.send_message(
+                msg.chat.id,
+                to_html_new_job_summary(
+                    &pipeline.git_branch,
+                    pipeline.github_pr.map(|n| n as u64),
+                    &pipeline.archs.split(",").collect::<Vec<_>>(),
+                    &pipeline.packages.split(",").collect::<Vec<_>>(),
+                ),
+            )
+            .parse_mode(ParseMode::Html)
+            .disable_web_page_preview(true)
+            .await?;
+        }
+        Err(err) => {
+            bot.send_message(msg.chat.id, format!("{err}")).await?;
+        }
+    }
+    Ok(())
 }
 
 pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
@@ -170,35 +225,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 let packages = parts[1];
                 let archs = parts[2];
 
-                match pipeline_new(
-                    pool,
-                    git_branch,
-                    None,
-                    None,
-                    packages,
-                    archs,
-                    &JobSource::Telegram(msg.chat.id.0),
-                )
-                .await
-                {
-                    Ok(pipeline) => {
-                        bot.send_message(
-                            msg.chat.id,
-                            to_html_new_job_summary(
-                                &pipeline.git_branch,
-                                pipeline.github_pr.map(|n| n as u64),
-                                &pipeline.archs.split(",").collect::<Vec<_>>(),
-                                &pipeline.packages.split(",").collect::<Vec<_>>(),
-                            ),
-                        )
-                        .parse_mode(ParseMode::Html)
-                        .disable_web_page_preview(true)
-                        .await?;
-                    }
-                    Err(err) => {
-                        bot.send_message(msg.chat.id, format!("{err}")).await?;
-                    }
-                }
+                pipeline_new_and_report(&bot, pool, git_branch, packages, archs, &msg).await?;
+
                 return Ok(());
             }
 
@@ -498,6 +526,65 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await?;
             }
         },
+        Command::QA(arguments) => {
+            let parts: Vec<&str> = arguments.split(' ').collect();
+            if parts.len() == 2
+                && ALL_ARCH.contains(&parts[0])
+                && ["lagging", "missing"].contains(&parts[1])
+            {
+                let arch = parts[0];
+                let ty = parts[1];
+                let client = reqwest::Client::new();
+                match client
+                    .get(format!(
+                        "https://aosc-packages.cth451.me/{}/{}/stable?type=json",
+                        ty, arch
+                    ))
+                    .send()
+                    .await
+                {
+                    Ok(resp) => match resp.json::<QAResponse>().await {
+                        Ok(qa) => {
+                            for pkg in qa.packages {
+                                pipeline_new_and_report(
+                                    &bot,
+                                    pool.clone(),
+                                    "stable",
+                                    &pkg.name,
+                                    &arch,
+                                    &msg,
+                                )
+                                .await?;
+                            }
+                        }
+                        Err(err) => {
+                            bot.send_message(
+                                msg.chat.id,
+                                format!("Failed to parse http response: {err}.",),
+                            )
+                            .await?;
+                        }
+                    },
+                    Err(err) => {
+                        bot.send_message(
+                            msg.chat.id,
+                            format!("Failed to get http response: {err}.",),
+                        )
+                        .await?;
+                    }
+                }
+                return Ok(());
+            }
+
+            bot.send_message(
+                msg.chat.id,
+                format!(
+                    "Got invalid qa command: {arguments}. \n\n{}",
+                    Command::descriptions()
+                ),
+            )
+            .await?;
+        }
     };
 
     Ok(())
