@@ -330,7 +330,7 @@ pub async fn handle_success_message(
                         .disable_web_page_preview(true)
                         .await
                     {
-                        error!("{}", e);
+                        error!("Failed to send build result to telegram: {}", e);
                         return update_retry(retry);
                     }
                 } else {
@@ -355,7 +355,7 @@ pub async fn handle_success_message(
                 {
                     Ok(crab) => crab,
                     Err(e) => {
-                        error!("{e}");
+                        error!("Failed to build octocrab instance: {e}");
                         return HandleSuccessResult::DoNotRetry;
                     }
                 };
@@ -369,7 +369,7 @@ pub async fn handle_success_message(
                 let comments = match comments {
                     Ok(c) => c,
                     Err(e) => {
-                        error!("{e}");
+                        error!("Failed to list comments of pr: {e}");
                         return update_retry(retry);
                     }
                 };
@@ -394,7 +394,7 @@ pub async fn handle_success_message(
                                     .delete_comment(c.id)
                                     .await
                                 {
-                                    error!("{e}");
+                                    error!("Failed to delete comment from pr: {e}");
                                     return update_retry(retry);
                                 }
                             }
@@ -422,7 +422,7 @@ pub async fn handle_success_message(
                 {
                     Ok(pr) => pr,
                     Err(e) => {
-                        error!("{e}");
+                        error!("Failed to get pr info: {e}");
                         return update_retry(retry);
                     }
                 };
@@ -461,7 +461,7 @@ pub async fn handle_success_message(
                     .send()
                     .await
                 {
-                    error!("{e}");
+                    error!("Failed to update pr body: {e}");
                     return update_retry(retry);
                 }
             }
@@ -498,7 +498,7 @@ pub async fn handle_success_message(
                         }
 
                         if let Err(e) = builder.send().await {
-                            error!("{e}");
+                            error!("Failed to update github check run: {e}");
                             return update_retry(retry);
                         }
                     }
@@ -525,7 +525,7 @@ pub async fn handle_success_message(
                         )
                         .await
                     {
-                        error!("{e}");
+                        error!("Failed to send message to telegram: {e}");
                         return update_retry(retry);
                     }
                 } else {
@@ -539,7 +539,7 @@ pub async fn handle_success_message(
                 {
                     Ok(crab) => crab,
                     Err(e) => {
-                        error!("{e}");
+                        error!("Failed to create octocrab instance: {e}");
                         return HandleSuccessResult::DoNotRetry;
                     }
                 };
@@ -555,7 +555,7 @@ pub async fn handle_success_message(
                     )
                     .await
                 {
-                    error!("{e}");
+                    error!("Failed to create comment on github: {e}");
                     return update_retry(retry);
                 }
             }
@@ -576,4 +576,67 @@ pub async fn worker_status(
     State(AppState { pool, .. }): State<AppState>,
 ) -> Result<Json<Vec<Worker>>, AnyhowError> {
     Ok(Json(api::worker_status(pool).await?))
+}
+
+#[derive(Deserialize)]
+pub struct WorkerInfoRequest {
+    worker_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct WorkerInfoResponse {
+    // from worker
+    worker_id: i32,
+    hostname: String,
+    arch: String,
+    git_commit: String,
+    memory_bytes: i64,
+    logical_cores: i32,
+    last_heartbeat_time: chrono::DateTime<chrono::Utc>,
+
+    // status
+    running_job_id: Option<i32>,
+
+    // statistics
+    built_job_count: i64,
+}
+
+pub async fn worker_info(
+    Query(query): Query<WorkerInfoRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<WorkerInfoResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<WorkerInfoResponse, diesel::result::Error, _>(|conn| {
+            let worker = crate::schema::workers::dsl::workers
+                .find(query.worker_id)
+                .get_result::<Worker>(conn)?;
+
+            let running_job = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::assigned_worker_id.eq(worker.id))
+                .first::<Job>(conn)
+                .optional()?;
+
+            let built_job_count = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::built_by_worker_id.eq(worker.id))
+                .count()
+                .get_result::<i64>(conn)?;
+
+            Ok(WorkerInfoResponse {
+                worker_id: worker.id,
+                hostname: worker.hostname,
+                arch: worker.arch,
+                git_commit: worker.git_commit,
+                memory_bytes: worker.memory_bytes,
+                logical_cores: worker.logical_cores,
+                last_heartbeat_time: worker.last_heartbeat_time,
+
+                running_job_id: running_job.map(|job| job.id),
+                built_job_count,
+            })
+        })?,
+    ))
 }
