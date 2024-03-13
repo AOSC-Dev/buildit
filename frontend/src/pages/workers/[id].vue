@@ -16,11 +16,13 @@
         <br/>
         Last heartbeat time: {{ worker.last_heartbeat_time }}
         <br/>
-        Running job id: 
-        <router-link v-if="worker.running_job_id !== undefined" :to="{ path: `/workers/${worker.running_job_id}` }">
-          {{ worker.running_job_id }}
-        </router-link>
-        <br/>
+        <div v-if="worker.running_job_id !== undefined && worker.running_job_id !== null">
+          Running job id: 
+          <router-link :to="{ path: `/workers/${worker.running_job_id}` }">
+            {{ worker.running_job_id }}
+          </router-link>
+          <br/>
+        </div>
         Built job count: {{ worker.built_job_count }}
       </v-card-text>
     </v-card>

@@ -26,8 +26,10 @@
         <br/>
         Package(s) not built due to previous build failure: {{ job.skipped_packages }}
         <br/>
-        Log: {{ job.log_url }}
-        <br/>
+        <div v-if="job.log_url !== null && job.log_url !== undefined">
+          Log: <a :href="job.log_url">Raw</a> or <a :href="job.log_url.replace('/logs/', '/web-logs/')">Web Viewer</a>
+          <br/>
+        </div>
         Status: {{ job.status }}
       </v-card-text>
     </v-card>
