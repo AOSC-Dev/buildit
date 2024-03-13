@@ -25,7 +25,7 @@
     methods: {
       async fetchData() {
         let name = (this.$route.params as { name: string }).name;
-        let term = new Terminal({ convertEol: true });
+        let term = new Terminal({ convertEol: true, scrollback: 1000000 });
         let fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
         term.open(this.$refs.element as HTMLElement);
