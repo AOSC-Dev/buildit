@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Context;
 use chrono::Utc;
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl};
 use std::time::Duration;
 use tracing::{info, warn};
 
@@ -18,7 +18,11 @@ pub async fn recycler_worker_inner(pool: DbPool) -> anyhow::Result<()> {
 
         let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
         let res = jobs::dsl::jobs
-            .inner_join(workers::dsl::workers)
+            .inner_join(
+                workers::dsl::workers.on(workers::dsl::id
+                    .nullable()
+                    .eq(jobs::dsl::assigned_worker_id)),
+            )
             .filter(workers::dsl::last_heartbeat_time.lt(deadline))
             .load::<(Job, Worker)>(&mut conn)?;
 

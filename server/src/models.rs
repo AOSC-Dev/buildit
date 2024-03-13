@@ -52,6 +52,7 @@ pub struct Job {
     pub error_message: Option<String>,
     pub elapsed_secs: Option<i64>,
     pub assigned_worker_id: Option<i32>,
+    pub built_by_worker_id: Option<i32>,
 }
 
 #[derive(Insertable)]

@@ -289,12 +289,17 @@ pub async fn worker_job_update(
                     finish_time.eq(chrono::Utc::now()),
                     elapsed_secs.eq(res.elapsed_secs),
                     assigned_worker_id.eq(None::<i32>),
+                    built_by_worker_id.eq(Some(worker.id)),
                 ))
                 .execute(&mut conn)?;
         }
         JobResult::Error(err) => {
             diesel::update(jobs.filter(id.eq(payload.job_id)))
-                .set((status.eq("error"), error_message.eq(err)))
+                .set((
+                    status.eq("error"),
+                    error_message.eq(err),
+                    built_by_worker_id.eq(Some(worker.id)),
+                ))
                 .execute(&mut conn)?;
         }
     }
