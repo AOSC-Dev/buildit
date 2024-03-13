@@ -18,7 +18,7 @@
         <br/>
         <div v-if="worker.running_job_id !== undefined && worker.running_job_id !== null">
           Running job id: 
-          <router-link :to="{ path: `/workers/${worker.running_job_id}` }">
+          <router-link :to="{ path: `/jobs/${worker.running_job_id}` }">
             {{ worker.running_job_id }}
           </router-link>
           <br/>
