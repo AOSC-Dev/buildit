@@ -29,6 +29,7 @@
         let html = ansi_up.ansi_to_html(log);
         html = html.replaceAll("\r\n", " <br/> ");
         html = html.replaceAll("\n", " <br/> ");
+        html = html.replaceAll("\r", " <br/> ");
         this.html = html;
       }
     }
