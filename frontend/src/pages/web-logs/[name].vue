@@ -28,7 +28,7 @@
         let term = new Terminal({ convertEol: true });
         let fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
-        term.open(this.$refs.element);
+        term.open(this.$refs.element as HTMLElement);
         fitAddon.fit();
         term.write((await axios.get(`/logs/${name}`)).data);
       }
