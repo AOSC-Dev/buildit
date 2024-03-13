@@ -1091,3 +1091,63 @@ pub async fn worker_info(
         })?,
     ))
 }
+
+#[derive(Deserialize)]
+pub struct PipelineInfoRequest {
+    pipeline_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct PipelineInfoResponseJob {
+    job_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct PipelineInfoResponse {
+    // from pipeline
+    pipeline_id: i32,
+    packages: String,
+    archs: String,
+    git_branch: String,
+    git_sha: String,
+    creation_time: chrono::DateTime<chrono::Utc>,
+    github_pr: Option<i64>,
+
+    // related jobs
+    jobs: Vec<PipelineInfoResponseJob>,
+}
+
+pub async fn pipeline_info(
+    Query(query): Query<PipelineInfoRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<PipelineInfoResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    Ok(Json(
+        conn.transaction::<PipelineInfoResponse, diesel::result::Error, _>(|conn| {
+            let pipeline = crate::schema::pipelines::dsl::pipelines
+                .find(query.pipeline_id)
+                .get_result::<Pipeline>(conn)?;
+
+            let jobs: Vec<PipelineInfoResponseJob> = crate::schema::jobs::dsl::jobs
+                .filter(crate::schema::jobs::dsl::pipeline_id.eq(pipeline.id))
+                .load::<Job>(conn)?
+                .into_iter()
+                .map(|job| PipelineInfoResponseJob { job_id: job.id })
+                .collect();
+
+            Ok(PipelineInfoResponse {
+                pipeline_id: pipeline.id,
+                packages: pipeline.packages,
+                archs: pipeline.archs,
+                git_branch: pipeline.git_branch,
+                git_sha: pipeline.git_sha,
+                creation_time: pipeline.creation_time,
+                github_pr: pipeline.github_pr,
+                jobs,
+            })
+        })?,
+    ))
+}
