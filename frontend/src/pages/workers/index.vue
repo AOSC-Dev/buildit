@@ -10,7 +10,11 @@
           :loading="loading"
           item-value="id"
           @update:options="loadItems">
-
+          <template #item.id="{ item }">
+            <router-link :to="{ path: `/workers/${(item as Worker).id}`, params: { id: (item as Worker).id } }">
+              {{ (item as Worker).id }}
+            </router-link>
+          </template>
         </v-data-table-server>
       </v-col>
     </v-row>
@@ -31,6 +35,9 @@
     itemsPerPage: number;
   }
 
+  interface Worker {
+    id: number;
+  }
   export default {
     data: () => ({
       itemsPerPage: 10,
