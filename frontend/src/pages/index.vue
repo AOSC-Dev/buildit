@@ -18,11 +18,11 @@
           </v-card-item>
           <v-card-text>
             Total: {{status.total_job_count}}
-            <p></p>
+            <br/>
             Pending: {{status.pending_job_count}}
-            <p></p>
+            <br/>
             Running: {{status.running_job_count}}
-            <p></p>
+            <br/>
             Finished: {{status.finished_job_count}}
           </v-card-text>
         </v-card>
@@ -34,13 +34,13 @@
           </v-card-item>
           <v-card-text>
             Total: {{status.total_worker_count}}
-            <p></p>
+            <br/>
             Live: {{status.live_worker_count}}
-            <p></p>
+            <br/>
             Total Logical Cores: {{status.total_logical_cores}}
-            <p></p>
+            <br/>
             Total Memory: {{status.total_memory_bytes && prettyBytes(Number(status.total_memory_bytes))}}
-            <p></p>
+            <br/>
           </v-card-text>
         </v-card>
       </v-col>
@@ -53,17 +53,17 @@
           </v-card-item>
           <v-card-text>
             Total Workers: {{status.by_arch && status.by_arch[arch].total_worker_count}}
-            <p></p>
+            <br/>
             Live Workers: {{status.by_arch && status.by_arch[arch].live_worker_count}}
-            <p></p>
+            <br/>
             Total Logical Cores: {{status.by_arch && status.by_arch[arch].total_logical_cores}}
-            <p></p>
+            <br/>
             Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes))}}
-            <p></p>
+            <br/>
             Total Jobs: {{status.by_arch && status.by_arch[arch].total_job_count}}
-            <p></p>
+            <br/>
             Pending Jobs: {{status.by_arch && status.by_arch[arch].pending_job_count}}
-            <p></p>
+            <br/>
             Running Jobs: {{status.by_arch && status.by_arch[arch].running_job_count}}
           </v-card-text>
         </v-card>

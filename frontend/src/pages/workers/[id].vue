@@ -7,17 +7,20 @@
       </v-card-item>
       <v-card-text>
         Architecture: {{ worker.arch }}
-        <p></p>
+        <br/>
         Git commit: {{ worker.git_commit }}
-        <p></p>
-        Memory size: {{ prettyBytes(worker.memory_bytes) }}
-        <p></p>
+        <br/>
+        Memory size: {{ worker.memory_bytes !== undefined && prettyBytes(worker.memory_bytes) }}
+        <br/>
         Logical cores: {{ worker.logical_cores }}
-        <p></p>
+        <br/>
         Last heartbeat time: {{ worker.last_heartbeat_time }}
-        <p></p>
-        Running job id: {{ worker.running_job_id }}
-        <p></p>
+        <br/>
+        Running job id: 
+        <router-link v-if="worker.running_job_id !== undefined" :to="{ path: `/workers/${worker.running_job_id}`, params: { id: worker.running_job_id } }">
+          {{ worker.running_job_id }}
+        </router-link>
+        <br/>
         Built job count: {{ worker.built_job_count }}
       </v-card-text>
     </v-card>

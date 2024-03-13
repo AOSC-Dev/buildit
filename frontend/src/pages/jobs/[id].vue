@@ -7,27 +7,27 @@
       </v-card-item>
       <v-card-text>
         Creation time: {{ job.creation_time }}
-        <p></p>
+        <br/>
         Finish time: {{ job.finish_time }}
-        <p></p>
+        <br/>
         Time elapsed: {{ job.elapsed_secs }}
-        <p></p>
+        <br/>
         Git commit: {{ job.git_sha }}
-        <p></p>
+        <br/>
         Git branch: {{ job.git_branch }}
-        <p></p>
+        <br/>
         Architecture: {{ job.arch }}
-        <p></p>
+        <br/>
         Package(s) to build: {{ job.packages }}
-        <p></p>
+        <br/>
         Package(s) successfully built: {{ job.successful_packages }}
-        <p></p>
+        <br/>
         Package(s) failed to build: {{ job.failed_package }}
-        <p></p>
+        <br/>
         Package(s) not built due to previous build failure: {{ job.skipped_packages }}
-        <p></p>
+        <br/>
         Log: {{ job.log_url }}
-        <p></p>
+        <br/>
         Status: {{ job.status }}
       </v-card-text>
     </v-card>
