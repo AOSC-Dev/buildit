@@ -10,7 +10,7 @@
         <p></p>
         Git commit: {{ worker.git_commit }}
         <p></p>
-        Memory size: {{ worker.memory_bytes }}
+        Memory size: {{ prettyBytes(worker.memory_bytes) }}
         <p></p>
         Logical cores: {{ worker.logical_cores }}
         <p></p>
@@ -29,6 +29,7 @@
 </script>
 
 <script lang="ts">
+  import prettyBytes from 'pretty-bytes';
   import axios from 'axios';
   import { hostname } from '@/common';
 
