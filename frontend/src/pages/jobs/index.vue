@@ -11,7 +11,7 @@
           item-value="id"
           @update:options="loadItems">
           <template #item.id="{ item }">
-            <router-link :to="{ path: `/jobs/${(item as Job).id}`, params: { id: (item as Job).id } }">
+            <router-link :to="{ path: `/jobs/${(item as Job).id}` }">
               {{ (item as Job).id }}
             </router-link>
           </template>

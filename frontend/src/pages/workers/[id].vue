@@ -17,7 +17,7 @@
         Last heartbeat time: {{ worker.last_heartbeat_time }}
         <br/>
         Running job id: 
-        <router-link v-if="worker.running_job_id !== undefined" :to="{ path: `/workers/${worker.running_job_id}`, params: { id: worker.running_job_id } }">
+        <router-link v-if="worker.running_job_id !== undefined" :to="{ path: `/workers/${worker.running_job_id}` }">
           {{ worker.running_job_id }}
         </router-link>
         <br/>
