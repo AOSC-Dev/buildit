@@ -173,6 +173,7 @@ fn test_format_html_build_result() {
         error_message: None,
         elapsed_secs: Some(888),
         assigned_worker_id: Some(1),
+        built_by_worker_id: Some(1),
     };
 
     let job_ok = JobOk {
