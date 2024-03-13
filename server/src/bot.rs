@@ -537,7 +537,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 let client = reqwest::Client::new();
                 match client
                     .get(format!(
-                        "https://aosc-packages.cth451.me/{}/{}/stable?type=json",
+                        "https://aosc-packages.cth451.me/{}/{}/stable?type=json&page=all",
                         ty, arch
                     ))
                     .send()
