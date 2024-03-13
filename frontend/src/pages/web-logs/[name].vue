@@ -1,5 +1,10 @@
 <template>
   <v-container style="height: 100%;font-family: monospace;">
+    <v-row v-if="loading">
+      <v-spacer></v-spacer>
+      <v-progress-circular indeterminate></v-progress-circular>
+      <v-spacer></v-spacer>
+    </v-row>
     <div v-html="html">
     </div>
   </v-container>
@@ -20,6 +25,7 @@
     },
     data: () => ({
       html: "",
+      loading: true,
     }),
     methods: {
       async fetchData() {
@@ -31,6 +37,7 @@
         html = html.replaceAll("\n", " <br/> ");
         html = html.replaceAll("\r", " <br/> ");
         this.html = html;
+        this.loading = false;
       }
     }
   }
