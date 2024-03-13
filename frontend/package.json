@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@mdi/font": "7.0.96",
-    "@xterm/addon-fit": "^0.9.0",
-    "@xterm/xterm": "^5.4.0",
+    "ansi_up": "^6.0.2",
     "axios": "^1.6.7",
     "core-js": "^3.34.0",
     "pretty-bytes": "^6.1.1",
