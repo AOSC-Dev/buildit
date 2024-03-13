@@ -496,7 +496,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                     bot_send_message_handle_length(
                                         &bot,
                                         &msg,
-                                        &format!("Failed to create github comments: {err}."),
+                                        &format!("Failed to create github comments: {err:?}."),
                                     )
                                     .await?;
                                 }
@@ -515,7 +515,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         bot_send_message_handle_length(
                             &bot,
                             &msg,
-                            &format!("Failed to get pr info: {err}."),
+                            &format!("Failed to get pr info: {err:?}."),
                         )
                         .await?;
                     }
