@@ -27,7 +27,10 @@
         Package(s) not built due to previous build failure: {{ job.skipped_packages }}
         <br/>
         <div v-if="job.log_url !== null && job.log_url !== undefined">
-          Log: <a :href="job.log_url">Raw</a> or <a :href="job.log_url.replace('/logs/', '/web-logs/')">Web Viewer</a>
+          Log: <a :href="job.log_url">Raw</a> or
+          <router-link :to="{ path: job.log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }">
+            Web Viewer
+          </router-link>
           <br/>
         </div>
         Status: {{ job.status }}
