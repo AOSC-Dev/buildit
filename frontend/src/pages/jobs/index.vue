@@ -83,7 +83,7 @@
             <router-link :to="{ path: `/jobs/${(item as Job).id}` }">
               #{{ (item as Job).id }}: {{ (item as Job).packages }}
             </router-link>
-            <br/>
+            <br style="margin-bottom: 5px;"/>
             <v-chip
               label
               density="comfortable"
@@ -105,6 +105,16 @@
             <v-chip
               label
               density="comfortable"
+              prepend-icon="mdi:mdi-source-pull"
+              :href="`https://github.com/AOSC-Dev/aosc-os-abbs/pull/${(item as Job).github_pr}`"
+              v-if="(item as Job).github_pr"
+              style="margin-right: 5px;"
+              >
+              #{{ (item as Job).github_pr }}
+            </v-chip>
+            <v-chip
+              label
+              density="comfortable"
               prepend-icon="mdi:mdi-cpu-64-bit"
               >
               {{ (item as Job).arch }}
@@ -114,6 +124,15 @@
             <router-link :to="{ path: `/pipelines/${(item as Job).pipeline_id}` }">
               #{{ (item as Job).pipeline_id }}
             </router-link>
+          </template>
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi:mdi-history"
+              rounded
+              size="x-small"
+              v-if="(item as Job).log_url !== null && (item as Job).log_url !== undefined"
+              :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }">
+            </v-btn>
           </template>
         </v-data-table-server>
       </v-col>
@@ -147,6 +166,8 @@
     arch: string;
     git_branch: string;
     git_sha: string;
+    github_pr: number;
+    log_url: string;
     elapsed_secs: number;
     creation_time: string;
   }

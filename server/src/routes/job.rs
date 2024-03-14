@@ -20,9 +20,11 @@ pub struct JobListResponseItem {
     status: String,
     elapsed_secs: Option<i64>,
     creation_time: chrono::DateTime<chrono::Utc>,
+    log_url: Option<String>,
     build_success: Option<bool>,
     git_branch: String,
     git_sha: String,
+    github_pr: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -66,9 +68,11 @@ pub async fn job_list(
                     status: job.status,
                     elapsed_secs: job.elapsed_secs,
                     creation_time: job.creation_time,
+                    log_url: job.log_url,
                     build_success: job.build_success,
                     git_branch: pipeline.git_branch,
                     git_sha: pipeline.git_sha,
+                    github_pr: pipeline.github_pr,
                 });
             }
 
