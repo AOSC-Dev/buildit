@@ -43,6 +43,13 @@
           <br/>
         </div>
         Status: {{ job.status }}
+        <div v-if="job.assigned_worker_id !== null && job.assigned_worker_id !== undefined">
+          Running by worker #
+          <router-link :to="{ path: `/workers/${job.assigned_worker_id}` }">
+            {{ job.assigned_worker_id }}
+          </router-link>
+          <br/>
+        </div>
       </v-card-text>
     </v-card>
   </v-container>
