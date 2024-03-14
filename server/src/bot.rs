@@ -67,7 +67,7 @@ async fn status(pool: DbPool) -> anyhow::Result<String> {
 
     for status in pipeline_status(pool.clone()).await? {
         res += &format!(
-            "*{}*: {} jobs \\(s\\) pending, {} jobs\\(s\\) running, {} available server\\(s\\)\n",
+            "*{}*: {} job\\(s\\) pending, {} job\\(s\\) running, {} available server\\(s\\)\n",
             teloxide::utils::markdown::escape(&status.arch),
             status.pending,
             status.running,
