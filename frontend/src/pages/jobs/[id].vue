@@ -3,7 +3,12 @@
     <v-card>
       <v-card-item>
         <v-card-title>Job #{{ job.job_id }}</v-card-title>
-        <v-card-subtitle>Pipeline #{{ job.pipeline_id }}</v-card-subtitle>
+        <v-card-subtitle>
+          Pipeline 
+          <router-link :to="{ path: `/pipelines/${job.pipeline_id}` }">
+            #{{ job.pipeline_id }}
+          </router-link>
+        </v-card-subtitle>
       </v-card-item>
       <v-card-text>
         Creation time: {{ job.creation_time }}

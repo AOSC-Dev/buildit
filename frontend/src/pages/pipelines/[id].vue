@@ -18,8 +18,9 @@
         GitHub pr: {{ pipeline.github_pr }}
         <br/>
         Jobs: <div v-for="job in pipeline.jobs" :key="job.job_id">
+          Job
           <router-link :to="{ path: `/jobs/${job.job_id}` }">
-            {{ job.job_id }}
+            #{{ job.job_id }}
           </router-link>
         </div>
       </v-card-text>
