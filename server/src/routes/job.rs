@@ -1,19 +1,14 @@
 use crate::models::{Job, Pipeline};
 use crate::routes::{AnyhowError, AppState};
-use crate::schema::jobs::BoxedQuery;
-use anyhow::{bail, Context};
+use anyhow::Context;
 use axum::extract::{Json, Query, State};
-use diesel::pg::Pg;
-use diesel::query_builder::QueryFragment;
-use diesel::{AppearsOnTable, Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct JobListRequest {
     page: i64,
     items_per_page: i64,
-    sort_key: Option<String>,
-    sort_order: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -23,28 +18,17 @@ pub struct JobListResponseItem {
     packages: String,
     arch: String,
     status: String,
+    elapsed_secs: Option<i64>,
+    creation_time: chrono::DateTime<chrono::Utc>,
+    build_success: Option<bool>,
+    git_branch: String,
+    git_sha: String,
 }
 
 #[derive(Serialize)]
 pub struct JobListResponse {
     total_items: i64,
     items: Vec<JobListResponseItem>,
-}
-
-// https://stackoverflow.com/questions/59291037/how-do-i-conditionally-order-by-a-column-based-on-a-dynamic-parameter-with-diese
-fn sort_by_column<U: 'static>(
-    query: BoxedQuery<'static, Pg>,
-    column: U,
-    sort_order: &str,
-) -> anyhow::Result<BoxedQuery<'static, Pg>>
-where
-    U: ExpressionMethods + QueryFragment<Pg> + AppearsOnTable<crate::schema::jobs::table> + Send,
-{
-    Ok(match sort_order {
-        "asc" => query.order_by(column.asc()),
-        "desc" => query.order_by(column.desc()),
-        _ => bail!("Invalid sort_order"),
-    })
 }
 
 pub async fn job_list(
@@ -59,42 +43,32 @@ pub async fn job_list(
         conn.transaction::<JobListResponse, anyhow::Error, _>(|conn| {
             let total_items = crate::schema::jobs::dsl::jobs.count().get_result(conn)?;
 
-            let sql = crate::schema::jobs::dsl::jobs.into_boxed();
+            let sql = crate::schema::jobs::dsl::jobs
+                .inner_join(crate::schema::pipelines::dsl::pipelines)
+                .order(crate::schema::jobs::dsl::id.desc());
 
-            let sort_key = query.sort_key.as_ref().map(String::as_str).unwrap_or("id");
-            let sort_order = query
-                .sort_order
-                .as_ref()
-                .map(String::as_str)
-                .unwrap_or("desc");
-            let sql = match sort_key {
-                "id" => sort_by_column(sql, crate::schema::jobs::dsl::id, sort_order)?,
-                "pipeline_id" => {
-                    sort_by_column(sql, crate::schema::jobs::dsl::pipeline_id, sort_order)?
-                }
-                "packages" => sort_by_column(sql, crate::schema::jobs::dsl::packages, sort_order)?,
-                "arch" => sort_by_column(sql, crate::schema::jobs::dsl::arch, sort_order)?,
-                _ => {
-                    bail!("Invalid sort_key");
-                }
-            };
-
-            let jobs = if query.items_per_page == -1 {
-                sql.load::<Job>(conn)?
+            // all
+            let res = if query.items_per_page == -1 {
+                sql.load::<(Job, Pipeline)>(conn)?
             } else {
                 sql.offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
-                    .load::<Job>(conn)?
+                    .load::<(Job, Pipeline)>(conn)?
             };
 
             let mut items = vec![];
-            for job in jobs {
+            for (job, pipeline) in res {
                 items.push(JobListResponseItem {
                     id: job.id,
                     pipeline_id: job.pipeline_id,
                     packages: job.packages,
                     arch: job.arch,
                     status: job.status,
+                    elapsed_secs: job.elapsed_secs,
+                    creation_time: job.creation_time,
+                    build_success: job.build_success,
+                    git_branch: pipeline.git_branch,
+                    git_sha: pipeline.git_sha,
                 });
             }
 
