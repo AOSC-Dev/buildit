@@ -137,7 +137,7 @@ pub async fn pipeline_new(
             match crab
                 .checks("AOSC-Dev", "aosc-os-abbs")
                 .create_check_run(format!("buildit {}", arch), &git_sha)
-                .status(octocrab::params::checks::CheckRunStatus::InProgress)
+                .status(octocrab::params::checks::CheckRunStatus::Queued)
                 .send()
                 .await
             {

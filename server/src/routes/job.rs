@@ -213,12 +213,13 @@ pub async fn job_restart(
         match get_crab_github_installation().await {
             Ok(Some(crab)) => {
                 let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
-                let mut builder = handler
-                    .update_check_run(CheckRunId(github_check_run_id as u64))
-                    .status(octocrab::params::checks::CheckRunStatus::InProgress);
-
-                if let Err(e) = builder.send().await {
-                    warn!("Failed to update github check run: {e}");
+                // https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#rerequest-a-check-run
+                if let Err(e) = handler
+                    .rerequest_check_run(CheckRunId(github_check_run_id as u64))
+                    .send()
+                    .await
+                {
+                    warn!("Failed to rerequest github check run: {e}");
                 }
             }
             Ok(None) => {
@@ -230,7 +231,5 @@ pub async fn job_restart(
         }
     }
 
-    Ok(Json(JobRestartResponse {
-        job_id: new_job.id,
-    }))
+    Ok(Json(JobRestartResponse { job_id: new_job.id }))
 }
