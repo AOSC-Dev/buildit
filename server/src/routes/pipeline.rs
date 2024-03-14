@@ -70,6 +70,7 @@ pub struct PipelineInfoRequest {
 #[derive(Serialize)]
 pub struct PipelineInfoResponseJob {
     job_id: i32,
+    arch: String,
 }
 
 #[derive(Serialize)]
@@ -105,7 +106,10 @@ pub async fn pipeline_info(
                 .filter(crate::schema::jobs::dsl::pipeline_id.eq(pipeline.id))
                 .load::<Job>(conn)?
                 .into_iter()
-                .map(|job| PipelineInfoResponseJob { job_id: job.id })
+                .map(|job| PipelineInfoResponseJob {
+                    job_id: job.id,
+                    arch: job.arch,
+                })
                 .collect();
 
             Ok(PipelineInfoResponse {

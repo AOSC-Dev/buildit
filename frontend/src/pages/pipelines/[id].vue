@@ -22,6 +22,7 @@
           <router-link :to="{ path: `/jobs/${job.job_id}` }">
             #{{ job.job_id }}
           </router-link>
+          for {{ job.arch }}
         </div>
       </v-card-text>
     </v-card>
@@ -38,6 +39,7 @@
 
   interface PipelineInfoResponseJob {
     job_id: number;
+    arch: string;
   }
 
   interface PipelineInfoResponse {
