@@ -44,7 +44,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col v-for="arch in archs" :link="arch" cols="6" sm="3">
+      <v-col v-for="arch in archs" :link="arch" cols="6" sm="4" md="3">
         <v-card style="min-height: 100%">
           <v-card-item>
             <v-card-title>{{ arch }}</v-card-title>

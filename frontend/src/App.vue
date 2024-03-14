@@ -1,22 +1,15 @@
 <template>
   <v-app>
-    <v-app-bar flat>
-      <v-container class="mx-auto d-flex align-center justify-center">
-        <v-btn
-          v-for="link in links"
-          :key="link.name"
-          :text="link.name"
-          :to="link.url"
-          variant="text"
-        >
-        </v-btn>
-        <v-spacer></v-spacer>
-        <v-btn text="Login" variant="text"></v-btn>
-      </v-container>
-    </v-app-bar>
     <v-main class="bg-grey-lighten-3">
       <router-view />
     </v-main>
+    <v-bottom-navigation>
+      <v-btn v-for="link in links" :key="link.name" :to="link.url">
+        <v-icon>{{ link.icon }}</v-icon>
+
+        <span>{{ link.name }}</span>
+      </v-btn>
+    </v-bottom-navigation>
   </v-app>
 </template>
 
@@ -30,19 +23,23 @@
       links: [
         {
           'name': 'Dashboard',
-          'url': '/'
+          'url': '/',
+          'icon': 'mdi:mdi-view-dashboard',
         },
         {
           'name': 'Pipelines',
-          'url': '/pipelines'
+          'url': '/pipelines',
+          'icon': 'mdi:mdi-wrench',
         },
         {
           'name': 'Jobs',
-          'url': '/jobs'
+          'url': '/jobs',
+          'icon': 'mdi:mdi-rocket-launch',
         },
         {
           'name': 'Workers',
-          'url': '/workers'
+          'url': '/workers',
+          'icon': 'mdi:mdi-laptop',
         },
       ],
     }),
