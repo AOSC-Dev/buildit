@@ -1,8 +1,8 @@
 <template>
   <v-container>
     <v-row>
-      <v-col>
-        <v-card height="180">
+      <v-col cols="6" sm="4">
+        <v-card style="min-height: 100%">
           <v-card-item>
             <v-card-title>Pipelines</v-card-title>
           </v-card-item>
@@ -11,8 +11,8 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col>
-        <v-card height="180">
+      <v-col cols="6" sm="4">
+        <v-card style="min-height: 100%">
           <v-card-item>
             <v-card-title>Jobs</v-card-title>
           </v-card-item>
@@ -27,8 +27,8 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col>
-        <v-card height="180">
+      <v-col cols="6" sm="4">
+        <v-card style="min-height: 100%">
           <v-card-item>
             <v-card-title>Workers</v-card-title>
           </v-card-item>
@@ -44,10 +44,8 @@
           </v-card-text>
         </v-card>
       </v-col>
-    </v-row>
-    <v-row>
-      <v-col v-for="arch in archs" :link="arch" cols="3">
-        <v-card height="200">
+      <v-col v-for="arch in archs" :link="arch" cols="6" sm="3">
+        <v-card style="min-height: 100%">
           <v-card-item>
             <v-card-title>{{ arch }}</v-card-title>
           </v-card-item>
