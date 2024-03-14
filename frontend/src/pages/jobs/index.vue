@@ -11,6 +11,7 @@
           item-value="id"
           @update:options="loadItems">
           <template #item.status="{ item }">
+            <div style="margin-top: 20px"></div>
             <v-chip
               color="green"
               variant="flat"
@@ -74,6 +75,7 @@
                 {{ new Date((item as Job).creation_time) }}
               </v-tooltip>
             </div>
+            <div style="margin-bottom: 10px"></div>
           </template>
           <template #item.job="{ item }">
             <router-link :to="{ path: `/jobs/${(item as Job).id}` }">
