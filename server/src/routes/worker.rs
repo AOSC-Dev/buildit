@@ -12,6 +12,7 @@ use axum::extract::{Json, Query, State};
 use buildit_utils::{AMD64, ARM64, LOONGSON3, MIPS64R6EL, PPC64EL, RISCV64};
 use buildit_utils::{LOONGARCH64, NOARCH};
 
+use chrono::{DateTime, Utc};
 use common::{
     JobOk, JobResult, WorkerHeartbeatRequest, WorkerJobUpdateRequest, WorkerPollRequest,
     WorkerPollResponse,
@@ -41,6 +42,8 @@ pub struct WorkerListResponseItem {
     arch: String,
     logical_cores: i32,
     memory_bytes: i64,
+    is_live: bool,
+    last_heartbeat_time: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
@@ -76,6 +79,7 @@ pub async fn worker_list(
             };
 
             let mut items = vec![];
+            let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
             for worker in workers {
                 items.push(WorkerListResponseItem {
                     id: worker.id,
@@ -83,6 +87,8 @@ pub async fn worker_list(
                     arch: worker.arch,
                     logical_cores: worker.logical_cores,
                     memory_bytes: worker.memory_bytes,
+                    is_live: worker.last_heartbeat_time > deadline,
+                    last_heartbeat_time: worker.last_heartbeat_time,
                 });
             }
 
