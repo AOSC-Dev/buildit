@@ -3,8 +3,8 @@
     <v-row>
       <v-col>
         <v-data-table-server
-          :page="page"
-          :items-per-page="itemsPerPage"
+          v-model:page="page"
+          v-model:items-per-page="itemsPerPage"
           :headers="headers"
           :items="serverItems"
           :items-length="totalItems"
