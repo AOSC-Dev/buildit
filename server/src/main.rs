@@ -54,8 +54,6 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Starting http server");
     // build our application with a route
-    let serve_dir = ServeDir::new("frontend/dist")
-        .not_found_service(ServeFile::new("frontend/dist/index.html"));
     let state = AppState {
         pool: pool.clone(),
         bot,
@@ -76,7 +74,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/list", get(worker_list))
         .route("/api/worker/info", get(worker_info))
         .route("/api/dashboard/status", get(dashboard_status))
-        .fallback_service(serve_dir)
+        .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
+        .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
+        .fallback_service(ServeFile::new("frontend/dist/index.html"))
         .with_state(state)
         .layer(
             tower_http::trace::TraceLayer::new_for_http().make_span_with(
