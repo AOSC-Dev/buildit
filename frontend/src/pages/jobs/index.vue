@@ -61,6 +61,19 @@
               >
               Created
             </v-chip>
+            <div
+              class="d-flex align-center">
+              <v-icon size="x-small" style="margin-right: 5px;">mdi:mdi-clock-outline</v-icon>
+              <!-- https://stackoverflow.com/a/1322771/2148614 -->
+              {{ new Date((item as Job).elapsed_secs * 1000).toISOString().substring(11, 19)  }}
+            </div>
+            <div class="d-flex align-center">
+              <v-icon size="x-small" style="margin-right: 5px;">mdi:mdi-calendar</v-icon>
+              {{ new TimeAgo('en-US').format(new Date((item as Job).creation_time)) }}
+              <v-tooltip activator="parent" location="bottom">
+                {{ new Date((item as Job).creation_time) }}
+              </v-tooltip>
+            </div>
           </template>
           <template #item.job="{ item }">
             <router-link :to="{ path: `/jobs/${(item as Job).id}` }">
@@ -111,6 +124,10 @@
 <script lang="ts">
   import axios from 'axios';
   import { hostname } from '@/common';
+  import TimeAgo from 'javascript-time-ago'
+  import en from 'javascript-time-ago/locale/en'
+
+  TimeAgo.addDefaultLocale(en)
 
   interface LoadItemsOpts {
     page: number;
@@ -126,11 +143,13 @@
     arch: string;
     git_branch: string;
     git_sha: string;
+    elapsed_secs: number;
+    creation_time: string;
   }
 
   export default {
     data: () => ({
-      itemsPerPage: 10,
+      itemsPerPage: 25,
       headers: [
         { title: 'Status', key: 'status', sortable: false },
         { title: 'Job', key: 'job', sortable: false },

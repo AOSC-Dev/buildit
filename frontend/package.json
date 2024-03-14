@@ -12,6 +12,7 @@
     "ansi_up": "^6.0.2",
     "axios": "^1.6.7",
     "core-js": "^3.34.0",
+    "javascript-time-ago": "^2.5.9",
     "pretty-bytes": "^6.1.1",
     "roboto-fontface": "*",
     "vue": "^3.3.0",
