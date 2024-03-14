@@ -70,10 +70,12 @@
             </div>
             <div class="d-flex align-center">
               <v-icon size="x-small" style="margin-right: 5px;">mdi:mdi-calendar</v-icon>
-              {{ new TimeAgo('en-US').format(new Date((item as Job).creation_time)) }}
-              <v-tooltip activator="parent" location="bottom">
-                {{ new Date((item as Job).creation_time) }}
-              </v-tooltip>
+              <div>
+                {{ new TimeAgo('en-US').format(new Date((item as Job).creation_time)) }}
+                <v-tooltip activator="parent" location="bottom">
+                  {{ new Date((item as Job).creation_time) }}
+                </v-tooltip>
+              </div>
             </div>
             <div style="margin-bottom: 10px"></div>
           </template>
@@ -86,7 +88,7 @@
               label
               density="comfortable"
               prepend-icon="mdi:mdi-source-branch"
-              :href="`https://github.com/AOSC-Dev/aosc-os-abbs/branch/${(item as Job).git_branch}`"
+              :href="`https://github.com/AOSC-Dev/aosc-os-abbs/tree/${(item as Job).git_branch}`"
               style="margin-right: 5px;"
               >
               {{ (item as Job).git_branch }}
