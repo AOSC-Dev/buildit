@@ -7,6 +7,7 @@ use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
 use octocrab::models::checks::CheckRunOutput;
 use octocrab::models::CheckRunId;
 use serde::{Deserialize, Serialize};
+use tokio::runtime::Handle;
 use tracing::{error, warn};
 
 #[derive(Deserialize)]
@@ -182,6 +183,9 @@ pub async fn job_restart(
         let job = crate::schema::jobs::dsl::jobs
             .find(payload.job_id)
             .get_result::<Job>(conn)?;
+        let pipeline = crate::schema::pipelines::dsl::pipelines
+            .find(job.pipeline_id)
+            .get_result::<Pipeline>(conn)?;
 
         // job must be finished
         if job.status != "finished" {
@@ -190,14 +194,46 @@ pub async fn job_restart(
 
         // create a new job
         use crate::schema::jobs;
-        let new_job = NewJob {
+        let mut new_job = NewJob {
             pipeline_id: job.pipeline_id,
             packages: job.packages,
-            arch: job.arch,
+            arch: job.arch.clone(),
             creation_time: chrono::Utc::now(),
             status: "created".to_string(),
-            github_check_run_id: job.github_check_run_id,
+            github_check_run_id: None,
         };
+
+        // create new github check run if the restarted job has one
+        if job.github_check_run_id.is_some() {
+            new_job.github_check_run_id = Handle::current().block_on(async {
+                // authenticate with github app
+                match get_crab_github_installation().await {
+                    Ok(Some(crab)) => {
+                        match crab
+                            .checks("AOSC-Dev", "aosc-os-abbs")
+                            .create_check_run(format!("buildit {}", job.arch), &pipeline.git_sha)
+                            .status(octocrab::params::checks::CheckRunStatus::Queued)
+                            .send()
+                            .await
+                        {
+                            Ok(check_run) => {
+                                return Some(check_run.id.0 as i64);
+                            }
+                            Err(err) => {
+                                warn!("Failed to create check run: {}", err);
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        // github app unavailable
+                    }
+                    Err(err) => {
+                        warn!("Failed to get installation token: {}", err);
+                    }
+                }
+                return None;
+            });
+        }
 
         let new_job: Job = diesel::insert_into(jobs::table)
             .values(&new_job)
@@ -206,30 +242,6 @@ pub async fn job_restart(
 
         Ok(new_job)
     })?;
-
-    // update github check run status
-    if let Some(github_check_run_id) = new_job.github_check_run_id {
-        // authenticate with github app
-        match get_crab_github_installation().await {
-            Ok(Some(crab)) => {
-                let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
-                // https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#rerequest-a-check-run
-                if let Err(e) = handler
-                    .rerequest_check_run(CheckRunId(github_check_run_id as u64))
-                    .send()
-                    .await
-                {
-                    warn!("Failed to rerequest github check run: {e}");
-                }
-            }
-            Ok(None) => {
-                // github app unavailable
-            }
-            Err(err) => {
-                warn!("Failed to get installation token: {}", err);
-            }
-        }
-    }
 
     Ok(Json(JobRestartResponse { job_id: new_job.id }))
 }
