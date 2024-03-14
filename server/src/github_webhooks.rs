@@ -191,7 +191,7 @@ async fn handle_webhook_comment(
         create_github_comment(&crab, retry, num, &e.to_string()).await;
     }
 
-    let s = to_html_new_job_summary(
+    let s = to_html_new_pipeline_summary(
         branch,
         Some(num),
         &archs,

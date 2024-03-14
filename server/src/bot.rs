@@ -1,6 +1,6 @@
 use crate::{
     api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
-    formatter::to_html_new_job_summary,
+    formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
     DbPool, ALL_ARCH, ARGS,
 };
@@ -123,7 +123,8 @@ async fn pipeline_new_and_report(
         Ok(pipeline) => {
             bot.send_message(
                 msg.chat.id,
-                to_html_new_job_summary(
+                to_html_new_pipeline_summary(
+                    pipeline.id,
                     &pipeline.git_branch,
                     pipeline.github_pr.map(|n| n as u64),
                     &pipeline.archs.split(",").collect::<Vec<_>>(),
@@ -200,7 +201,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         Ok(pipeline) => {
                             bot.send_message(
                                 msg.chat.id,
-                                to_html_new_job_summary(
+                                to_html_new_pipeline_summary(
+                                    pipeline.id,
                                     &pipeline.git_branch,
                                     pipeline.github_pr.map(|n| n as u64),
                                     &pipeline.archs.split(",").collect::<Vec<_>>(),

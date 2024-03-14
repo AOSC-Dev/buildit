@@ -7,18 +7,22 @@ use crate::models::{Job, Pipeline};
 pub const SUCCESS: &str = "✅️";
 pub const FAILED: &str = "❌";
 
-pub fn to_html_new_job_summary(
+pub fn to_html_new_pipeline_summary(
+    pipeline_id: i32,
     git_ref: &str,
     github_pr: Option<u64>,
     archs: &[&str],
     packages: &[&str],
 ) -> String {
     format!(
-        r#"<b><u>New Job Summary</u></b>
+        r#"<b><u>New Pipeline Summary</u></b>
 
+<b>Pipeline</b>: <a href="https://buildit.aosc.io/pipelines/{}">#{}</a>
 <b>Git reference</b>: {}{}
 <b>Architecture(s)</b>: {}
 <b>Package(s)</b>: {}"#,
+        pipeline_id,
+        pipeline_id,
         git_ref,
         if let Some(pr) = github_pr {
             format!("\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>", pr, pr)
@@ -128,9 +132,9 @@ pub fn code_repr_string(s: &str) -> String {
 }
 
 #[test]
-fn test_format_html_new_job_summary() {
-    let s = to_html_new_job_summary("fd-9.0.0", Some(4992), &["amd64"], &["fd"]);
-    assert_eq!(s, "<b><u>New Job Summary</u></b>\n\n<b>Git reference</b>: fd-9.0.0\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
+fn test_format_html_new_pipeline_summary() {
+    let s = to_html_new_pipeline_summary(1, "fd-9.0.0", Some(4992), &["amd64"], &["fd"]);
+    assert_eq!(s, "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git reference</b>: fd-9.0.0\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
 }
 
 #[test]
