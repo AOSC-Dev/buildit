@@ -17,9 +17,13 @@
         <br/>
         Time elapsed: {{ job.elapsed_secs }}
         <br/>
-        Git commit: {{ job.git_sha }}
+        Git commit: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/commit/${job.git_sha}`">
+          {{ job.git_sha }}
+        </a>
         <br/>
-        Git branch: {{ job.git_branch }}
+        Git branch: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/tree/${job.git_branch}`">
+          {{ job.git_branch }}
+        </a>
         <br/>
         Architecture: {{ job.arch }}
         <br/>

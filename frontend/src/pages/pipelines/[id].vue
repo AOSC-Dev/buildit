@@ -11,12 +11,20 @@
         <br/>
         Creation time: {{ pipeline.creation_time }}
         <br/>
-        Git branch: {{ pipeline.git_branch }}
+        Git branch: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/tree/${pipeline.git_branch}`">
+          {{ pipeline.git_branch }}
+        </a>
         <br/>
-        Git commit: {{ pipeline.git_sha }}
+        Git commit: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/commit/${pipeline.git_sha}`">
+          {{ pipeline.git_sha }}
+        </a>
         <br/>
-        GitHub pr: {{ pipeline.github_pr }}
-        <br/>
+        <div v-if="pipeline.github_pr !== null && pipeline.github_pr !== undefined">
+          GitHub PR: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/pull/${pipeline.github_pr}`">
+            {{ pipeline.github_pr }}
+          </a> 
+          <br/>
+        </div>
         Jobs: <div v-for="job in pipeline.jobs" :key="job.job_id">
           Job
           <router-link :to="{ path: `/jobs/${job.job_id}` }">
