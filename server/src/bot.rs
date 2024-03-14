@@ -127,8 +127,8 @@ async fn pipeline_new_and_report(
                     pipeline.id,
                     &pipeline.git_branch,
                     pipeline.github_pr.map(|n| n as u64),
-                    &pipeline.archs.split(",").collect::<Vec<_>>(),
-                    &pipeline.packages.split(",").collect::<Vec<_>>(),
+                    &pipeline.archs.split(',').collect::<Vec<_>>(),
+                    &pipeline.packages.split(',').collect::<Vec<_>>(),
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -194,7 +194,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         pool.clone(),
                         pr_number,
                         archs,
-                        &JobSource::Telegram(msg.chat.id.0 as i64),
+                        &JobSource::Telegram(msg.chat.id.0),
                     )
                     .await
                     {
@@ -205,8 +205,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                     pipeline.id,
                                     &pipeline.git_branch,
                                     pipeline.github_pr.map(|n| n as u64),
-                                    &pipeline.archs.split(",").collect::<Vec<_>>(),
-                                    &pipeline.packages.split(",").collect::<Vec<_>>(),
+                                    &pipeline.archs.split(',').collect::<Vec<_>>(),
+                                    &pipeline.packages.split(',').collect::<Vec<_>>(),
                                 ),
                             )
                             .parse_mode(ParseMode::Html)
@@ -553,7 +553,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                     pool.clone(),
                                     "stable",
                                     &pkg.name,
-                                    &arch,
+                                    arch,
                                     &msg,
                                 )
                                 .await?;

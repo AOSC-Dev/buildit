@@ -88,5 +88,5 @@ pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> 
             ));
         }
     }
-    return Ok(None);
+    Ok(None)
 }

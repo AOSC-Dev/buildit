@@ -316,9 +316,9 @@ pub async fn handle_success_message(
             if pipeline.source == "telegram" {
                 if let Some(bot) = bot {
                     let s = to_html_build_result(
-                        &pipeline,
-                        &job,
-                        &job_ok,
+                        pipeline,
+                        job,
+                        job_ok,
                         &req.hostname,
                         &req.arch,
                         success,
@@ -340,14 +340,8 @@ pub async fn handle_success_message(
             }
 
             // if associated with github pr, update comments
-            let new_content = to_markdown_build_result(
-                &pipeline,
-                &job,
-                &job_ok,
-                &req.hostname,
-                &req.arch,
-                success,
-            );
+            let new_content =
+                to_markdown_build_result(pipeline, job, job_ok, &req.hostname, &req.arch, success);
             if let Some(pr_num) = pipeline.github_pr {
                 let crab = match octocrab::Octocrab::builder()
                     .user_access_token(ARGS.github_access_token.clone())

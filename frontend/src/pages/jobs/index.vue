@@ -8,6 +8,7 @@
           :items="serverItems"
           :items-length="totalItems"
           :loading="loading"
+          :sort-by="sortBy"
           item-value="id"
           @update:options="loadItems">
           <template #item.id="{ item }">
@@ -29,9 +30,15 @@
   import axios from 'axios';
   import { hostname } from '@/common';
 
+  interface SortBy {
+    key: string;
+    order: string;
+  }
+
   interface LoadItemsOpts {
     page: number;
     itemsPerPage: number;
+    sortBy: SortBy[];
   }
 
   interface Job {
@@ -42,19 +49,27 @@
     data: () => ({
       itemsPerPage: 10,
       headers: [
-        { title: 'Job ID', key: 'id', sortable: false },
-        { title: 'Pipeline ID', key: 'pipeline_id', sortable: false },
-        { title: 'Packages', key: 'packages', sortable: false },
-        { title: 'Architecture', key: 'arch', sortable: false },
+        { title: 'Job ID', key: 'id' },
+        { title: 'Pipeline ID', key: 'pipeline_id' },
+        { title: 'Packages', key: 'packages' },
+        { title: 'Architecture', key: 'arch' },
       ],
       loading: true,
       totalItems: 0,
-      serverItems: []
+      serverItems: [],
+      sortBy: [{
+        key: 'id',
+        order: 'desc'
+      }]
     }),
     methods: {
       async loadItems (opts: LoadItemsOpts) {
         this.loading = true;
-        let data = (await axios.get(hostname + `/api/job/list?page=${opts.page}&items_per_page=${opts.itemsPerPage}`)).data;
+        let url = hostname + `/api/job/list?page=${opts.page}&items_per_page=${opts.itemsPerPage}`;
+        if (opts.sortBy.length > 0) {
+          url += `&sort_key=${opts.sortBy[0].key}&sort_order=${opts.sortBy[0].order}`;
+        }
+        let data = (await axios.get(url)).data;
         this.totalItems = data.total_items;
         this.serverItems = data.items;
         this.loading = false;

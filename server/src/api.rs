@@ -31,7 +31,7 @@ pub async fn pipeline_new(
     source: &JobSource,
 ) -> anyhow::Result<Pipeline> {
     // sanitize archs arg
-    let mut archs: Vec<&str> = archs.split(",").collect();
+    let mut archs: Vec<&str> = archs.split(',').collect();
     archs.sort();
     archs.dedup();
     if archs.contains(&"noarch") && archs.len() > 1 {
@@ -108,7 +108,7 @@ pub async fn pipeline_new(
         creation_time: chrono::Utc::now(),
         source: source.to_string(),
         github_pr: github_pr.map(|pr| pr as i64),
-        telegram_user: telegram_user.map(|id| *id),
+        telegram_user: telegram_user.copied(),
     };
     let pipeline = diesel::insert_into(pipelines::table)
         .values(&new_pipeline)
@@ -217,22 +217,20 @@ pub async fn pipeline_new_pr(
                 pipeline_new(
                     pool,
                     git_branch,
-                    Some(&git_sha),
+                    Some(git_sha),
                     Some(pr.number),
                     &packages.join(","),
                     &archs,
-                    &source,
+                    source,
                 )
                 .await
             } else {
-                return Err(anyhow!(
+                Err(anyhow!(
                     "Please list packages to build in pr info starting with '#buildit'"
-                ));
+                ))
             }
         }
-        Err(err) => {
-            return Err(anyhow!("Failed to get pr info: {err}"));
-        }
+        Err(err) => Err(anyhow!("Failed to get pr info: {err}")),
     }
 }
 

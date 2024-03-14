@@ -55,7 +55,7 @@ pub async fn pipeline_new_pr(
     let pipeline = api::pipeline_new_pr(
         pool,
         payload.pr,
-        payload.archs.as_ref().map(|s| s.as_str()),
+        payload.archs.as_deref(),
         &JobSource::Manual,
     )
     .await?;

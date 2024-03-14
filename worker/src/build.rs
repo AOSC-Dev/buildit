@@ -150,7 +150,7 @@ async fn build(
 
             // build packages
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
-            ciel_args.extend(job.packages.split(","));
+            ciel_args.extend(job.packages.split(','));
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
             success = output.status.success();
