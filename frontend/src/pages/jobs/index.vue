@@ -30,15 +30,15 @@
   import axios from 'axios';
   import { hostname } from '@/common';
 
-  interface SortBy {
+  interface SortItem {
     key: string;
-    order: string;
+    order: 'asc' | 'desc';
   }
 
   interface LoadItemsOpts {
     page: number;
     itemsPerPage: number;
-    sortBy: SortBy[];
+    sortBy: SortItem[];
   }
 
   interface Job {
@@ -60,7 +60,7 @@
       sortBy: [{
         key: 'id',
         order: 'desc'
-      }]
+      } as SortItem]
     }),
     methods: {
       async loadItems (opts: LoadItemsOpts) {
