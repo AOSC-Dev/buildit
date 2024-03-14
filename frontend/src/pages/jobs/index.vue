@@ -128,11 +128,12 @@
           </template>
           <template #item.actions="{ item }">
             <v-btn
-              icon="mdi:mdi-history"
+              icon="true"
               rounded
               size="x-small"
               v-if="(item as Job).log_url !== null && (item as Job).log_url !== undefined"
               :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }">
+              <v-icon>mdi:mdi-history</v-icon>
               <v-tooltip activator="parent" location="bottom">
                 View Log
               </v-tooltip>
