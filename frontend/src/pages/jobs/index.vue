@@ -89,7 +89,7 @@
               density="comfortable"
               prepend-icon="mdi:mdi-source-branch"
               :href="`https://github.com/AOSC-Dev/aosc-os-abbs/tree/${(item as Job).git_branch}`"
-              style="margin-right: 5px;"
+              style="margin-right: 5px; margin-bottom: 5px;"
               >
               {{ (item as Job).git_branch }}
             </v-chip>
@@ -98,7 +98,7 @@
               density="comfortable"
               prepend-icon="mdi:mdi-source-commit"
               :href="`https://github.com/AOSC-Dev/aosc-os-abbs/commit/${(item as Job).git_sha}`"
-              style="margin-right: 5px;"
+              style="margin-right: 5px; margin-bottom: 5px;"
               >
               {{ (item as Job).git_sha.substring(0, 8) }}
             </v-chip>
@@ -108,7 +108,7 @@
               prepend-icon="mdi:mdi-source-pull"
               :href="`https://github.com/AOSC-Dev/aosc-os-abbs/pull/${(item as Job).github_pr}`"
               v-if="(item as Job).github_pr"
-              style="margin-right: 5px;"
+              style="margin-right: 5px; margin-bottom: 5px;"
               >
               #{{ (item as Job).github_pr }}
             </v-chip>
@@ -116,6 +116,7 @@
               label
               density="comfortable"
               prepend-icon="mdi:mdi-cpu-64-bit"
+              style="margin-right: 5px; margin-bottom: 5px;"
               >
               {{ (item as Job).arch }}
             </v-chip>
@@ -132,6 +133,9 @@
               size="x-small"
               v-if="(item as Job).log_url !== null && (item as Job).log_url !== undefined"
               :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }">
+              <v-tooltip activator="parent" location="bottom">
+                View Log
+              </v-tooltip>
             </v-btn>
           </template>
         </v-data-table-server>
