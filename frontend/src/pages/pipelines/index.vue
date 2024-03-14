@@ -10,6 +10,11 @@
           :loading="loading"
           item-value="id"
           @update:options="loadItems">
+          <template #item.id="{ item }">
+            <router-link :to="{ path: `/pipelines/${(item as Pipeline).id}` }">
+              {{ (item as Pipeline).id }}
+            </router-link>
+          </template>
 
         </v-data-table-server>
       </v-col>
@@ -28,6 +33,10 @@
   interface LoadItemsOpts {
     page: number;
     itemsPerPage: number;
+  }
+
+  interface Pipeline {
+    id: number;
   }
 
   export default {
