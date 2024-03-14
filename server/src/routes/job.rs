@@ -1,9 +1,13 @@
-use crate::models::{Job, Pipeline};
+use crate::github::get_crab_github_installation;
+use crate::models::{Job, NewJob, Pipeline};
 use crate::routes::{AnyhowError, AppState};
-use anyhow::Context;
+use anyhow::{bail, Context};
 use axum::extract::{Json, Query, State};
 use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
+use octocrab::models::checks::CheckRunOutput;
+use octocrab::models::CheckRunId;
 use serde::{Deserialize, Serialize};
+use tracing::{error, warn};
 
 #[derive(Deserialize)]
 pub struct JobListRequest {
@@ -154,4 +158,79 @@ pub async fn job_info(
             })
         })?,
     ))
+}
+
+#[derive(Deserialize)]
+pub struct JobRestartRequest {
+    job_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct JobRestartResponse {
+    job_id: i32,
+}
+
+pub async fn job_restart(
+    State(AppState { pool, .. }): State<AppState>,
+    Json(payload): Json<JobRestartRequest>,
+) -> Result<Json<JobRestartResponse>, AnyhowError> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    let new_job = conn.transaction::<Job, anyhow::Error, _>(|conn| {
+        let job = crate::schema::jobs::dsl::jobs
+            .find(payload.job_id)
+            .get_result::<Job>(conn)?;
+
+        // job must be finished
+        if job.status != "finished" {
+            bail!("Cannot restart the job unless it is finished");
+        }
+
+        // create a new job
+        use crate::schema::jobs;
+        let new_job = NewJob {
+            pipeline_id: job.pipeline_id,
+            packages: job.packages,
+            arch: job.arch,
+            creation_time: chrono::Utc::now(),
+            status: "created".to_string(),
+            github_check_run_id: job.github_check_run_id,
+        };
+
+        let new_job: Job = diesel::insert_into(jobs::table)
+            .values(&new_job)
+            .get_result(conn)
+            .context("Failed to create job")?;
+
+        Ok(new_job)
+    })?;
+
+    // update github check run status
+    if let Some(github_check_run_id) = new_job.github_check_run_id {
+        // authenticate with github app
+        match get_crab_github_installation().await {
+            Ok(Some(crab)) => {
+                let handler = crab.checks("AOSC-Dev", "aosc-os-abbs");
+                let mut builder = handler
+                    .update_check_run(CheckRunId(github_check_run_id as u64))
+                    .status(octocrab::params::checks::CheckRunStatus::InProgress);
+
+                if let Err(e) = builder.send().await {
+                    warn!("Failed to update github check run: {e}");
+                }
+            }
+            Ok(None) => {
+                // github app unavailable
+            }
+            Err(err) => {
+                warn!("Failed to get installation token: {}", err);
+            }
+        }
+    }
+
+    Ok(Json(JobRestartResponse {
+        job_id: created_job.id,
+    }))
 }

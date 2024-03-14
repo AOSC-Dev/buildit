@@ -67,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/pipeline/info", get(pipeline_info))
         .route("/api/job/list", get(job_list))
         .route("/api/job/info", get(job_info))
+        .route("/api/job/info", post(job_restart))
         .route("/api/worker/heartbeat", post(worker_heartbeat))
         .route("/api/worker/poll", post(worker_poll))
         .route("/api/worker/job_update", post(worker_job_update))
