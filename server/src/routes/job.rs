@@ -231,6 +231,6 @@ pub async fn job_restart(
     }
 
     Ok(Json(JobRestartResponse {
-        job_id: created_job.id,
+        job_id: new_job.id,
     }))
 }

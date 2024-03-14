@@ -3,6 +3,7 @@
     <v-row>
       <v-col>
         <v-data-table-server
+          :page="page"
           :items-per-page="itemsPerPage"
           :headers="headers"
           :items="serverItems"
@@ -132,16 +133,32 @@
               rounded
               size="x-small"
               v-if="(item as Job).log_url !== null && (item as Job).log_url !== undefined"
-              :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }">
+              :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }"
+              style="margin-right: 5px;margin-bottom: 5px;">
               <v-icon>mdi:mdi-history</v-icon>
               <v-tooltip activator="parent" location="bottom">
                 View Log
+              </v-tooltip>
+            </v-btn>
+            <v-btn
+              icon="true"
+              rounded
+              size="x-small"
+              v-if="(item as Job).status === 'finished'"
+              style="margin-right: 5px;margin-bottom: 5px;"
+              @click="restartJob((item as Job).id)">
+              <v-icon>mdi:mdi-restart</v-icon>
+              <v-tooltip activator="parent" location="bottom">
+                Restart
               </v-tooltip>
             </v-btn>
           </template>
         </v-data-table-server>
       </v-col>
     </v-row>
+    <v-snackbar v-model="jobRestartSnackbar" timeout="2000">
+      Job restarted as #{{ newJobID }}
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -179,6 +196,7 @@
 
   export default {
     data: () => ({
+      page: 1,
       itemsPerPage: 25,
       headers: [
         { title: 'Status', key: 'status', sortable: false },
@@ -189,15 +207,25 @@
       loading: true,
       totalItems: 0,
       serverItems: [],
+      jobRestartSnackbar: false,
+      newJobID: 0,
     }),
     methods: {
-      async loadItems (opts: LoadItemsOpts) {
+      async loadItems () {
         this.loading = true;
-        let url = hostname + `/api/job/list?page=${opts.page}&items_per_page=${opts.itemsPerPage}`;
+        let url = hostname + `/api/job/list?page=${this.page}&items_per_page=${this.itemsPerPage}`;
         let data = (await axios.get(url)).data;
         this.totalItems = data.total_items;
         this.serverItems = data.items;
         this.loading = false;
+      },
+      async restartJob (id: number) {
+        let data = (await axios.post(hostname + `/api/job/restart`, {
+          job_id: id,
+        })).data;
+        this.newJobID = data.job_id;
+        this.jobRestartSnackbar = true;
+        await this.loadItems();
       }
     }
   }
