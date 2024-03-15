@@ -8,7 +8,8 @@ use diesel::r2d2::Pool;
 use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
-    dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list, pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, AppState
+    dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
+    pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, AppState,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};

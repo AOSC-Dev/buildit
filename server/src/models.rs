@@ -91,3 +91,28 @@ pub struct NewWorker {
     pub logical_cores: i32,
     pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
 }
+
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = crate::schema::users)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct User {
+    pub id: i32,
+    pub github_login: Option<String>,
+    pub github_id: Option<i64>,
+    pub github_name: Option<String>,
+    pub github_avatar_url: Option<String>,
+    pub github_email: Option<String>,
+    pub telegram_chat_id: Option<i64>,
+}
+
+#[derive(Insertable, AsChangeset)]
+#[diesel(table_name = crate::schema::users)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewUser {
+    pub github_login: Option<String>,
+    pub github_id: Option<i64>,
+    pub github_name: Option<String>,
+    pub github_avatar_url: Option<String>,
+    pub github_email: Option<String>,
+    pub telegram_chat_id: Option<i64>,
+}

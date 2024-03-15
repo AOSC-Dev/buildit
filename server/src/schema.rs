@@ -38,6 +38,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    users (id) {
+        id -> Int4,
+        github_login -> Nullable<Text>,
+        github_id -> Nullable<Int8>,
+        github_name -> Nullable<Text>,
+        github_avatar_url -> Nullable<Text>,
+        github_email -> Nullable<Text>,
+        telegram_chat_id -> Nullable<Int8>,
+    }
+}
+
+diesel::table! {
     workers (id) {
         id -> Int4,
         hostname -> Text,
@@ -51,4 +63,4 @@ diesel::table! {
 
 diesel::joinable!(jobs -> pipelines (pipeline_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, workers,);
+diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);

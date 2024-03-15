@@ -2,11 +2,15 @@ use crate::{
     api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
     formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
+    models::{NewUser, User},
     DbPool, ALL_ARCH, ARGS,
 };
+use anyhow::Context;
 use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 use chrono::Local;
+use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;
+use tracing::warn;
 
 use std::borrow::Cow;
 use teloxide::{
@@ -140,6 +144,65 @@ async fn pipeline_new_and_report(
         }
     }
     Ok(())
+}
+
+async fn sync_github_info_inner(
+    pool: DbPool,
+    telegram_chat: ChatId,
+    access_token: String,
+) -> anyhow::Result<()> {
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(access_token)
+        .build()?;
+    let author = crab.current().user().await?;
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    conn.transaction::<(), diesel::result::Error, _>(|conn| {
+        use crate::schema::users::dsl::*;
+        match users
+            .filter(telegram_chat_id.eq(&telegram_chat.0))
+            .first::<User>(conn)
+            .optional()?
+        {
+            Some(user) => {
+                diesel::update(users.find(user.id))
+                    .set((
+                        github_login.eq(author.login),
+                        github_id.eq(author.id.0 as i64),
+                        github_avatar_url.eq(author.avatar_url.to_string()),
+                        github_email.eq(author.email),
+                    ))
+                    .execute(conn)?;
+            }
+            None => {
+                let new_user = NewUser {
+                    github_login: Some(author.login),
+                    github_id: Some(author.id.0 as i64),
+                    github_name: None, // TODO
+                    github_avatar_url: Some(author.avatar_url.to_string()),
+                    github_email: author.email,
+                    telegram_chat_id: Some(telegram_chat.0),
+                };
+                diesel::insert_into(crate::schema::users::table)
+                    .values(&new_user)
+                    .execute(conn)?;
+            }
+        }
+
+        Ok(())
+    })?;
+    Ok(())
+}
+
+async fn sync_github_info(pool: DbPool, telegram_chat_id: ChatId, access_token: String) {
+    if let Err(err) = sync_github_info_inner(pool, telegram_chat_id, access_token).await {
+        warn!(
+            "Failed to sync github info for telegram chat {}: {}",
+            telegram_chat_id, err
+        );
+    }
 }
 
 pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
@@ -286,6 +349,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     return Ok(());
                 }
             };
+
+            // sync github info, but do not wait for result
+            tokio::spawn(sync_github_info(pool, msg.chat.id, token.clone()));
 
             if (3..=5).contains(&parts.len()) {
                 let tags = if parts.len() >= 4 {
