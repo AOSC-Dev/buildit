@@ -110,6 +110,7 @@ pub struct JobInfoResponse {
     error_message: Option<String>,
     elapsed_secs: Option<i64>,
     assigned_worker_id: Option<i32>,
+    built_by_worker_id: Option<i32>,
 
     // from pipeline
     git_branch: String,
@@ -152,6 +153,8 @@ pub async fn job_info(
                 error_message: job.error_message,
                 elapsed_secs: job.elapsed_secs,
                 assigned_worker_id: job.assigned_worker_id,
+                built_by_worker_id: job.built_by_worker_id,
+
                 // from pipeline
                 git_branch: pipeline.git_branch,
                 git_sha: pipeline.git_sha,

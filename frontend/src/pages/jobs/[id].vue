@@ -50,6 +50,13 @@
           </router-link>
           <br/>
         </div>
+        <div v-if="job.built_by_worker_id !== null && job.built_by_worker_id !== undefined">
+          Built by worker #
+          <router-link :to="{ path: `/workers/${job.built_by_worker_id}` }">
+            {{ job.built_by_worker_id }}
+          </router-link>
+          <br/>
+        </div>
       </v-card-text>
     </v-card>
   </v-container>
@@ -80,6 +87,7 @@
     error_message: string;
     elapsed_secs: number;
     assigned_worker_id: number;
+    built_by_worker_id: number;
     git_branch: string;
     git_sha: string;
     github_pr: number;
