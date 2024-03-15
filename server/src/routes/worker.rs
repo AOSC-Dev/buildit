@@ -483,7 +483,7 @@ pub async fn handle_success_message(
                             annotations: vec![],
                             images: vec![],
                         };
-                        let mut builder = handler
+                        let builder = handler
                             .update_check_run(CheckRunId(github_check_run_id as u64))
                             .status(octocrab::params::checks::CheckRunStatus::Completed)
                             .output(output)
@@ -491,11 +491,8 @@ pub async fn handle_success_message(
                                 CheckRunConclusion::Success
                             } else {
                                 CheckRunConclusion::Failure
-                            });
-
-                        if let Some(log) = &job_ok.log_url {
-                            builder = builder.details_url(log);
-                        }
+                            })
+                            .details_url(format!("https://buildit.aosc.io/jobs/{}", job.id));
 
                         if let Err(e) = builder.send().await {
                             error!("Failed to update github check run: {e}");
