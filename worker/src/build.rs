@@ -308,7 +308,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
             match build(&job, &tree_path, args).await {
                 Ok(result) => {
                     // post result
-                    warn!("Finished to run job {:?} with result {:?}", job, result);
+                    info!("Finished to run job {:?} with result {:?}", job, result);
                     client
                         .post(format!("{}/api/worker/job_update", args.server))
                         .json(&result)
