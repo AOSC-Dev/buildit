@@ -128,13 +128,15 @@
             </router-link>
             <div v-if="(item as Job).creator_github_login !== null && (item as Job).creator_github_login !== undefined">
               created by
-              <v-avatar
-                :href="`https://github.com/${(item as Job).creator_github_login}`"
-                size="x-small">
-                <v-img
-                  :src="(item as Job).creator_github_avatar_url"
-                ></v-img>
-              </v-avatar>
+              <a
+                :href="`https://github.com/${(item as Job).creator_github_login}`">
+                <v-avatar
+                  size="x-small">
+                  <v-img
+                    :src="(item as Job).creator_github_avatar_url"
+                  ></v-img>
+                </v-avatar>
+              </a>
             </div>
           </template>
           <template #item.actions="{ item }">
