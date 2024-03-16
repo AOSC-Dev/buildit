@@ -344,7 +344,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             let token = match get_github_token(&msg.chat.id, secret).await {
                 Ok(s) => s.access_token,
                 Err(e) => {
-                    bot.send_message(msg.chat.id, format!("Got error: {e}"))
+                    bot.send_message(msg.chat.id, format!("Got error: {e:?}"))
                         .await?;
                     return Ok(());
                 }
@@ -472,19 +472,19 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                         return Ok(());
                                     }
                                     Err(e) => {
-                                        bot_send_message_handle_length(&bot, &msg, &format!("{e}"))
+                                        bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}"))
                                             .await?;
                                         return Ok(());
                                     }
                                 }
                             }
                             _ => {
-                                bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                                bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}")).await?;
                                 return Ok(());
                             }
                         },
                         _ => {
-                            bot_send_message_handle_length(&bot, &msg, &format!("{e}")).await?;
+                            bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}")).await?;
                             return Ok(());
                         }
                     },
