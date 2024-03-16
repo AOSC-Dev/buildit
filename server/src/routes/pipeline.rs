@@ -11,6 +11,7 @@ use diesel::{
     SelectableHelper,
 };
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 #[derive(Deserialize)]
 pub struct PipelineNewRequest {
@@ -149,6 +150,7 @@ pub struct PipelineListResponseItem {
     github_pr: Option<i64>,
     packages: String,
     archs: String,
+    status: &'static str,
 
     // from pipeline creator
     creator_github_login: Option<String>,
@@ -205,6 +207,42 @@ pub async fn pipeline_list(
                 .zip(pipelines)
                 .zip(users)
             {
+                let mut has_error = false;
+                let mut has_failed = false;
+                let mut has_unfinished = true;
+                for job in &jobs {
+                    match (job.status.as_str(), job.build_success, job.pushpkg_success) {
+                        ("error", _, _) => has_error = true,
+                        ("finished", Some(true), Some(true)) => {
+                            // success
+                        }
+                        ("finished", _, _) => {
+                            // failed
+                            has_failed = true;
+                        }
+                        ("created", _, _) => {
+                            has_unfinished = true;
+                        }
+                        ("assigned", _, _) => {
+                            has_unfinished = true;
+                        }
+                        _ => {
+                            error!("Got job with unknown status: {:?}", job);
+                        }
+                    }
+                }
+
+                let status = if has_error {
+                    "error"
+                } else if has_failed {
+                    "failed"
+                } else if has_unfinished {
+                    "running"
+                } else {
+                    "success"
+                };
+
+                // compute pipeline status based on job status
                 items.push(PipelineListResponseItem {
                     id: pipeline.id,
                     git_branch: pipeline.git_branch,
@@ -213,6 +251,7 @@ pub async fn pipeline_list(
                     archs: pipeline.archs,
                     creation_time: pipeline.creation_time,
                     github_pr: pipeline.github_pr,
+                    status,
 
                     creator_github_login: creator
                         .as_ref()

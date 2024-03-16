@@ -11,6 +11,48 @@
           item-value="id"
           @update:options="loadItems">
           <template #item.status="{ item }">
+            <div style="margin-top: 5px"></div>
+            <v-chip
+              color="green"
+              variant="flat"
+              density="comfortable"
+              v-if="(item as Job).status === 'success'"
+              prepend-icon="mdi:mdi-check-circle"
+              :to="{ path: `/pipelines/${(item as Pipeline).id}` }"
+              >
+              Passed
+            </v-chip>
+            <v-chip
+              color="red"
+              variant="flat"
+              density="comfortable"
+              v-else-if="(item as Job).status === 'failed'"
+              prepend-icon="mdi:mdi-close-circle"
+              :to="{ path: `/pipelines/${(item as Pipeline).id}` }"
+              >
+              Failed
+            </v-chip>
+            <v-chip
+              color="grey"
+              variant="flat"
+              density="comfortable"
+              v-else-if="(item as Job).status === 'running'"
+              prepend-icon="mdi:mdi-progress-question"
+              :to="{ path: `/pipelines/${(item as Pipeline).id}` }"
+              >
+              Running
+            </v-chip>
+            <v-chip
+              color="red"
+              variant="flat"
+              density="comfortable"
+              v-else-if="(item as Job).status === 'error'"
+              prepend-icon="mdi:mdi-alert-circle"
+              :to="{ path: `/pipelines/${(item as Pipeline).id}` }"
+              >
+              Error
+            </v-chip>
+
             <div class="d-flex align-center">
               <v-icon size="x-small" style="margin-right: 5px;">mdi:mdi-calendar</v-icon>
               <div>
@@ -138,6 +180,7 @@
     archs: string;
     creator_github_login: string;
     creator_github_avatar_url: string;
+    status: string;
     jobs: Job[];
   }
 
