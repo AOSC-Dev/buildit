@@ -11,7 +11,6 @@ use diesel::{
     SelectableHelper,
 };
 use serde::{Deserialize, Serialize};
-use teloxide::prelude::*;
 
 #[derive(Deserialize)]
 pub struct PipelineNewRequest {
@@ -194,6 +193,7 @@ pub async fn pipeline_list(
             // see https://diesel.rs/guides/relations.html
             let jobs = Job::belonging_to(&pipelines)
                 .select(Job::as_select())
+                .order(crate::schema::jobs::dsl::id.asc())
                 .load(conn)?;
 
             let mut items = vec![];

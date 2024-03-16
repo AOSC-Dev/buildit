@@ -10,8 +10,7 @@ use diesel::{
     RunQueryDsl,
 };
 use serde::{Deserialize, Serialize};
-use tokio::runtime::Handle;
-use tracing::{error, warn};
+use tracing::warn;
 
 #[derive(Deserialize)]
 pub struct JobListRequest {

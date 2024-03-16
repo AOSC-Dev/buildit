@@ -165,6 +165,7 @@ fn test_format_html_build_result() {
         source: "telegram".to_string(),
         github_pr: Some(4992),
         telegram_user: None,
+        creator_user_id: None,
     };
 
     let job = Job {
