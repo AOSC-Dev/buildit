@@ -17,7 +17,7 @@
               color="green"
               variant="flat"
               density="comfortable"
-              v-if="(item as Job).status === 'finished' && (item as Job).build_success"
+              v-if="(item as Job).status === 'finished' && (item as Job).build_success && (item as Job).pushpkg_success"
               prepend-icon="mdi:mdi-check-circle"
               :to="{ path: `/jobs/${(item as Job).id}` }"
               >
@@ -27,7 +27,7 @@
               color="red"
               variant="flat"
               density="comfortable"
-              v-else-if="(item as Job).status === 'finished' && !(item as Job).build_success"
+              v-else-if="(item as Job).status === 'finished'"
               prepend-icon="mdi:mdi-close-circle"
               :to="{ path: `/jobs/${(item as Job).id}` }"
               >
@@ -195,6 +195,7 @@
     id: number;
     pipeline_id: number;
     build_success: boolean;
+    pushpkg_success: boolean;
     status: string;
     packages: string;
     arch: string;

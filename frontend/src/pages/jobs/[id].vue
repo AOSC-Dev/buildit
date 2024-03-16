@@ -57,6 +57,10 @@
           </router-link>
           <br/>
         </div>
+        <div v-if="job.pushpkg_success === false">
+          Failed to push package to repo
+          <br/>
+        </div>
       </v-card-text>
     </v-card>
   </v-container>

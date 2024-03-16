@@ -75,8 +75,11 @@
                 <router-link
                   style="text-decoration: none; color: inherit;"
                   :to="{ path: `/jobs/${(job as Job).job_id}` }">
-                  <v-icon v-if="(job as Job).status === 'finished'">
+                  <v-icon v-if="(job as Job).status === 'finished' && (job as Job).build_success && (job as Job).pushpkg_success">
                     mdi:mdi-check-circle-outline
+                  </v-icon>
+                  <v-icon v-else-if="(job as Job).status === 'finished'">
+                    mdi:mdi-close-circle-outline
                   </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'assigned'">
                     mdi:mdi-progress-question
@@ -121,6 +124,8 @@
     job_id: number;
     arch: string;
     status: string;
+    build_success: boolean;
+    pushpkg_success: boolean;
   }
 
   interface Pipeline {
@@ -138,7 +143,7 @@
 
   export default {
     data: () => ({
-      itemsPerPage: 10,
+      itemsPerPage: 25,
       headers: [
         { title: 'Status', key: 'status', sortable: false },
         { title: 'Pipeline', key: 'pipeline', sortable: false },

@@ -136,6 +136,8 @@ pub struct PipelineListResponseJob {
     job_id: i32,
     arch: String,
     status: String,
+    build_success: Option<bool>,
+    pushpkg_success: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -226,6 +228,8 @@ pub async fn pipeline_list(
                             job_id: job.id,
                             arch: job.arch,
                             status: job.status,
+                            build_success: job.build_success,
+                            pushpkg_success: job.pushpkg_success,
                         })
                         .collect(),
                 });
