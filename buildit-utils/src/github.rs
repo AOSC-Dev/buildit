@@ -633,6 +633,18 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     let mut is_noarch = vec![];
     let mut fail_archs = vec![];
 
+    // strip modifiers, e.g. gmp:+stage2 becomes gmp
+    let packages: Vec<String> = packages
+        .iter()
+        .map(|s| {
+            (match s.split_once(":") {
+                Some((prefix, _suffix)) => prefix,
+                None => s,
+            })
+            .to_string()
+        })
+        .collect();
+
     for_each_abbs(p, |pkg, path| {
         if !packages.contains(&pkg.to_string()) {
             return;

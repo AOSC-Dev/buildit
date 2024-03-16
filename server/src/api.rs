@@ -51,10 +51,9 @@ pub async fn pipeline_new(
     archs.dedup();
 
     // sanitize packages arg
-    if !packages
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == ',' || ch == '-' || ch == '.' || ch == '+')
-    {
+    if !packages.chars().all(|ch| {
+        ch.is_ascii_alphanumeric() || ch == ',' || ch == '-' || ch == '.' || ch == '+' || ch == ':'
+    }) {
         return Err(anyhow!("Invalid packages: {packages}"));
     }
 
