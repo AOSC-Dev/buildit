@@ -274,7 +274,7 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
         .into_iter()
         .collect();
     let mut running: BTreeMap<String, i64> = crate::schema::jobs::dsl::jobs
-        .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+        .filter(crate::schema::jobs::dsl::status.eq("running"))
         .group_by(crate::schema::jobs::dsl::arch)
         .select((
             crate::schema::jobs::dsl::arch,

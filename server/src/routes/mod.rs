@@ -103,7 +103,7 @@ pub async fn dashboard_status(
                 .count()
                 .get_result(conn)?;
             let running_job_count = crate::schema::jobs::dsl::jobs
-                .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+                .filter(crate::schema::jobs::dsl::status.eq("running"))
                 .count()
                 .get_result(conn)?;
             let finished_job_count = crate::schema::jobs::dsl::jobs
@@ -191,7 +191,7 @@ pub async fn dashboard_status(
             }
 
             for (arch, count) in crate::schema::jobs::dsl::jobs
-                .filter(crate::schema::jobs::dsl::status.eq("assigned"))
+                .filter(crate::schema::jobs::dsl::status.eq("running"))
                 .group_by(crate::schema::jobs::dsl::arch)
                 .select((
                     crate::schema::jobs::dsl::arch,

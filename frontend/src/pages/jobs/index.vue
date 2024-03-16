@@ -37,7 +37,7 @@
               color="grey"
               variant="flat"
               density="comfortable"
-              v-else-if="(item as Job).status === 'assigned'"
+              v-else-if="(item as Job).status === 'running'"
               prepend-icon="mdi:mdi-progress-question"
               :to="{ path: `/jobs/${(item as Job).id}` }"
               >

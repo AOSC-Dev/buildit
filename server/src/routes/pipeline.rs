@@ -223,7 +223,7 @@ pub async fn pipeline_list(
                         ("created", _, _) => {
                             has_unfinished = true;
                         }
-                        ("assigned", _, _) => {
+                        ("running", _, _) => {
                             has_unfinished = true;
                         }
                         _ => {

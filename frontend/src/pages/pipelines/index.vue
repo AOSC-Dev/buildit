@@ -123,7 +123,7 @@
                   <v-icon v-else-if="(job as Job).status === 'finished'">
                     mdi:mdi-close-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'assigned'">
+                  <v-icon v-else-if="(job as Job).status === 'running'">
                     mdi:mdi-progress-question
                   </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'error'">

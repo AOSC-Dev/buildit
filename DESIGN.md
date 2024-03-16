@@ -53,7 +53,7 @@ Job result:
 Job status:
 
 1. created: can be assigned to worker
-2. assigned: assigned to worker
+2. running: assigned to worker
 3. error: unexpected error
 4. finished: finished, successful(build_success && pushpkg_success) or failed
 

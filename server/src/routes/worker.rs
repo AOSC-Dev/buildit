@@ -190,7 +190,7 @@ pub async fn worker_poll(
 
                 // allocate to the worker
                 diesel::update(&job)
-                    .set((status.eq("assigned"), assigned_worker_id.eq(worker.id)))
+                    .set((status.eq("running"), assigned_worker_id.eq(worker.id)))
                     .execute(conn)?;
 
                 // get pipeline the job belongs to
@@ -237,7 +237,7 @@ pub async fn worker_job_update(
         .filter(crate::schema::workers::dsl::arch.eq(&payload.arch))
         .first::<Worker>(&mut conn)?;
 
-    if job.status != "assigned" || job.assigned_worker_id != Some(worker.id) {
+    if job.status != "running" || job.assigned_worker_id != Some(worker.id) {
         return Err(anyhow!("Worker not assigned to the job").into());
     }
 
