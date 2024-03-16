@@ -126,6 +126,14 @@
             <router-link :to="{ path: `/pipelines/${(item as Job).pipeline_id}` }">
               #{{ (item as Job).pipeline_id }}
             </router-link>
+            <div v-if="(item as Job).creator_github_login !== null && (item as Job).creator_github_login !== undefined">
+              created by
+              <v-avatar :href="`https://github.com/${(item as Job).creator_github_login}`">
+                <v-img
+                  :src="(item as Job).creator_github_avatar_url"
+                ></v-img>
+              </v-avatar>
+            </div>
           </template>
           <template #item.actions="{ item }">
             <v-btn
@@ -192,6 +200,8 @@
     log_url: string;
     elapsed_secs: number;
     creation_time: string;
+    creator_github_login: string;
+    creator_github_avatar_url: string;
   }
 
   export default {

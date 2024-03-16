@@ -1,11 +1,14 @@
 use crate::github::get_crab_github_installation;
-use crate::models::{Job, NewJob, Pipeline};
+use crate::models::{Job, NewJob, Pipeline, User};
 use crate::routes::{AnyhowError, AppState};
 use anyhow::{bail, Context};
 use axum::extract::{Json, Query, State};
 use diesel::connection::{AnsiTransactionManager, TransactionManager};
 use diesel::r2d2::PoolTransactionManager;
-use diesel::{Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl};
+use diesel::{
+    Connection, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, PgConnection, QueryDsl,
+    RunQueryDsl,
+};
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Handle;
 use tracing::{error, warn};
@@ -27,9 +30,15 @@ pub struct JobListResponseItem {
     creation_time: chrono::DateTime<chrono::Utc>,
     log_url: Option<String>,
     build_success: Option<bool>,
+
+    // from pipeline
     git_branch: String,
     git_sha: String,
     github_pr: Option<i64>,
+
+    // from pipeline creator
+    creator_github_login: Option<String>,
+    creator_github_avatar_url: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -52,19 +61,24 @@ pub async fn job_list(
 
             let sql = crate::schema::jobs::dsl::jobs
                 .inner_join(crate::schema::pipelines::dsl::pipelines)
+                .left_join(
+                    crate::schema::users::dsl::users
+                        .on(crate::schema::pipelines::dsl::creator_user_id
+                            .eq(crate::schema::users::dsl::id.nullable())),
+                )
                 .order(crate::schema::jobs::dsl::id.desc());
 
             // all
             let res = if query.items_per_page == -1 {
-                sql.load::<(Job, Pipeline)>(conn)?
+                sql.load::<(Job, Pipeline, Option<User>)>(conn)?
             } else {
                 sql.offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
-                    .load::<(Job, Pipeline)>(conn)?
+                    .load::<(Job, Pipeline, Option<User>)>(conn)?
             };
 
             let mut items = vec![];
-            for (job, pipeline) in res {
+            for (job, pipeline, creator) in res {
                 items.push(JobListResponseItem {
                     id: job.id,
                     pipeline_id: job.pipeline_id,
@@ -75,9 +89,19 @@ pub async fn job_list(
                     creation_time: job.creation_time,
                     log_url: job.log_url,
                     build_success: job.build_success,
+
                     git_branch: pipeline.git_branch,
                     git_sha: pipeline.git_sha,
                     github_pr: pipeline.github_pr,
+
+                    creator_github_login: creator
+                        .as_ref()
+                        .and_then(|user| user.github_login.as_ref())
+                        .cloned(),
+                    creator_github_avatar_url: creator
+                        .as_ref()
+                        .and_then(|user| user.github_avatar_url.as_ref())
+                        .cloned(),
                 });
             }
 
