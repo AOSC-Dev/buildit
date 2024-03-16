@@ -472,19 +472,33 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                         return Ok(());
                                     }
                                     Err(e) => {
-                                        bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}"))
-                                            .await?;
+                                        bot_send_message_handle_length(
+                                            &bot,
+                                            &msg,
+                                            &format!("Failed to open pr: {e:?}"),
+                                        )
+                                        .await?;
                                         return Ok(());
                                     }
                                 }
                             }
                             _ => {
-                                bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}")).await?;
+                                bot_send_message_handle_length(
+                                    &bot,
+                                    &msg,
+                                    &format!("Failed to open pr: {e:?}"),
+                                )
+                                .await?;
                                 return Ok(());
                             }
                         },
                         _ => {
-                            bot_send_message_handle_length(&bot, &msg, &format!("Failed to open pr: {e:?}")).await?;
+                            bot_send_message_handle_length(
+                                &bot,
+                                &msg,
+                                &format!("Failed to open pr: {e:?}"),
+                            )
+                            .await?;
                             return Ok(());
                         }
                     },
