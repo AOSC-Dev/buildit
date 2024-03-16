@@ -79,7 +79,7 @@
                     mdi:mdi-check-circle-outline
                   </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'assigned'">
-                    mdi:mdi-progress-question-outline
+                    mdi:mdi-progress-question
                   </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'error'">
                     mdi:mdi-alert-circle-outline
