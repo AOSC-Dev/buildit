@@ -166,8 +166,6 @@
     job_id: number;
     arch: string;
     status: string;
-    build_success: boolean;
-    pushpkg_success: boolean;
   }
 
   interface Pipeline {
