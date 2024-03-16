@@ -17,7 +17,7 @@
               color="green"
               variant="flat"
               density="comfortable"
-              v-if="(item as Job).status === 'finished' && (item as Job).build_success && (item as Job).pushpkg_success"
+              v-if="(item as Job).status === 'success'"
               prepend-icon="mdi:mdi-check-circle"
               :to="{ path: `/jobs/${(item as Job).id}` }"
               >
@@ -27,7 +27,7 @@
               color="red"
               variant="flat"
               density="comfortable"
-              v-else-if="(item as Job).status === 'finished'"
+              v-else-if="(item as Job).status === 'failed'"
               prepend-icon="mdi:mdi-close-circle"
               :to="{ path: `/jobs/${(item as Job).id}` }"
               >
@@ -156,7 +156,7 @@
               icon="true"
               rounded
               size="x-small"
-              v-if="(item as Job).status === 'finished'"
+              v-if="(item as Job).status === 'failed'"
               style="margin-right: 5px;margin-bottom: 5px;"
               @click="restartJob((item as Job).id)">
               <v-icon>mdi:mdi-restart</v-icon>

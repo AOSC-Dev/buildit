@@ -117,10 +117,10 @@
                 <router-link
                   style="text-decoration: none; color: inherit;"
                   :to="{ path: `/jobs/${(job as Job).job_id}` }">
-                  <v-icon v-if="(job as Job).status === 'finished' && (job as Job).build_success && (job as Job).pushpkg_success">
+                  <v-icon v-if="(job as Job).status === 'success'">
                     mdi:mdi-check-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'finished'">
+                  <v-icon v-else-if="(job as Job).status === 'failed'">
                     mdi:mdi-close-circle-outline
                   </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'running'">

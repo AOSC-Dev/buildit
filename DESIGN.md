@@ -55,13 +55,14 @@ Job status:
 1. created: can be assigned to worker
 2. running: assigned to worker
 3. error: unexpected error
-4. finished: finished, successful(build_success && pushpkg_success) or failed
+4. success: finished, build_success && pushpkg_success
+5. failed: finished, !build_success || !pushpkg_success
 
-Pipeline status is computed from job status, ordered by precedence:
+Pipeline status is computed from job status:
 
 1. error: any job has status `error`
-2. failed: any job has status `finished` and either `build_success` or `pushpkg_success` is false
-3. success: all job has status `finished`, `build_success` and `pushpkg_success` are true
+2. failed: any job has status `failed`, no job has status `error`
+3. success: all job has status `success`
 4. running: otherwise
 
 ## Authentication

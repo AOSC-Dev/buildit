@@ -211,19 +211,19 @@ pub async fn pipeline_list(
                 let mut has_failed = false;
                 let mut has_unfinished = false;
                 for job in &jobs {
-                    match (job.status.as_str(), job.build_success, job.pushpkg_success) {
-                        ("error", _, _) => has_error = true,
-                        ("finished", Some(true), Some(true)) => {
+                    match job.status.as_str() {
+                        "error" => has_error = true,
+                        "success" => {
                             // success
                         }
-                        ("finished", _, _) => {
+                        "failed" => {
                             // failed
                             has_failed = true;
                         }
-                        ("created", _, _) => {
+                        "created" => {
                             has_unfinished = true;
                         }
-                        ("running", _, _) => {
+                        "running" => {
                             has_unfinished = true;
                         }
                         _ => {

@@ -107,7 +107,8 @@ pub async fn dashboard_status(
                 .count()
                 .get_result(conn)?;
             let finished_job_count = crate::schema::jobs::dsl::jobs
-                .filter(crate::schema::jobs::dsl::status.eq("finished"))
+                .filter(crate::schema::jobs::dsl::status.eq("success"))
+                .or_filter(crate::schema::jobs::dsl::status.eq("failed"))
                 .count()
                 .get_result(conn)?;
             let total_worker_count = crate::schema::workers::dsl::workers

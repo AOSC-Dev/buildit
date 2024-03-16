@@ -207,9 +207,9 @@ async fn job_restart_in_transaction(
         .find(job.pipeline_id)
         .get_result::<Pipeline>(conn)?;
 
-    // job must be finished
-    if job.status != "finished" {
-        bail!("Cannot restart the job unless it is finished");
+    // job must be failed
+    if job.status != "failed" {
+        bail!("Cannot restart the job unless it was failed");
     }
 
     // create a new job

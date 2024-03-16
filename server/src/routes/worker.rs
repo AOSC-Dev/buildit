@@ -267,7 +267,11 @@ pub async fn worker_job_update(
         JobResult::Ok(res) => {
             diesel::update(jobs.filter(id.eq(payload.job_id)))
                 .set((
-                    status.eq("finished"),
+                    status.eq(if res.build_success && res.pushpkg_success {
+                        "success"
+                    } else {
+                        "failed"
+                    }),
                     build_success.eq(res.build_success),
                     pushpkg_success.eq(res.pushpkg_success),
                     successful_packages.eq(res.successful_packages.join(",")),

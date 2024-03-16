@@ -175,7 +175,7 @@ fn test_format_html_build_result() {
         arch: "amd64".to_string(),
         creation_time: chrono::Utc
             .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
-        status: "finished".to_string(),
+        status: "success".to_string(),
         github_check_run_id: None,
         build_success: Some(true),
         pushpkg_success: Some(true),
