@@ -1,12 +1,14 @@
 use crate::{
     github::{get_crab_github_installation, get_packages_from_pr},
-    models::{NewJob, NewPipeline, Pipeline, Worker},
+    models::{NewJob, NewPipeline, Pipeline, User, Worker},
     DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
 use buildit_utils::github::{get_archs, update_abbs};
-use diesel::{dsl::count, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper};
+use diesel::{
+    dsl::count, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::warn;
@@ -100,10 +102,18 @@ pub async fn pipeline_new(
         .get()
         .context("Failed to get db connection from pool")?;
     use crate::schema::pipelines;
-    let (source, github_pr, telegram_user) = match source {
-        JobSource::Telegram(id) => ("telegram", github_pr, Some(id)),
-        JobSource::Github(id) => ("github", Some(*id), None),
-        JobSource::Manual => ("manual", github_pr, None),
+    let (source, github_pr, telegram_user, creator_user_id) = match source {
+        JobSource::Telegram(id) => {
+            // lookup user id via telegram chat id
+            let user = crate::schema::users::dsl::users
+                .filter(crate::schema::users::dsl::telegram_chat_id.eq(id))
+                .first::<User>(&mut conn)
+                .optional()?;
+            let creator_user_id = user.map(|user| user.id);
+            ("telegram", github_pr, Some(id), creator_user_id)
+        }
+        JobSource::Github(id) => ("github", Some(*id), None, None),
+        JobSource::Manual => ("manual", github_pr, None, None),
     };
     let new_pipeline = NewPipeline {
         packages: packages.to_string(),
@@ -114,6 +124,7 @@ pub async fn pipeline_new(
         source: source.to_string(),
         github_pr: github_pr.map(|pr| pr as i64),
         telegram_user: telegram_user.copied(),
+        creator_user_id: creator_user_id,
     };
     let pipeline = diesel::insert_into(pipelines::table)
         .values(&new_pipeline)

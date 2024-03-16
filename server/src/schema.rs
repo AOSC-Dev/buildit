@@ -34,6 +34,7 @@ diesel::table! {
         source -> Text,
         github_pr -> Nullable<Int8>,
         telegram_user -> Nullable<Int8>,
+        creator_user_id -> Nullable<Int4>,
     }
 }
 
@@ -62,5 +63,6 @@ diesel::table! {
 }
 
 diesel::joinable!(jobs -> pipelines (pipeline_id));
+diesel::joinable!(pipelines -> users (creator_user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);

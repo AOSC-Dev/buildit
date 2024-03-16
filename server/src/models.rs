@@ -14,6 +14,7 @@ pub struct Pipeline {
     pub source: String,
     pub github_pr: Option<i64>,
     pub telegram_user: Option<i64>,
+    pub creator_user_id: Option<i32>,
 }
 
 #[derive(Insertable)]
@@ -28,6 +29,7 @@ pub struct NewPipeline {
     pub source: String,
     pub github_pr: Option<i64>,
     pub telegram_user: Option<i64>,
+    pub creator_user_id: Option<i32>,
 }
 
 #[derive(Queryable, Selectable, Associations, Identifiable, Debug)]
