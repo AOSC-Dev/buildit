@@ -209,7 +209,7 @@ pub async fn pipeline_list(
             {
                 let mut has_error = false;
                 let mut has_failed = false;
-                let mut has_unfinished = true;
+                let mut has_unfinished = false;
                 for job in &jobs {
                     match (job.status.as_str(), job.build_success, job.pushpkg_success) {
                         ("error", _, _) => has_error = true,
