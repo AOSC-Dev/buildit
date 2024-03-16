@@ -1,16 +1,16 @@
+use crate::models::User;
 use crate::routes::{AnyhowError, AppState};
 use crate::{
     api::{self, JobSource, PipelineStatus},
     models::{Job, Pipeline},
 };
-
 use anyhow::Context;
 use axum::extract::{Json, Query, State};
-
-use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
-
+use diesel::{
+    BelongingToDsl, Connection, ExpressionMethods, GroupedBy, QueryDsl, RunQueryDsl,
+    SelectableHelper,
+};
 use serde::{Deserialize, Serialize};
-
 use teloxide::prelude::*;
 
 #[derive(Deserialize)]
@@ -133,11 +133,27 @@ pub struct PipelineListRequest {
 }
 
 #[derive(Serialize)]
+pub struct PipelineListResponseJob {
+    job_id: i32,
+    arch: String,
+    status: String,
+}
+
+#[derive(Serialize)]
 pub struct PipelineListResponseItem {
     id: i32,
     git_branch: String,
+    git_sha: String,
+    creation_time: chrono::DateTime<chrono::Utc>,
+    github_pr: Option<i64>,
     packages: String,
     archs: String,
+
+    // from pipeline creator
+    creator_github_login: Option<String>,
+    creator_github_avatar_url: Option<String>,
+
+    jobs: Vec<PipelineListResponseJob>,
 }
 
 #[derive(Serialize)]
@@ -160,25 +176,58 @@ pub async fn pipeline_list(
                 .count()
                 .get_result(conn)?;
 
-            let pipelines = if query.items_per_page == -1 {
-                crate::schema::pipelines::dsl::pipelines
-                    .order_by(crate::schema::pipelines::dsl::id)
-                    .load::<Pipeline>(conn)?
+            let sql = crate::schema::pipelines::dsl::pipelines
+                .left_join(crate::schema::users::dsl::users)
+                .order_by(crate::schema::pipelines::dsl::id.desc());
+
+            let res: Vec<(Pipeline, Option<User>)> = if query.items_per_page == -1 {
+                sql.load::<(Pipeline, Option<User>)>(conn)?
             } else {
-                crate::schema::pipelines::dsl::pipelines
-                    .order_by(crate::schema::pipelines::dsl::id)
-                    .offset((query.page - 1) * query.items_per_page)
+                sql.offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
-                    .load::<Pipeline>(conn)?
+                    .load::<(Pipeline, Option<User>)>(conn)?
             };
+            let (pipelines, users): (Vec<Pipeline>, Vec<Option<User>>) = res.into_iter().unzip();
+
+            // get all jobs of these pipelines
+            // and group by pipeline later
+            // see https://diesel.rs/guides/relations.html
+            let jobs = Job::belonging_to(&pipelines)
+                .select(Job::as_select())
+                .load(conn)?;
 
             let mut items = vec![];
-            for pipeline in pipelines {
+            for ((jobs, pipeline), creator) in jobs
+                .grouped_by(&pipelines)
+                .into_iter()
+                .zip(pipelines)
+                .zip(users)
+            {
                 items.push(PipelineListResponseItem {
                     id: pipeline.id,
                     git_branch: pipeline.git_branch,
+                    git_sha: pipeline.git_sha,
                     packages: pipeline.packages,
                     archs: pipeline.archs,
+                    creation_time: pipeline.creation_time,
+                    github_pr: pipeline.github_pr,
+
+                    creator_github_login: creator
+                        .as_ref()
+                        .and_then(|user| user.github_login.as_ref())
+                        .cloned(),
+                    creator_github_avatar_url: creator
+                        .as_ref()
+                        .and_then(|user| user.github_avatar_url.as_ref())
+                        .cloned(),
+                    jobs: jobs
+                        .into_iter()
+                        .map(|job| PipelineListResponseJob {
+                            job_id: job.id,
+                            arch: job.arch,
+                            status: job.status,
+                        })
+                        .collect(),
                 });
             }
 
