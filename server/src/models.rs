@@ -80,6 +80,7 @@ pub struct Worker {
     pub memory_bytes: i64,
     pub logical_cores: i32,
     pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
+    pub disk_free_space_bytes: i64,
 }
 
 #[derive(Insertable, AsChangeset)]
@@ -92,6 +93,7 @@ pub struct NewWorker {
     pub memory_bytes: i64,
     pub logical_cores: i32,
     pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
+    pub disk_free_space_bytes: i64,
 }
 
 #[derive(Queryable, Selectable)]

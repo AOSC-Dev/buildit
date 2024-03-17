@@ -78,6 +78,7 @@
         { title: 'Architecture', key: 'arch', sortable: false },
         { title: 'Logical Cores', key: 'logical_cores', sortable: false },
         { title: 'Memory Size', key: 'memory_bytes', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes) },
+        { title: 'Disk Free Space Size', key: 'disk_free_space_bytes', sortable: false, value: (item: any) => prettyBytes(item.disk_free_space_bytes) },
         { title: 'Status', key: 'status', sortable: false },
       ],
       loading: true,

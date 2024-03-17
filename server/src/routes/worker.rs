@@ -42,6 +42,7 @@ pub struct WorkerListResponseItem {
     arch: String,
     logical_cores: i32,
     memory_bytes: i64,
+    disk_free_space_bytes: i64,
     is_live: bool,
     last_heartbeat_time: DateTime<Utc>,
 }
@@ -87,6 +88,7 @@ pub async fn worker_list(
                     arch: worker.arch,
                     logical_cores: worker.logical_cores,
                     memory_bytes: worker.memory_bytes,
+                    disk_free_space_bytes: worker.disk_free_space_bytes,
                     is_live: worker.last_heartbeat_time > deadline,
                     last_heartbeat_time: worker.last_heartbeat_time,
                 });
@@ -125,6 +127,7 @@ pub async fn worker_heartbeat(
                         git_commit.eq(payload.git_commit),
                         memory_bytes.eq(payload.memory_bytes),
                         logical_cores.eq(payload.logical_cores),
+                        disk_free_space_bytes.eq(payload.disk_free_space_bytes),
                         last_heartbeat_time.eq(chrono::Utc::now()),
                     ))
                     .execute(conn)?;
@@ -136,6 +139,7 @@ pub async fn worker_heartbeat(
                     git_commit: payload.git_commit.clone(),
                     memory_bytes: payload.memory_bytes,
                     logical_cores: payload.logical_cores,
+                    disk_free_space_bytes: payload.disk_free_space_bytes,
                     last_heartbeat_time: chrono::Utc::now(),
                 };
                 diesel::insert_into(crate::schema::workers::table)
@@ -595,6 +599,7 @@ pub struct WorkerInfoResponse {
     memory_bytes: i64,
     logical_cores: i32,
     last_heartbeat_time: chrono::DateTime<chrono::Utc>,
+    disk_free_space_bytes: i64,
 
     // status
     running_job_id: Option<i32>,
@@ -634,6 +639,7 @@ pub async fn worker_info(
                 git_commit: worker.git_commit,
                 memory_bytes: worker.memory_bytes,
                 logical_cores: worker.logical_cores,
+                disk_free_space_bytes: worker.disk_free_space_bytes,
                 last_heartbeat_time: worker.last_heartbeat_time,
 
                 running_job_id: running_job.map(|job| job.id),

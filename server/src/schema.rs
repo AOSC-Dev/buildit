@@ -59,10 +59,16 @@ diesel::table! {
         memory_bytes -> Int8,
         logical_cores -> Int4,
         last_heartbeat_time -> Timestamptz,
+        disk_free_space_bytes -> Int8,
     }
 }
 
 diesel::joinable!(jobs -> pipelines (pipeline_id));
 diesel::joinable!(pipelines -> users (creator_user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);
+diesel::allow_tables_to_appear_in_same_query!(
+    jobs,
+    pipelines,
+    users,
+    workers,
+);

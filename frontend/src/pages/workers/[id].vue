@@ -12,6 +12,8 @@
         <br/>
         Memory size: {{ worker.memory_bytes !== undefined && prettyBytes(worker.memory_bytes) }}
         <br/>
+        Disk free space size: {{ worker.disk_free_space_bytes !== undefined && prettyBytes(worker.disk_free_space_bytes) }}
+        <br/>
         Logical cores: {{ worker.logical_cores }}
         <br/>
         Last heartbeat time: {{ worker.last_heartbeat_time }}
@@ -45,6 +47,7 @@
     git_commit: string;
     memory_bytes: number;
     logical_cores: number;
+    disk_free_space_bytes: number;
     last_heartbeat_time: string;
     running_job_id: number;
     built_job_count: number;
