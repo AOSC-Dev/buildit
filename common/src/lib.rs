@@ -5,6 +5,9 @@ pub struct WorkerPollRequest {
     pub hostname: String,
     pub arch: String,
     pub worker_secret: String,
+    pub memory_bytes: i64,
+    pub logical_cores: i32,
+    pub disk_free_space_bytes: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,6 +25,7 @@ pub struct WorkerHeartbeatRequest {
     pub git_commit: String,
     pub memory_bytes: i64,
     pub logical_cores: i32,
+    pub disk_free_space_bytes: i64,
     pub worker_secret: String,
 }
 

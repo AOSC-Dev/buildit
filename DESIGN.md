@@ -78,3 +78,12 @@ User roles:
 1. Anonymous: not logged-in
 2. Guest: logged-in, but not in AOSC-Dev GitHub organization
 3. Developer: loggined and in AOSC-Dev GitHub organization
+
+## Machine filter
+
+ENVREQ in package spec file, space-separated filters that are AND-ed:
+
+1. big_job: assign to big machines (what is BIG?)
+2. core_mem=4: minimum memory size in GiB to logical core count ratio
+3. total_mem=128: minimum memory size in GiB
+4. dist=128: minimum free disk space in GiB
