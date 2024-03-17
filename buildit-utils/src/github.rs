@@ -4,7 +4,6 @@ use gix::{
     prelude::ObjectIdExt, sec, sec::trust::DefaultForLevel, Repository, ThreadSafeRepository,
 };
 use jsonwebtoken::EncodingKey;
-use log::{debug, error, info};
 use octocrab::{models::pulls::PullRequest, params};
 use std::{
     borrow::Cow,
@@ -15,6 +14,7 @@ use std::{
     process::Output,
 };
 use tokio::{process, task};
+use tracing::{debug, error, info};
 use walkdir::WalkDir;
 
 use crate::{
@@ -269,6 +269,7 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
 }
 
 /// Update ABBS tree commit logs
+#[tracing::instrument(skip(abbs_path))]
 pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow::Result<()> {
     info!("Running git checkout -b stable ...");
 

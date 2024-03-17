@@ -23,6 +23,7 @@ pub enum JobSource {
     Manual,
 }
 
+#[tracing::instrument(skip(pool))]
 pub async fn pipeline_new(
     pool: DbPool,
     git_branch: &str,

@@ -10,7 +10,7 @@ use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;
-use tracing::warn;
+use tracing::{info_span, warn};
 
 use std::borrow::Cow;
 use teloxide::{

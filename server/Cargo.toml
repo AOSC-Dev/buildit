@@ -27,8 +27,12 @@ jsonwebtoken = "9.2.0"
 size = "0.4.1"
 dickens = { git = "https://github.com/AOSC-Dev/dickens.git", version = "0.1.0" }
 axum = "0.7.4"
-tracing-subscriber = "0.3.18"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = "0.1.40"
 tower-http = { version = "0.5.2", features = ["trace", "fs", "cors"] }
 diesel = { version = "2.1.4", features = ["postgres", "chrono", "r2d2", "bigdecimal", "numeric"] }
 bigdecimal = { version = "0.4.3", features = ["serde"] }
+opentelemetry = "0.22.0"
+tracing-opentelemetry = "0.23.0"
+opentelemetry-otlp = { version = "0.15.0", features = ["http-proto", "reqwest-client"] }
+opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio"] }

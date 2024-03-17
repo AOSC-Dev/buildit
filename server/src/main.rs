@@ -5,6 +5,10 @@ use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use opentelemetry::KeyValue;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::trace;
+use opentelemetry_sdk::Resource;
 use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
@@ -17,12 +21,43 @@ use server::{DbPool, ARGS};
 use teloxide::prelude::*;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tracing::info_span;
+use tracing::{info_span, Instrument};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::Registry;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
-    tracing_subscriber::fmt::init();
+    // setup opentelemetry
+    if let Some(otlp_url) = &ARGS.otlp_url {
+        // setup otlp
+        let exporter = opentelemetry_otlp::new_exporter()
+            .http()
+            .with_endpoint(otlp_url);
+        let otlp_tracer =
+            opentelemetry_otlp::new_pipeline()
+                .tracing()
+                .with_trace_config(trace::config().with_resource(Resource::new(vec![
+                    KeyValue::new("service.name", "buildit"),
+                ])))
+                .with_exporter(exporter)
+                .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+
+        // let tracing crate output to opentelemetry
+        let tracing_leyer = tracing_opentelemetry::layer().with_tracer(otlp_tracer);
+        let subscriber = Registry::default();
+        // respect RUST_LOG
+        let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
+        subscriber
+            .with(env_filter)
+            .with(tracing_leyer)
+            .with(tracing_subscriber::fmt::Layer::default())
+            .init();
+    } else {
+        // fallback to stdout
+        tracing_subscriber::fmt::init();
+    }
 
     tracing::info!("Connecting to database");
     let manager = ConnectionManager::<PgConnection>::new(&ARGS.database_url);
@@ -36,7 +71,9 @@ async fn main() -> anyhow::Result<()> {
         let handler =
             Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(
                 |bot: Bot, pool: DbPool, msg: Message, cmd: Command| async move {
-                    answer(bot, msg, cmd, pool).await
+                    answer(bot, msg, cmd, pool)
+                        .instrument(info_span!("answer_telegram_message"))
+                        .await
                 },
             ));
 

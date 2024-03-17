@@ -48,6 +48,10 @@ pub struct Args {
     /// Development mode
     #[arg(env = "BUILDIT_DEVELOPMENT")]
     pub development_mode: Option<bool>,
+
+    /// OpenTelemetry
+    #[arg(env = "BUILDIT_OTLP")]
+    pub otlp_url: Option<String>,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
