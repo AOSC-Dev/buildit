@@ -810,12 +810,25 @@ dependencies = [
  "byteorder",
  "chrono",
  "diesel_derives",
+ "ipnetwork",
  "itoa 1.0.10",
+ "libc",
  "num-bigint",
  "num-integer",
  "num-traits",
  "pq-sys",
  "r2d2",
+]
+
+[[package]]
+name = "diesel-tracing"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "059a68707299bab4730b5c4370798d27b5005f24c7efa830c983009cc2dcbab6"
+dependencies = [
+ "diesel",
+ "ipnetwork",
+ "tracing",
 ]
 
 [[package]]
@@ -2040,6 +2053,15 @@ name = "ipnet"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
+
+[[package]]
+name = "ipnetwork"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "iri-string"
@@ -3297,6 +3319,7 @@ dependencies = [
  "console",
  "dickens",
  "diesel",
+ "diesel-tracing",
  "dotenv",
  "env_logger",
  "futures",
