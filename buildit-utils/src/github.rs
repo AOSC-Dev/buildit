@@ -115,6 +115,7 @@ pub async fn open_pr(
     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
 }
 
+#[tracing::instrument(skip(p))]
 fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
     let mut res = vec![];
 
@@ -422,6 +423,7 @@ pub fn get_repo(path: &Path) -> anyhow::Result<Repository> {
 }
 
 /// Open Pull Request
+#[tracing::instrument(skip(pr))]
 async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
     let OpenPR {
         access_token,

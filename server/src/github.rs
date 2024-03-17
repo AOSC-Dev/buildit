@@ -31,6 +31,7 @@ pub async fn login_github(
         .and_then(|x| x.error_for_status())
 }
 
+#[tracing::instrument(skip(secret))]
 pub async fn get_github_token(msg_chatid: &ChatId, secret: &str) -> anyhow::Result<GithubToken> {
     let client = reqwest::Client::new();
     let resp = client

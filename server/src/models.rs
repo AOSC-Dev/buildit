@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use serde::Serialize;
 
-#[derive(Queryable, Selectable, Identifiable)]
+#[derive(Queryable, Selectable, Identifiable, Debug)]
 #[diesel(table_name = crate::schema::pipelines)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Pipeline {

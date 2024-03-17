@@ -304,6 +304,7 @@ pub enum HandleSuccessResult {
     DoNotRetry,
 }
 
+#[tracing::instrument(skip(bot))]
 pub async fn handle_success_message(
     job: &Job,
     pipeline: &Pipeline,
