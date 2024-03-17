@@ -1,6 +1,8 @@
 use clap::Parser;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel_tracing::pg::InstrumentedPgConnection;
+use diesel::{
+    r2d2::{ConnectionManager, Pool},
+    PgConnection,
+};
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
 
@@ -14,8 +16,7 @@ pub mod recycler;
 pub mod routes;
 pub mod schema;
 
-pub type DbConnection = InstrumentedPgConnection;
-pub type DbPool = Pool<ConnectionManager<DbConnection>>;
+pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

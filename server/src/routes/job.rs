@@ -1,13 +1,13 @@
 use crate::github::get_crab_github_installation;
 use crate::models::{Job, NewJob, Pipeline, User};
 use crate::routes::{AnyhowError, AppState};
-use crate::DbConnection;
 use anyhow::{bail, Context};
 use axum::extract::{Json, Query, State};
 use diesel::connection::{AnsiTransactionManager, TransactionManager};
 use diesel::r2d2::PoolTransactionManager;
 use diesel::{
-    Connection, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl, RunQueryDsl,
+    Connection, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, PgConnection, QueryDsl,
+    RunQueryDsl,
 };
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -198,7 +198,7 @@ pub struct JobRestartResponse {
 }
 async fn job_restart_in_transaction(
     payload: &JobRestartRequest,
-    conn: &mut DbConnection,
+    conn: &mut PgConnection,
 ) -> anyhow::Result<Job> {
     let job = crate::schema::jobs::dsl::jobs
         .find(payload.job_id)

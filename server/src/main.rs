@@ -2,6 +2,7 @@ use axum::extract::MatchedPath;
 use axum::http::Method;
 use axum::routing::post;
 use axum::{routing::get, Router};
+use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use opentelemetry::KeyValue;
@@ -16,7 +17,6 @@ use server::routes::{
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
-use server::DbConnection;
 use server::{DbPool, ARGS};
 use teloxide::prelude::*;
 use tower_http::cors::{Any, CorsLayer};
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     tracing::info!("Connecting to database");
-    let manager = ConnectionManager::<DbConnection>::new(&ARGS.database_url);
+    let manager = ConnectionManager::<PgConnection>::new(&ARGS.database_url);
     let pool = Pool::builder().test_on_check_out(true).build(manager)?;
 
     let mut handles = vec![];
