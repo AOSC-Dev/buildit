@@ -19,7 +19,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 
-#[derive(BotCommands, Clone)]
+#[derive(BotCommands, Clone, Debug)]
 #[command(
     rename_rule = "lowercase",
     description = "BuildIt! supports the following commands:"
@@ -105,6 +105,7 @@ pub struct QAResponse {
     packages: Vec<QAResponsePackage>,
 }
 
+#[tracing::instrument(skip(bot, pool, msg))]
 async fn pipeline_new_and_report(
     bot: &Bot,
     pool: DbPool,
@@ -146,6 +147,7 @@ async fn pipeline_new_and_report(
     Ok(())
 }
 
+#[tracing::instrument(skip(pool, access_token))]
 async fn sync_github_info_inner(
     pool: DbPool,
     telegram_chat: ChatId,
@@ -196,6 +198,7 @@ async fn sync_github_info_inner(
     Ok(())
 }
 
+#[tracing::instrument(skip(pool, access_token))]
 async fn sync_github_info(pool: DbPool, telegram_chat_id: ChatId, access_token: String) {
     if let Err(err) = sync_github_info_inner(pool, telegram_chat_id, access_token).await {
         warn!(
@@ -205,6 +208,7 @@ async fn sync_github_info(pool: DbPool, telegram_chat_id: ChatId, access_token: 
     }
 }
 
+#[tracing::instrument(skip(bot, msg, pool))]
 pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
         .await?;

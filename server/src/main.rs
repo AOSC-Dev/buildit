@@ -21,7 +21,7 @@ use server::{DbPool, ARGS};
 use teloxide::prelude::*;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tracing::{info_span, Instrument};
+use tracing::info_span;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
@@ -71,9 +71,7 @@ async fn main() -> anyhow::Result<()> {
         let handler =
             Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(
                 |bot: Bot, pool: DbPool, msg: Message, cmd: Command| async move {
-                    answer(bot, msg, cmd, pool)
-                        .instrument(info_span!("answer_telegram_message"))
-                        .await
+                    answer(bot, msg, cmd, pool).await
                 },
             ));
 

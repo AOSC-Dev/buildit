@@ -186,6 +186,7 @@ pub async fn pipeline_new(
     Ok(pipeline)
 }
 
+#[tracing::instrument(skip(pool))]
 pub async fn pipeline_new_pr(
     pool: DbPool,
     pr: u64,
