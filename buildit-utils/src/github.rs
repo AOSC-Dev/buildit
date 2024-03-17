@@ -88,15 +88,21 @@ pub async fn open_pr(
     update_abbs(&git_ref, &abbs_path).await?;
     let abbs_path_clone = abbs_path.clone();
 
-    let commits = task::spawn_blocking(move || get_commits(abbs_path.as_ref())).await??;
-    let commits = task::spawn_blocking(move || handle_commits(&commits)).await??;
+    let commits = task::spawn_blocking(move || get_commits(abbs_path.as_ref()))
+        .instrument(info_span!("get_commits"))
+        .await??;
+    let commits = task::spawn_blocking(move || handle_commits(&commits))
+        .instrument(info_span!("handle_commits"))
+        .await??;
     let pkgs = packages
         .split(',')
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
 
     let pkg_affected =
-        task::spawn_blocking(move || find_version_by_packages(&pkgs, &abbs_path_clone)).await??;
+        task::spawn_blocking(move || find_version_by_packages(&pkgs, &abbs_path_clone))
+            .instrument(info_span!("find_version_by_packages"))
+            .await??;
 
     let pr = open_pr_inner(OpenPR {
         access_token: access_token.to_string(),
@@ -181,7 +187,6 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
 }
 
 /// Describe new commits for pull request
-#[tracing::instrument(skip(commits))]
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     let mut s = String::new();
     for (i, c) in commits.iter().enumerate() {
@@ -218,7 +223,6 @@ struct Commit {
 }
 
 /// Compute new commits on top of stable
-#[tracing::instrument(skip(path))]
 fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     let mut res = vec![];
     let repo = get_repo(path)?;
