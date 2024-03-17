@@ -14,6 +14,7 @@ pub struct GithubToken {
     pub token_type: String,
 }
 
+#[tracing::instrument(skip(msg, arguments))]
 pub async fn login_github(
     msg: &Message,
     arguments: String,
@@ -67,6 +68,7 @@ pub fn get_packages_from_pr(pr: &PullRequest) -> Vec<String> {
 }
 
 /// Create octocrab instance authenticated as github installation
+#[tracing::instrument]
 pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> {
     if let Some(id) = ARGS
         .github_app_id

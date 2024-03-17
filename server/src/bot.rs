@@ -10,14 +10,13 @@ use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;
-use tracing::warn;
-
 use std::borrow::Cow;
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
+use tracing::{info_span, warn, Instrument};
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(
@@ -66,6 +65,7 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     archs
 }
 
+#[tracing::instrument(skip(pool))]
 async fn status(pool: DbPool) -> anyhow::Result<String> {
     let mut res = String::from("__*Queue Status*__\n\n");
 
@@ -676,6 +676,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
     Ok(())
 }
 
+#[tracing::instrument(skip(bot, msg))]
 async fn bot_send_message_handle_length(
     bot: &Bot,
     msg: &Message,

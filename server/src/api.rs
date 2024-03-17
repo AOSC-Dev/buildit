@@ -260,6 +260,7 @@ pub struct PipelineStatus {
     pub available_servers: u64,
 }
 
+#[tracing::instrument(skip(pool))]
 pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>> {
     let mut conn = pool
         .get()
@@ -313,6 +314,7 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
     Ok(res)
 }
 
+#[tracing::instrument(skip(pool))]
 pub async fn worker_status(pool: DbPool) -> anyhow::Result<Vec<Worker>> {
     let mut conn = pool
         .get()
