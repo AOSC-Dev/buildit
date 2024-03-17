@@ -14,7 +14,7 @@ use std::{
     process::Output,
 };
 use tokio::{process, task};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, info_span, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
@@ -41,6 +41,7 @@ struct OpenPR<'a> {
     archs: &'a [&'a str],
 }
 
+#[derive(Debug)]
 pub struct OpenPRRequest<'a> {
     pub git_ref: String,
     pub abbs_path: PathBuf,
@@ -64,6 +65,7 @@ pub enum OpenPRError {
     Anyhow(#[from] anyhow::Error),
 }
 
+#[tracing::instrument(skip(app_private_key_path, access_token, app_id))]
 pub async fn open_pr(
     app_private_key_path: &Path,
     access_token: &str,
@@ -178,6 +180,7 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
 }
 
 /// Describe new commits for pull request
+#[tracing::instrument(skip(commits))]
 fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     let mut s = String::new();
     for (i, c) in commits.iter().enumerate() {
@@ -214,6 +217,7 @@ struct Commit {
 }
 
 /// Compute new commits on top of stable
+#[tracing::instrument(skip(path))]
 fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
     let mut res = vec![];
     let repo = get_repo(path)?;
@@ -281,6 +285,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg("stable")
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_checkout_to_stable"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -292,6 +297,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg("stable")
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_checkout_to_stable"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -302,6 +308,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg("pull")
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_pull"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -314,6 +321,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg(git_ref)
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_fetch_origin"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -330,6 +338,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg(git_ref)
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_checkout_branch"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -341,6 +350,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .arg(git_ref)
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_checkout_branch"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -355,6 +365,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
         .args(["reset", "FETCH_HEAD", "--hard"])
         .current_dir(abbs_path)
         .output()
+        .instrument(info_span!("git_reset_head"))
         .await?;
 
     print_stdout_and_stderr(&output);
@@ -630,6 +641,7 @@ fn format_archs(archs: &[&str]) -> String {
     s
 }
 
+#[tracing::instrument(skip(p))]
 pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     let mut is_noarch = vec![];
     let mut fail_archs = vec![];
