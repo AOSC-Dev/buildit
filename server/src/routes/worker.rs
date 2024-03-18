@@ -457,7 +457,7 @@ pub async fn handle_success_message(
                 {
                     Ok(pr) => pr,
                     Err(e) => {
-                        error!("Failed to get pr info: {e}");
+                        error!("Failed to get pr info: {e:?}");
                         return update_retry(retry);
                     }
                 };

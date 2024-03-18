@@ -16,7 +16,7 @@ use teloxide::{
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
-use tracing::warn;
+use tracing::{warn, Instrument};
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(
@@ -211,6 +211,8 @@ async fn sync_github_info(pool: DbPool, telegram_chat_id: ChatId, access_token: 
 #[tracing::instrument(skip(bot, msg, pool))]
 pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
+        .send()
+        .instrument(tracing::info_span!("send_chat_action"))
         .await?;
     match cmd {
         Command::Help => {
@@ -278,10 +280,16 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                             )
                             .parse_mode(ParseMode::Html)
                             .disable_web_page_preview(true)
+                            .send()
+                            .instrument(tracing::info_span!("send_message"))
                             .await?;
                         }
                         Err(err) => {
-                            bot.send_message(msg.chat.id, format!("{err}")).await?;
+                            bot.send_message(
+                                msg.chat.id,
+                                format!("Failed to create pipeline from pr: {err:?}"),
+                            )
+                            .await?;
                         }
                     }
                 }

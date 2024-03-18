@@ -248,7 +248,7 @@ pub async fn pipeline_new_pr(
                 ))
             }
         }
-        Err(err) => Err(anyhow!("Failed to get pr info: {err}")),
+        Err(err) => Err(anyhow!("Failed to get pr info: {err:?}")),
     }
 }
 
