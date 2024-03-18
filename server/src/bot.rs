@@ -16,7 +16,7 @@ use teloxide::{
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
-use tracing::{info_span, warn, Instrument};
+use tracing::warn;
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(

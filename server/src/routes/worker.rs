@@ -208,6 +208,32 @@ pub async fn worker_poll(
         }
     })? {
         Some((pipeline, job)) => {
+            // update github check run status to in-progress
+            if let Some(github_check_run_id) = job.github_check_run_id {
+                tokio::spawn(async move {
+                    if let Ok(Some(crab)) = get_crab_github_installation().await {
+                        let output = CheckRunOutput {
+                            title: format!("Running on {}", payload.hostname),
+                            summary: String::new(),
+                            text: None,
+                            annotations: vec![],
+                            images: vec![],
+                        };
+                        if let Err(err) = crab
+                            .checks("AOSC-Dev", "aosc-os-abbs")
+                            .update_check_run(CheckRunId(github_check_run_id as u64))
+                            .status(octocrab::params::checks::CheckRunStatus::InProgress)
+                            .output(output)
+                            .details_url(format!("https://buildit.aosc.io/jobs/{}", job.id))
+                            .send()
+                            .await
+                        {
+                            warn!("Failed to update check run: {}", err);
+                        }
+                    }
+                });
+            }
+
             // job allocated
             Ok(Json(Some(WorkerPollResponse {
                 job_id: job.id,
