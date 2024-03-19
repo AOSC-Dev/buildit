@@ -10,10 +10,9 @@ Steps (as root):
 1. `mkdir -p /buildroots/buildit`
 2. `cd /buildroots/buildit && git clone https://github.com/AOSC-Dev/buildit`
 3. `cd /buildroots/buildit && ciel new`, making sure to create an instance named "main" when asked
-4. `echo 'nspawn-extra-options = ["-E", "NO_COLOR=1"]' >> .ciel/data/config.toml` to disable colored logging
-5. `cp /buildroots/buildit/buildit/systemd/buildit-worker.service /etc/systemd/system`
-6. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH
-7. `$EDITOR /buildroots/buildit/buildit/.env`: set BUILDIT_SERVER, BUILDIT_WORKER_SECRET and BUILDIT_SSH_KEY; for workers in China, optionally update BUILDIT_RSYNC_HOST to repo-cn.aosc.io
+4. `cp /buildroots/buildit/buildit/systemd/buildit-worker.service /etc/systemd/system`
+5. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH
+6. `$EDITOR /buildroots/buildit/buildit/.env`: set BUILDIT_SERVER, BUILDIT_WORKER_SECRET and BUILDIT_SSH_KEY; for workers in China, optionally update BUILDIT_RSYNC_HOST to repo-cn.aosc.io
 7. `systemctl enable --now buildit-worker`
 8. `chmod 600 /buildroots/buildit/buildit/.env`
 9. Setup SSH key of AOSC Maintainers at the location of BUILDIT_SSH_KEY
