@@ -61,8 +61,23 @@
           Failed to push package to repo
           <br/>
         </div>
+        <v-btn
+          icon="true"
+          rounded
+          size="x-small"
+          v-if="job.status === 'failed'"
+          style="margin-top: 5px;margin-bottom: 5px;"
+          @click="restartJob(job.job_id)">
+          <v-icon>mdi:mdi-restart</v-icon>
+          <v-tooltip activator="parent" location="bottom">
+            Restart
+          </v-tooltip>
+        </v-btn>
       </v-card-text>
     </v-card>
+    <v-snackbar v-model="jobRestartSnackbar" timeout="2000">
+      Job restarted as #{{ newJobID }}
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -102,12 +117,21 @@
       this.fetchData();
     },
     data: () => ({
-      job: {} as JobInfoResponse
+      job: {} as JobInfoResponse,
+      jobRestartSnackbar: false,
+      newJobID: 0,
     }),
     methods: {
       async fetchData() {
         let job_id = (this.$route.params as { id: string }).id;
         this.job = (await axios.get(hostname + `/api/job/info?job_id=${job_id}`)).data;
+      },
+      async restartJob (id: number) {
+        let data = (await axios.post(hostname + `/api/job/restart`, {
+          job_id: id,
+        })).data;
+        this.newJobID = data.job_id;
+        this.jobRestartSnackbar = true;
       }
     }
   }
