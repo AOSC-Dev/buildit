@@ -52,6 +52,10 @@ pub struct Args {
     /// OpenTelemetry
     #[arg(env = "BUILDIT_OTLP")]
     pub otlp_url: Option<String>,
+
+    /// Local repo path if available
+    #[arg(env = "BUILDIT_REPO_PATH")]
+    pub local_repo: Option<PathBuf>,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);

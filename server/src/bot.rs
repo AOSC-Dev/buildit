@@ -570,7 +570,12 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
 
                 // get topic of pr
                 match crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_number).await {
-                    Ok(pr) => match dickens::topic::report(pr.head.ref_field.as_str()).await {
+                    Ok(pr) => match dickens::topic::report(
+                        pr.head.ref_field.as_str(),
+                        ARGS.local_repo.clone(),
+                    )
+                    .await
+                    {
                         Ok(report) => {
                             // post report as github comment
                             match crab

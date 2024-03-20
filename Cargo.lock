@@ -783,7 +783,7 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#e40429509f83e89c69c5668858f2879869ab1362"
+source = "git+https://github.com/AOSC-Dev/dickens.git#44f8e3453244ec9964fd1c541fea230d2d9ec4d2"
 dependencies = [
  "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs)",
  "anyhow",
