@@ -414,7 +414,6 @@ dependencies = [
  "gix-features",
  "jsonwebtoken",
  "octocrab",
- "reqwest",
  "thiserror",
  "tokio",
  "tracing",
@@ -547,7 +546,6 @@ dependencies = [
  "dialoguer",
  "dirs-next",
  "eyre",
- "reqwest",
  "serde",
  "serde_json",
  "tokio",
@@ -578,8 +576,6 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 name = "common"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "chrono",
  "serde",
 ]
 
@@ -783,7 +779,7 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#44f8e3453244ec9964fd1c541fea230d2d9ec4d2"
+source = "git+https://github.com/AOSC-Dev/dickens.git#3009ed0489db056b7ce05f89782c49fa05f32e6b"
 dependencies = [
  "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs)",
  "anyhow",
@@ -3308,7 +3304,6 @@ dependencies = [
  "dickens",
  "diesel",
  "dotenv",
- "env_logger",
  "futures",
  "jsonwebtoken",
  "octocrab",
@@ -4578,7 +4573,6 @@ dependencies = [
  "dotenv",
  "env_logger",
  "fs2",
- "futures",
  "gethostname",
  "log",
  "num_cpus",
