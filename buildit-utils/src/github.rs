@@ -503,7 +503,7 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
     let pr = crab
         .pulls("AOSC-Dev", "aosc-os-abbs")
         .create(title, head, "stable")
-        .draft(false)
+        .draft(true)
         .maintainer_can_modify(true)
         .body(&body)
         .send()
