@@ -23,8 +23,23 @@
                       :hide-details="true">
                     </v-checkbox>
                   </v-col>
+                  <v-col class="pa-0">
+                    <v-checkbox
+                      v-model="autoRefresh"
+                      label="Auto Refresh"
+                      :hide-details="true">
+                    </v-checkbox>
+                  </v-col>
                   <v-spacer></v-spacer>
                   <v-col class="d-flex align-end justify-end">
+                    <v-progress-circular
+                      :model-value="countdown * 10 / 1"
+                      size="36"
+                      color="blue"
+                      style="margin-right: 20px;"
+                      v-if="autoRefresh">
+                      <template v-slot:default> {{ countdown }}s </template>
+                    </v-progress-circular>
                     <v-btn @click="loadItems">Refresh</v-btn>
                   </v-col>
                 </v-row>
@@ -192,11 +207,6 @@
 
   TimeAgo.addDefaultLocale(en)
 
-  interface LoadItemsOpts {
-    page: number;
-    itemsPerPage: number;
-  }
-
   interface Job {
     job_id: number;
     arch: string;
@@ -233,15 +243,47 @@
         loading: true,
         totalItems: 999999,
         serverItems: [],
+        autoRefresh: this.$route.query.auto_refresh === "true",
+        intervalHandle: null as any,
+        countdown: 0,
       };
     },
+    watch: {
+      autoRefresh(newValue) {
+        if (newValue) {
+          this.startAutoRefresh();
+        } else {
+          clearInterval(this.intervalHandle);
+        }
+
+        this.$router.push({path: this.$route.path, query: {
+          page: String(this.page),
+          items_per_page: String(this.itemsPerPage),
+          stable_only: String(this.stableOnly),
+          github_pr_only: String(this.githubPROnly),
+          auto_refresh: String(this.autoRefresh)
+        } });
+      }
+    },
     methods: {
+      startAutoRefresh() {
+        this.countdown = 10;
+        this.intervalHandle = setInterval(() => {
+          if (this.countdown == 0) {
+            clearInterval(this.intervalHandle);
+            this.loadItems();
+          } else {
+            this.countdown = this.countdown - 1;
+          }
+        }, 1000);
+      },
       async loadItems () {
         this.$router.push({path: this.$route.path, query: {
           page: String(this.page),
           items_per_page: String(this.itemsPerPage),
           stable_only: String(this.stableOnly),
-          github_pr_only: String(this.githubPROnly)
+          github_pr_only: String(this.githubPROnly),
+          auto_refresh: String(this.autoRefresh)
         } });
 
         this.loading = true;
@@ -249,6 +291,10 @@
         this.totalItems = data.total_items;
         this.serverItems = data.items;
         this.loading = false;
+
+        if (this.autoRefresh) {
+          this.startAutoRefresh();
+        }
       }
     }
   }
