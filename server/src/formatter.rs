@@ -151,7 +151,7 @@ fn test_format_html_new_pipeline_summary() {
 
 #[test]
 fn test_format_html_build_result() {
-    use chrono::TimeZone;
+    use chrono::DateTime;
     use common::JobOk;
 
     let pipeline = Pipeline {
@@ -160,8 +160,7 @@ fn test_format_html_build_result() {
         archs: "amd64".to_string(),
         git_branch: "fd-9.0.0".to_string(),
         git_sha: "34acef168fc5ec454d3825fc864964951b130b49".to_string(),
-        creation_time: chrono::Utc
-            .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
+        creation_time: DateTime::from_timestamp(61, 0).unwrap(),
         source: "telegram".to_string(),
         github_pr: Some(4992),
         telegram_user: None,
@@ -173,8 +172,7 @@ fn test_format_html_build_result() {
         pipeline_id: 1,
         packages: "fd".to_string(),
         arch: "amd64".to_string(),
-        creation_time: chrono::Utc
-            .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
+        creation_time: DateTime::from_timestamp(61, 0).unwrap(),
         status: "success".to_string(),
         github_check_run_id: None,
         build_success: Some(true),
@@ -183,10 +181,7 @@ fn test_format_html_build_result() {
         failed_package: None,
         skipped_packages: Some("".to_string()),
         log_url: Some("https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw".to_string()),
-        finish_time: Some(
-            chrono::Utc
-                .from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(61, 0).unwrap()),
-        ),
+        finish_time: Some(DateTime::from_timestamp(61, 0).unwrap()),
         error_message: None,
         elapsed_secs: Some(888),
         assigned_worker_id: Some(1),
