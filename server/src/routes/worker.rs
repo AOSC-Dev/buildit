@@ -23,6 +23,7 @@ use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQuer
 use octocrab::models::CheckRunId;
 use octocrab::params::checks::CheckRunConclusion;
 use octocrab::params::checks::CheckRunOutput;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use teloxide::types::ChatId;
@@ -328,6 +329,9 @@ pub async fn worker_job_update(
     Ok(())
 }
 
+static GITHUB_PR_CHECKLIST_LOCK: Lazy<tokio::sync::Mutex<()>> =
+    Lazy::new(|| tokio::sync::Mutex::new(()));
+
 pub enum HandleSuccessResult {
     Ok,
     Retry(u8),
@@ -450,6 +454,8 @@ pub async fn handle_success_message(
                 */
 
                 // update checklist
+                // the operation is not atomic, so we use lock to avoid racing
+                let _lock = GITHUB_PR_CHECKLIST_LOCK.lock().await;
                 let pr = match crab
                     .pulls("AOSC-Dev", "aosc-os-abbs")
                     .get(pr_num as u64)
