@@ -130,6 +130,8 @@ pub async fn pipeline_info(
 pub struct PipelineListRequest {
     page: i64,
     items_per_page: i64,
+    stable_only: bool,
+    github_pr_only: bool,
 }
 
 #[derive(Serialize)]
@@ -177,9 +179,17 @@ pub async fn pipeline_list(
                 .count()
                 .get_result(conn)?;
 
-            let sql = crate::schema::pipelines::dsl::pipelines
+            let mut sql = crate::schema::pipelines::dsl::pipelines
                 .left_join(crate::schema::users::dsl::users)
-                .order_by(crate::schema::pipelines::dsl::id.desc());
+                .order_by(crate::schema::pipelines::dsl::id.desc())
+                .into_boxed();
+
+            if query.stable_only {
+                sql = sql.filter(crate::schema::pipelines::dsl::git_branch.eq("stable"));
+            }
+            if query.github_pr_only {
+                sql = sql.filter(crate::schema::pipelines::dsl::github_pr.is_not_null());
+            }
 
             let res: Vec<(Pipeline, Option<User>)> = if query.items_per_page == -1 {
                 sql.load::<(Pipeline, Option<User>)>(conn)?

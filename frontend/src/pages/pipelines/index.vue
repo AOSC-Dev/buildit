@@ -2,8 +2,43 @@
   <v-container>
     <v-row>
       <v-col>
+        <v-expansion-panels>
+          <v-expansion-panel title="Pipelines">
+            <v-expansion-panel-text>
+              <v-container class="pa-0">
+                <v-row class="pa-0">
+                  <v-col class="pa-0">
+                    <v-checkbox
+                      v-model="stableOnly"
+                      label="Stable Branch Only"
+                      @update:model-value="loadItems"
+                      :hide-details="true">
+                    </v-checkbox>
+                  </v-col>
+                  <v-col class="pa-0">
+                    <v-checkbox
+                      v-model="githubPROnly"
+                      label="GitHub PR Only"
+                      @update:model-value="loadItems"
+                      :hide-details="true">
+                    </v-checkbox>
+                  </v-col>
+                  <v-spacer></v-spacer>
+                  <v-col class="d-flex align-end justify-end">
+                    <v-btn @click="loadItems">Refresh</v-btn>
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
         <v-data-table-server
-          :items-per-page="itemsPerPage"
+          v-model:items-per-page="itemsPerPage"
+          v-model:page="page"
           :headers="headers"
           :items="serverItems"
           :items-length="totalItems"
@@ -184,6 +219,7 @@
 
   export default {
     data: () => ({
+      page: 1,
       itemsPerPage: 25,
       headers: [
         { title: 'Status', key: 'status', sortable: false },
@@ -193,12 +229,14 @@
       ],
       loading: true,
       totalItems: 0,
-      serverItems: []
+      serverItems: [],
+      stableOnly: false,
+      githubPROnly: false,
     }),
     methods: {
-      async loadItems (opts: LoadItemsOpts) {
+      async loadItems () {
         this.loading = true;
-        let data = (await axios.get(hostname + `/api/pipeline/list?page=${opts.page}&items_per_page=${opts.itemsPerPage}`)).data;
+        let data = (await axios.get(hostname + `/api/pipeline/list?page=${this.page}&items_per_page=${this.itemsPerPage}&stable_only=${this.stableOnly}&github_pr_only=${this.githubPROnly}`)).data;
         this.totalItems = data.total_items;
         this.serverItems = data.items;
         this.loading = false;
