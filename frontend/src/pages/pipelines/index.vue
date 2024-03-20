@@ -249,11 +249,12 @@
       };
     },
     watch: {
-      autoRefresh(newValue) {
-        if (newValue) {
+      autoRefresh(newValue, oldValue) {
+        if (newValue && !oldValue) {
           this.startAutoRefresh();
-        } else {
+        } else if (!newValue && oldValue) {
           clearInterval(this.intervalHandle);
+          this.intervalHandle = null;
         }
 
         this.$router.push({path: this.$route.path, query: {
@@ -292,7 +293,7 @@
         this.serverItems = data.items;
         this.loading = false;
 
-        if (this.autoRefresh) {
+        if (this.autoRefresh && this.intervalHandle === null) {
           this.startAutoRefresh();
         }
       }
