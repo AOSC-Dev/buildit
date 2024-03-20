@@ -224,10 +224,11 @@ async fn build(
     }
 
     let file_name = format!(
-        "{}-{}-{}-{}.txt",
-        gethostname::gethostname().to_string_lossy(),
+        "{}-{}-{}-{}-{}.txt",
+        job.job_id,
         job.git_branch,
         args.arch,
+        gethostname::gethostname().to_string_lossy(),
         Local::now().format("%Y-%m-%d-%H:%M:%S")
     );
 
