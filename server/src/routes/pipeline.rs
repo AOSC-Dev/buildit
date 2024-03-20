@@ -205,16 +205,23 @@ pub async fn pipeline_list(
             // see https://diesel.rs/guides/relations.html
             let jobs = Job::belonging_to(&pipelines)
                 .select(Job::as_select())
-                .order(crate::schema::jobs::dsl::id.asc())
+                .order(crate::schema::jobs::dsl::id.desc())
                 .load(conn)?;
 
             let mut items = vec![];
-            for ((jobs, pipeline), creator) in jobs
+            for ((mut jobs, pipeline), creator) in jobs
                 .grouped_by(&pipelines)
                 .into_iter()
                 .zip(pipelines)
                 .zip(users)
             {
+                // Mimic gitlab behavior: for each arch, only keep the latest
+                // (with maximum id) job. The maximum id is listed first via
+                // `.order(crate::schema::jobs::dsl::id.desc())`. Then
+                // `dedup_by` removes all but the first of consecutive elements.
+                jobs.sort_by(|a, b| a.arch.cmp(&b.arch));
+                jobs.dedup_by(|a, b| a.arch.eq(&b.arch));
+
                 let mut has_error = false;
                 let mut has_failed = false;
                 let mut has_unfinished = false;
