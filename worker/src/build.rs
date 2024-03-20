@@ -237,22 +237,27 @@ async fn build(
 
     let mut log_url = None;
     if let Some(upload_ssh_key) = &args.upload_ssh_key {
-        let output = Command::new("scp")
-            .args([
+        let mut scp_log = vec![];
+        if run_logged_with_retry(
+            "scp",
+            &[
                 "-i",
                 &upload_ssh_key,
                 &path,
                 "maintainers@repo.aosc.io:/buildit/logs",
-            ])
-            .output()
-            .await?;
-        if output.status.success() {
+            ],
+            &output_path,
+            &mut scp_log,
+        )
+        .await?
+        {
             fs::remove_file(&path).await?;
             log_url = Some(format!("https://buildit.aosc.io/logs/{file_name}"));
         } else {
-            error!("scp return error code: {:?}", output.status.code());
-            error!("`scp' stdout: {}", String::from_utf8_lossy(&output.stdout));
-            error!("`scp' stderr: {}", String::from_utf8_lossy(&output.stderr));
+            error!(
+                "Failed to scp log to repo: {}",
+                String::from_utf8_lossy(&scp_log)
+            );
         };
     }
 
