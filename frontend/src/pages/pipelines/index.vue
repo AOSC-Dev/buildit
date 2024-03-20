@@ -33,7 +33,7 @@
                   <v-spacer></v-spacer>
                   <v-col class="d-flex align-end justify-end">
                     <v-progress-circular
-                      :model-value="countdown * 10 / 1"
+                      :model-value="countdown * 10 / 3"
                       size="36"
                       color="blue"
                       style="margin-right: 20px;"
@@ -267,7 +267,7 @@
     },
     methods: {
       startAutoRefresh() {
-        this.countdown = 10;
+        this.countdown = 30;
         this.intervalHandle = setInterval(() => {
           if (this.countdown == 0) {
             clearInterval(this.intervalHandle);

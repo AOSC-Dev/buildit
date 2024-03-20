@@ -175,10 +175,21 @@ pub async fn pipeline_list(
 
     Ok(Json(
         conn.transaction::<PipelineListResponse, diesel::result::Error, _>(|conn| {
-            let total_items = crate::schema::pipelines::dsl::pipelines
-                .count()
-                .get_result(conn)?;
+            // compute total items for pagination
+            let mut total_items_query = crate::schema::pipelines::dsl::pipelines.into_boxed();
 
+            if query.stable_only {
+                total_items_query = total_items_query
+                    .filter(crate::schema::pipelines::dsl::git_branch.eq("stable"));
+            }
+            if query.github_pr_only {
+                total_items_query = total_items_query
+                    .filter(crate::schema::pipelines::dsl::github_pr.is_not_null());
+            }
+
+            let total_items = total_items_query.count().get_result(conn)?;
+
+            // collect pipelines
             let mut sql = crate::schema::pipelines::dsl::pipelines
                 .left_join(crate::schema::users::dsl::users)
                 .order_by(crate::schema::pipelines::dsl::id.desc())
