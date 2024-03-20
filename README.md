@@ -16,7 +16,7 @@ Steps (as root):
 7. `systemctl enable --now buildit-worker`
 8. `chmod 600 /buildroots/buildit/buildit/.env`
 9. Setup SSH key of AOSC Maintainers at the location of BUILDIT_SSH_KEY
-10. Add SSH known hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
+10. Add SSH known hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan repo-cn.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
 
 Arch-specific notes:
 

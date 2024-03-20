@@ -218,23 +218,32 @@
   }
 
   export default {
-    data: () => ({
-      page: 1,
-      itemsPerPage: 25,
-      headers: [
-        { title: 'Status', key: 'status', sortable: false },
-        { title: 'Pipeline', key: 'pipeline', sortable: false },
-        { title: 'Created by', key: 'created_by', sortable: false },
-        { title: 'Jobs', key: 'jobs', sortable: false },
-      ],
-      loading: true,
-      totalItems: 0,
-      serverItems: [],
-      stableOnly: false,
-      githubPROnly: false,
-    }),
+    data() {
+      return {
+        page: Number(this.$route.query.page) || 1,
+        itemsPerPage: Number(this.$route.query.items_per_page) || 25,
+        stableOnly: this.$route.query.stable_only === "true",
+        githubPROnly: this.$route.query.github_pr_only === "true",
+        headers: [
+          { title: 'Status', key: 'status', sortable: false },
+          { title: 'Pipeline', key: 'pipeline', sortable: false },
+          { title: 'Created by', key: 'created_by', sortable: false },
+          { title: 'Jobs', key: 'jobs', sortable: false },
+        ],
+        loading: true,
+        totalItems: 999999,
+        serverItems: [],
+      };
+    },
     methods: {
       async loadItems () {
+        this.$router.push({path: this.$route.path, query: {
+          page: String(this.page),
+          items_per_page: String(this.itemsPerPage),
+          stable_only: String(this.stableOnly),
+          github_pr_only: String(this.githubPROnly)
+        } });
+
         this.loading = true;
         let data = (await axios.get(hostname + `/api/pipeline/list?page=${this.page}&items_per_page=${this.itemsPerPage}&stable_only=${this.stableOnly}&github_pr_only=${this.githubPROnly}`)).data;
         this.totalItems = data.total_items;
