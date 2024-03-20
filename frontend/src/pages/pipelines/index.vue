@@ -272,6 +272,7 @@
         this.intervalHandle = setInterval(() => {
           if (this.countdown == 0) {
             clearInterval(this.intervalHandle);
+            this.intervalHandle = null;
             this.loadItems();
           } else {
             this.countdown = this.countdown - 1;
