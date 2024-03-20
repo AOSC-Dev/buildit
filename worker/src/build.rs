@@ -95,7 +95,7 @@ async fn build(
     let mut successful_packages = vec![];
     let mut failed_package = None;
     let mut skipped_packages = vec![];
-    let mut success = false;
+    let mut build_success = false;
     let mut logs = vec![];
 
     let mut output_path = args.ciel_path.clone();
@@ -153,7 +153,7 @@ async fn build(
             ciel_args.extend(job.packages.split(','));
             let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
 
-            success = output.status.success();
+            build_success = output.status.success();
 
             // parse output
             // match acbs/acbs/util.py
@@ -202,7 +202,7 @@ async fn build(
                 }
             }
 
-            if failed_package.is_none() {
+            if build_success {
                 if let Some(upload_ssh_key) = &args.upload_ssh_key {
                     pushpkg_success = run_logged_with_retry(
                         "pushpkg",
@@ -268,7 +268,7 @@ async fn build(
         worker_secret: args.worker_secret.clone(),
         job_id: job.job_id,
         result: common::JobResult::Ok(JobOk {
-            build_success: success,
+            build_success: build_success,
             successful_packages,
             failed_package,
             skipped_packages,
