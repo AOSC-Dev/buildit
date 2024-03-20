@@ -152,19 +152,19 @@
                 <router-link
                   style="text-decoration: none; color: inherit;"
                   :to="{ path: `/jobs/${(job as Job).job_id}` }">
-                  <v-icon v-if="(job as Job).status === 'success'" color="green">
+                  <v-icon v-if="(job as Job).status === 'success'" color="green" size="large">
                     mdi:mdi-check-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'failed'" color="red">
+                  <v-icon v-else-if="(job as Job).status === 'failed'" color="red" size="large">
                     mdi:mdi-close-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'running'" color="blue">
+                  <v-icon v-else-if="(job as Job).status === 'running'" color="blue" size="large">
                     mdi:mdi-circle-slice-5
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'error'" color="red">
+                  <v-icon v-else-if="(job as Job).status === 'error'" color="red" size="large">
                     mdi:mdi-alert-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'created'" color="grey">
+                  <v-icon v-else-if="(job as Job).status === 'created'" color="grey" size="large">
                     mdi:mdi-circle-slice-8
                   </v-icon>
                   <v-tooltip activator="parent" location="bottom">
