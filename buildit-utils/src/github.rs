@@ -887,7 +887,7 @@ pub fn get_environment_requirement(
             for arch in ALL_ARCH {
                 let res_arch: &mut EnvironmentRequirement = res.entry(*arch).or_default();
                 if let Some(env_req) = spec
-                    .get(&format!("ENVREQ__{arch}"))
+                    .get(&format!("ENVREQ__{}", arch.to_ascii_uppercase()))
                     .or_else(|| spec.get("ENVREQ"))
                 {
                     for req in env_req.split(" ") {
