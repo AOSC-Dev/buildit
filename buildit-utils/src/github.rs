@@ -14,7 +14,7 @@ use std::{
     process::Output,
 };
 use tokio::{process, task};
-use tracing::{debug, error, info, info_span, Instrument};
+use tracing::{debug, error, info, info_span, warn, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
@@ -126,8 +126,9 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
     let mut res = vec![];
 
     let mut req_pkgs = vec![];
-
     for i in pkgs {
+        // strip modifiers: e.g. llvm:+stage2 becomes llvm
+        let i = strip_modifiers(i);
         if i.starts_with("groups/") {
             let f = fs::File::open(p.join(i))?;
             let lines = BufReader::new(f).lines();
@@ -147,39 +148,43 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
             return;
         }
 
-        let defines = path.join("autobuild").join("defines");
         let spec = path.join("spec");
         let spec = std::fs::read_to_string(spec);
-        let defines = std::fs::read_to_string(defines);
+        let defines_list = locate_defines(path);
 
         if let Ok(spec) = spec {
             let spec = read_ab_with_apml(&spec);
             let ver = spec.get("VER");
             let rel = spec.get("REL");
-            let defines = defines.ok().map(|defines| read_ab_with_apml(&defines));
-
-            let epoch = if let Some(ref def) = defines {
-                def.get("PKGEPOCH")
-            } else {
-                None
-            };
-
             if ver.is_none() {
-                debug!("{pkg} has no VER variable");
+                warn!("{pkg} has no VER variable");
+                return;
             }
 
-            let mut final_version = String::new();
-            if let Some(epoch) = epoch {
-                final_version.push_str(&format!("{epoch}:"));
+            for i in defines_list {
+                if let Ok(defines) = std::fs::read_to_string(i) {
+                    let defines = read_ab_with_apml(&defines);
+
+                    if let Some(pkgname) = defines.get("PKGNAME") {
+                        let epoch = defines.get("PKGEPOCH");
+
+                        let mut final_version = String::new();
+                        if let Some(epoch) = epoch {
+                            final_version.push_str(&format!("{epoch}:"));
+                        }
+
+                        final_version.push_str(ver.unwrap());
+
+                        if let Some(rel) = rel {
+                            final_version.push_str(&format!("-{rel}"));
+                        }
+
+                        res.push(format!("- {pkgname}: {final_version}"));
+                    } else {
+                        warn!("{pkg} has no PKGNAME variable");
+                    }
+                }
             }
-
-            final_version.push_str(ver.unwrap());
-
-            if let Some(rel) = rel {
-                final_version.push_str(&format!("-{rel}"));
-            }
-
-            res.push(format!("- {pkg}: {final_version}"));
         }
     });
 
@@ -647,6 +652,40 @@ fn format_archs(archs: &[&str]) -> String {
     s
 }
 
+pub fn strip_modifiers(pkg: &str) -> &str {
+    match pkg.split_once(":") {
+        Some((prefix, _suffix)) => prefix,
+        None => pkg,
+    }
+}
+
+// find autobuild/defines files under `path`
+pub fn locate_defines(path: &Path) -> Vec<PathBuf> {
+    if path.join("autobuild").exists() {
+        vec![path.join("autobuild").join("defines")]
+    } else {
+        // handle split packages
+
+        let mut defines_list = vec![];
+        for i in WalkDir::new(path)
+            .max_depth(1)
+            .min_depth(1)
+            .into_iter()
+            .flatten()
+        {
+            if !i.path().is_dir() {
+                continue;
+            }
+            let defines_path = i.path().join("defines");
+            if defines_path.exists() {
+                defines_list.push(defines_path);
+            }
+        }
+
+        defines_list
+    }
+}
+
 #[tracing::instrument(skip(p))]
 pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     let mut is_noarch = vec![];
@@ -655,13 +694,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
     // strip modifiers, e.g. gmp:+stage2 becomes gmp
     let packages: Vec<String> = packages
         .iter()
-        .map(|s| {
-            (match s.split_once(":") {
-                Some((prefix, _suffix)) => prefix,
-                None => s,
-            })
-            .to_string()
-        })
+        .map(|s| strip_modifiers(s).to_string())
         .collect();
 
     for_each_abbs(p, |pkg, path| {
@@ -669,27 +702,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
             return;
         }
 
-        let defines_list = if path.join("autobuild").exists() {
-            vec![path.join("autobuild").join("defines")]
-        } else {
-            let mut defines_list = vec![];
-            for i in WalkDir::new(path)
-                .max_depth(1)
-                .min_depth(1)
-                .into_iter()
-                .flatten()
-            {
-                if !i.path().is_dir() {
-                    continue;
-                }
-                let defines_path = i.path().join("defines");
-                if defines_path.exists() {
-                    defines_list.push(defines_path);
-                }
-            }
-
-            defines_list
-        };
+        let defines_list = locate_defines(path);
 
         for i in defines_list {
             let defines = std::fs::read_to_string(i);
