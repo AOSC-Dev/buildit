@@ -102,15 +102,23 @@ pub async fn pipeline_new(
     };
 
     // find environment requirements
-    let resolved_pkgs = resolve_packages(
-        &packages
-            .split(",")
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>(),
-        &ARGS.abbs_path,
-    )
-    .context("Resolve packages")?;
-    let env_req = get_environment_requirement(&ARGS.abbs_path, &resolved_pkgs);
+    let env_req = {
+        let resolved_pkgs = resolve_packages(
+            &packages
+                .split(",")
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>(),
+            &ARGS.abbs_path,
+        )
+        .context("Resolve packages")?;
+
+        let _lock = ABBS_REPO_LOCK.lock().await;
+        update_abbs(git_branch, &ARGS.abbs_path)
+            .await
+            .context("Failed to update ABBS tree")?;
+
+        get_environment_requirement(&ARGS.abbs_path, &resolved_pkgs)
+    };
 
     // create a new pipeline
     let mut conn = pool
