@@ -381,11 +381,6 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     None
                 };
 
-                let pkgs = parts[2]
-                    .split(',')
-                    .map(|x| x.to_string())
-                    .collect::<Vec<_>>();
-
                 let archs = if parts.len() == 5 {
                     let archs = parts[4].split(',').collect::<Vec<_>>();
                     Some(handle_archs_args(archs))

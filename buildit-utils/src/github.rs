@@ -7,7 +7,7 @@ use jsonwebtoken::EncodingKey;
 use octocrab::{models::pulls::PullRequest, params};
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -855,6 +855,82 @@ pub fn resolve_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>
         }
     }
     Ok(req_pkgs)
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EnvironmentRequirement {
+    pub min_core: Option<i32>,
+    pub min_total_mem: Option<i64>,
+    pub min_total_mem_per_core: Option<f32>,
+    pub min_disk: Option<i64>,
+}
+
+/// `packages` should have no groups nor modifiers
+/// Return one ENVREQ for each arch
+#[tracing::instrument(skip(p))]
+pub fn get_environment_requirement(
+    p: &Path,
+    packages: &[String],
+) -> BTreeMap<&'static str, EnvironmentRequirement> {
+    let mut res = BTreeMap::new();
+
+    for_each_abbs(p, |pkg, path| {
+        if !packages.contains(&pkg.to_string()) {
+            return;
+        }
+
+        let spec = path.join("spec");
+        let spec = std::fs::read_to_string(spec);
+
+        if let Ok(spec) = spec {
+            let spec = read_ab_with_apml(&spec);
+            for arch in ALL_ARCH {
+                let res_arch: &mut EnvironmentRequirement = res.entry(*arch).or_default();
+                if let Some(env_req) = spec
+                    .get(&format!("ENV_REQ__{arch}"))
+                    .or_else(|| spec.get("ENV_REQ"))
+                {
+                    for req in env_req.split(" ") {
+                        if let Some((key, value)) = req.split_once("=") {
+                            let val = value.parse::<f32>();
+                            match (key, val) {
+                                ("core", Ok(val)) => {
+                                    *res_arch.min_core.get_or_insert(0) =
+                                        std::cmp::max(res_arch.min_core.unwrap_or(0), val as i32);
+                                }
+                                ("total_mem", Ok(val)) => {
+                                    // unit: GiB -> B
+                                    *res_arch.min_total_mem.get_or_insert(0) = std::cmp::max(
+                                        res_arch.min_total_mem.unwrap_or(0),
+                                        (val as i64) * 1024 * 1024 * 1024,
+                                    );
+                                }
+                                ("total_mem_per_core", Ok(val)) => {
+                                    // unit: GiB
+                                    *res_arch.min_total_mem_per_core.get_or_insert(0.0) = f32::max(
+                                        res_arch.min_total_mem_per_core.unwrap_or(0.0),
+                                        val * 1024.0 * 1024.0 * 1024.0,
+                                    );
+                                }
+                                ("disk", Ok(val)) => {
+                                    // unit: GB -> B
+                                    *res_arch.min_disk.get_or_insert(0) = std::cmp::max(
+                                        res_arch.min_disk.unwrap_or(0),
+                                        (val as i64) * 1000 * 1000 * 1000,
+                                    );
+                                }
+                                _ => {
+                                    warn!("Unsupported environment requirement: {}", req);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    res
 }
 
 #[test]

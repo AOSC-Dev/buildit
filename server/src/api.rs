@@ -5,7 +5,9 @@ use crate::{
 };
 use anyhow::anyhow;
 use anyhow::Context;
-use buildit_utils::github::{get_archs, resolve_packages, update_abbs};
+use buildit_utils::github::{
+    get_archs, get_environment_requirement, resolve_packages, update_abbs,
+};
 use diesel::{
     dsl::count, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
 };
@@ -98,6 +100,18 @@ pub async fn pipeline_new(
             String::from_utf8_lossy(&output.stdout).trim().to_string()
         }
     };
+
+    // find environment requirements
+    let resolved_pkgs = resolve_packages(
+        &packages
+            .split(",")
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>(),
+        &ARGS.abbs_path,
+    )
+    .context("Resolve packages")?;
+    let env_req = get_environment_requirement(&ARGS.abbs_path, &resolved_pkgs);
+
     // create a new pipeline
     let mut conn = pool
         .get()
@@ -169,6 +183,7 @@ pub async fn pipeline_new(
 
         // create a new job
         use crate::schema::jobs;
+        let env_req_current = env_req.get(*arch).cloned().unwrap_or_default();
         let new_job = NewJob {
             pipeline_id: pipeline.id,
             packages: packages.to_string(),
@@ -176,10 +191,10 @@ pub async fn pipeline_new(
             creation_time: chrono::Utc::now(),
             status: "created".to_string(),
             github_check_run_id: github_check_run_id.map(|id| id as i64),
-            require_min_core: None,
-            require_min_total_mem: None,
-            require_min_total_mem_per_core: None,
-            require_min_disk: None,
+            require_min_core: env_req_current.min_core,
+            require_min_total_mem: env_req_current.min_total_mem,
+            require_min_total_mem_per_core: env_req_current.min_total_mem_per_core,
+            require_min_disk: env_req_current.min_disk,
         };
         diesel::insert_into(jobs::table)
             .values(&new_job)
