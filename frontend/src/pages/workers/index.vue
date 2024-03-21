@@ -67,6 +67,9 @@
     id: number;
     is_live: boolean;
     last_heartbeat_time: string;
+    logical_cores: number;
+    memory_bytes: number;
+    disk_free_space_bytes: number;
   }
 
   export default {
@@ -78,6 +81,7 @@
         { title: 'Architecture', key: 'arch', sortable: false },
         { title: 'Logical Cores', key: 'logical_cores', sortable: false },
         { title: 'Memory Size', key: 'memory_bytes', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes) },
+        { title: 'Memory Per Core', key: 'memory_per_core', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes / item.logical_cores) },
         { title: 'Disk Free Space Size', key: 'disk_free_space_bytes', sortable: false, value: (item: any) => prettyBytes(item.disk_free_space_bytes) },
         { title: 'Status', key: 'status', sortable: false },
       ],
