@@ -381,8 +381,6 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     None
                 };
 
-                let path = ARGS.abbs_path.as_ref();
-
                 let pkgs = parts[2]
                     .split(',')
                     .map(|x| x.to_string())
@@ -390,9 +388,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
 
                 let archs = if parts.len() == 5 {
                     let archs = parts[4].split(',').collect::<Vec<_>>();
-                    handle_archs_args(archs)
+                    Some(handle_archs_args(archs))
                 } else {
-                    get_archs(path, &pkgs)
+                    // deduce archs later
+                    None
                 };
 
                 let id = match ARGS

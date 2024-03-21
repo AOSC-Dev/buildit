@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use anyhow::Context;
-use buildit_utils::github::{get_archs, update_abbs};
+use buildit_utils::github::{get_archs, resolve_packages, update_abbs};
 use diesel::{
     dsl::count, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
 };
@@ -233,7 +233,10 @@ pub async fn pipeline_new_pr(
                 } else {
                     let path = &ARGS.abbs_path;
 
-                    get_archs(path, &packages).join(",")
+                    let resolved_packages =
+                        resolve_packages(&packages, path).context("Failed to resolve packages")?;
+
+                    get_archs(path, &resolved_packages).join(",")
                 };
 
                 pipeline_new(

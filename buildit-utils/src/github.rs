@@ -48,7 +48,8 @@ pub struct OpenPRRequest<'a> {
     pub packages: String,
     pub title: String,
     pub tags: Option<Vec<String>>,
-    pub archs: Vec<&'a str>,
+    /// If None, automatically deduced via `get_archs()`
+    pub archs: Option<Vec<&'a str>>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -86,9 +87,9 @@ pub async fn open_pr(
     } = openpr_request;
 
     update_abbs(&git_ref, &abbs_path).await?;
-    let abbs_path_clone = abbs_path.clone();
 
-    let commits = task::spawn_blocking(move || get_commits(abbs_path.as_ref()))
+    let abbs_path_clone = abbs_path.clone();
+    let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
         .instrument(info_span!("get_commits"))
         .await??;
     let commits = task::spawn_blocking(move || handle_commits(&commits))
@@ -99,10 +100,26 @@ pub async fn open_pr(
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
 
+    // handle modifiers and groups
+    let resolved_pkgs = resolve_packages(&pkgs, &abbs_path)?;
+
+    // deduce archs if not specified
+    let archs = match archs {
+        Some(archs) => archs,
+        None => {
+            let resolved_pkgs_clone = resolved_pkgs.clone();
+            let abbs_path_clone = abbs_path.clone();
+            task::spawn_blocking(move || get_archs(&abbs_path_clone, &resolved_pkgs_clone))
+                .instrument(info_span!("get_archs"))
+                .await?
+        }
+    };
+
+    let abbs_path_clone = abbs_path.clone();
     let pkg_affected =
-        task::spawn_blocking(move || find_version_by_packages(&pkgs, &abbs_path_clone))
+        task::spawn_blocking(move || find_version_by_packages(&resolved_pkgs, &abbs_path_clone))
             .instrument(info_span!("find_version_by_packages"))
-            .await??;
+            .await?;
 
     let pr = open_pr_inner(OpenPR {
         access_token: access_token.to_string(),
@@ -121,30 +138,13 @@ pub async fn open_pr(
     Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
 }
 
+/// `packages` should have no groups nor modifiers
 #[tracing::instrument(skip(p))]
-fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
+fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<String> {
     let mut res = vec![];
 
-    let mut req_pkgs = vec![];
-    for i in pkgs {
-        // strip modifiers: e.g. llvm:+stage2 becomes llvm
-        let i = strip_modifiers(i);
-        if i.starts_with("groups/") {
-            let f = fs::File::open(p.join(i))?;
-            let lines = BufReader::new(f).lines();
-
-            for i in lines {
-                let i = i?;
-                let pkg = i.split('/').next_back().unwrap_or(&i);
-                req_pkgs.push(pkg.to_string());
-            }
-        } else {
-            req_pkgs.push(i.to_string());
-        }
-    }
-
     for_each_abbs(p, |pkg, path| {
-        if !req_pkgs.contains(&pkg.to_string()) {
+        if !pkgs.contains(&pkg.to_string()) {
             return;
         }
 
@@ -188,7 +188,7 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<Str
         }
     });
 
-    Ok(res)
+    res
 }
 
 /// Describe new commits for pull request
@@ -686,16 +686,11 @@ pub fn locate_defines(path: &Path) -> Vec<PathBuf> {
     }
 }
 
+/// `packages` should have no groups nor modifiers
 #[tracing::instrument(skip(p))]
-pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'a str> {
+pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'static str> {
     let mut is_noarch = vec![];
     let mut fail_archs = vec![];
-
-    // strip modifiers, e.g. gmp:+stage2 becomes gmp
-    let packages: Vec<String> = packages
-        .iter()
-        .map(|s| strip_modifiers(s).to_string())
-        .collect();
 
     for_each_abbs(p, |pkg, path| {
         if !packages.contains(&pkg.to_string()) {
@@ -838,6 +833,28 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
     }
 
     Ok(Regex::new(&regex)?)
+}
+
+// strip modifiers and expand groups
+pub fn resolve_packages(pkgs: &[String], p: &Path) -> anyhow::Result<Vec<String>> {
+    let mut req_pkgs = vec![];
+    for i in pkgs {
+        // strip modifiers: e.g. llvm:+stage2 becomes llvm
+        let i = strip_modifiers(i);
+        if i.starts_with("groups/") {
+            let f = fs::File::open(p.join(i))?;
+            let lines = BufReader::new(f).lines();
+
+            for i in lines {
+                let i = i?;
+                let pkg = i.split('/').next_back().unwrap_or(&i);
+                req_pkgs.push(pkg.to_string());
+            }
+        } else {
+            req_pkgs.push(i.to_string());
+        }
+    }
+    Ok(req_pkgs)
 }
 
 #[test]

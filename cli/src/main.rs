@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use buildit_utils::github::{get_archs, get_repo, open_pr, OpenPRRequest};
+use buildit_utils::github::{get_repo, open_pr, OpenPRRequest};
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
 use serde::Deserialize;
@@ -94,7 +94,7 @@ async fn main() -> eyre::Result<()> {
                     packages: packages.join(","),
                     title,
                     tags,
-                    archs: get_archs(&args.abbs_path, &packages),
+                    archs: None,
                 },
             )
             .await

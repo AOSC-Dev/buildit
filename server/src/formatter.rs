@@ -186,6 +186,10 @@ fn test_format_html_build_result() {
         elapsed_secs: Some(888),
         assigned_worker_id: Some(1),
         built_by_worker_id: Some(1),
+        require_min_core: None,
+        require_min_disk: None,
+        require_min_total_mem: None,
+        require_min_total_mem_per_core: None,
     };
 
     let job_ok = JobOk {
