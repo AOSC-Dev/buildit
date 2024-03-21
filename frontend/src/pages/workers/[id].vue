@@ -10,7 +10,7 @@
         <br/>
         Git commit: {{ worker.git_commit }}
         <br/>
-        Memory size: {{ worker.memory_bytes !== undefined && prettyBytes(worker.memory_bytes) }}
+        Memory size: {{ worker.memory_bytes !== undefined && prettyBytes(worker.memory_bytes, { binary: true }) }}
         <br/>
         Disk free space size: {{ worker.disk_free_space_bytes !== undefined && prettyBytes(worker.disk_free_space_bytes) }}
         <br/>

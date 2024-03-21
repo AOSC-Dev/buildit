@@ -56,7 +56,7 @@
             <br/>
             Total Logical Cores: {{status.by_arch && status.by_arch[arch].total_logical_cores}}
             <br/>
-            Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes))}}
+            Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes), { binary: true })}}
             <br/>
             Total Jobs: {{status.by_arch && status.by_arch[arch].total_job_count}}
             <br/>
