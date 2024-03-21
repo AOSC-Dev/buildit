@@ -134,6 +134,10 @@ pub struct JobInfoResponse {
     elapsed_secs: Option<i64>,
     assigned_worker_id: Option<i32>,
     built_by_worker_id: Option<i32>,
+    require_min_core: Option<i32>,
+    require_min_total_mem: Option<i64>,
+    require_min_total_mem_per_core: Option<f32>,
+    require_min_disk: Option<i64>,
 
     // from pipeline
     git_branch: String,
@@ -177,6 +181,10 @@ pub async fn job_info(
                 elapsed_secs: job.elapsed_secs,
                 assigned_worker_id: job.assigned_worker_id,
                 built_by_worker_id: job.built_by_worker_id,
+                require_min_core: job.require_min_core,
+                require_min_total_mem: job.require_min_total_mem,
+                require_min_total_mem_per_core: job.require_min_total_mem_per_core,
+                require_min_disk: job.require_min_disk,
 
                 // from pipeline
                 git_branch: pipeline.git_branch,

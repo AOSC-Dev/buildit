@@ -61,6 +61,22 @@
           Failed to push package to repo
           <br/>
         </div>
+        <div v-if="job.require_min_core !== undefined && job.require_min_core !== null">
+          Requires worker to have at least {{ job.require_min_core }} logical cores to build this job
+          <br/>
+        </div>
+        <div v-if="job.require_min_total_mem !== undefined && job.require_min_total_mem !== null">
+          Requires worker to have at least {{ prettyBytes(job.require_min_total_mem, { binary: true }) }} total memory to build this job
+          <br/>
+        </div>
+        <div v-if="job.require_min_total_mem_per_core !== undefined && job.require_min_total_mem_per_core !== null">
+          Requires worker to have at least {{ prettyBytes(job.require_min_total_mem_per_core, { binary: true }) }} total memory per logical core to build this job
+          <br/>
+        </div>
+        <div v-if="job.require_min_disk !== undefined && job.require_min_disk !== null">
+          Requires worker to have at least {{ prettyBytes(job.require_min_disk) }} free disk space to build this job
+          <br/>
+        </div>
         <v-btn
           icon="true"
           rounded
@@ -88,6 +104,7 @@
 <script lang="ts">
   import axios from 'axios';
   import { hostname } from '@/common';
+import prettyBytes from 'pretty-bytes';
 
   interface JobInfoResponse {
     job_id: number;
@@ -107,6 +124,11 @@
     elapsed_secs: number;
     assigned_worker_id: number;
     built_by_worker_id: number;
+    require_min_core: number;
+    require_min_total_mem: number;
+    require_min_total_mem_per_core: number;
+    require_min_disk: number;
+
     git_branch: string;
     git_sha: string;
     github_pr: number;
