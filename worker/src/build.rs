@@ -244,7 +244,7 @@ async fn build(
                 "-i",
                 &upload_ssh_key,
                 &path,
-                "maintainers@repo.aosc.io:/buildit/logs",
+                &format!("maintainers@{}:/buildit/logs", args.rsync_host),
             ],
             &output_path,
             &mut scp_log,
