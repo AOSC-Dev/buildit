@@ -39,7 +39,7 @@
             <br/>
             Total Logical Cores: {{status.total_logical_cores}}
             <br/>
-            Total Memory: {{status.total_memory_bytes && prettyBytes(Number(status.total_memory_bytes))}}
+            Total Memory: {{status.total_memory_bytes && prettyBytes(Number(status.total_memory_bytes), { binary: true })}}
             <br/>
           </v-card-text>
         </v-card>
