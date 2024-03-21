@@ -20,6 +20,10 @@ diesel::table! {
         elapsed_secs -> Nullable<Int8>,
         assigned_worker_id -> Nullable<Int4>,
         built_by_worker_id -> Nullable<Int4>,
+        require_min_core -> Nullable<Int4>,
+        require_min_total_mem -> Nullable<Int8>,
+        require_min_total_mem_per_core -> Nullable<Float4>,
+        require_min_disk -> Nullable<Int8>,
     }
 }
 

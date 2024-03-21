@@ -55,6 +55,10 @@ pub struct Job {
     pub elapsed_secs: Option<i64>,
     pub assigned_worker_id: Option<i32>,
     pub built_by_worker_id: Option<i32>,
+    pub require_min_core: Option<i32>,
+    pub require_min_total_mem: Option<i64>,
+    pub require_min_total_mem_per_core: Option<f32>,
+    pub require_min_disk: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -67,6 +71,10 @@ pub struct NewJob {
     pub creation_time: chrono::DateTime<chrono::Utc>,
     pub status: String,
     pub github_check_run_id: Option<i64>,
+    pub require_min_core: Option<i32>,
+    pub require_min_total_mem: Option<i64>,
+    pub require_min_total_mem_per_core: Option<f32>,
+    pub require_min_disk: Option<i64>,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug)]

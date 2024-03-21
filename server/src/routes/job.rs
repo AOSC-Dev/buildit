@@ -221,6 +221,10 @@ async fn job_restart_in_transaction(
         creation_time: chrono::Utc::now(),
         status: "created".to_string(),
         github_check_run_id: None,
+        require_min_core: None,
+        require_min_total_mem: None,
+        require_min_total_mem_per_core: None,
+        require_min_disk: None,
     };
 
     // create new github check run if the restarted job has one

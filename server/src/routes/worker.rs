@@ -168,18 +168,40 @@ pub async fn worker_poll(
 
     match conn.transaction::<Option<(Pipeline, Job)>, diesel::result::Error, _>(|conn| {
         use crate::schema::jobs::dsl::*;
-        let res = if payload.arch == "amd64" {
+
+        let mut sql = jobs.filter(status.eq("created")).into_boxed();
+        if payload.arch == "amd64" {
             // route noarch to amd64
-            jobs.filter(status.eq("created"))
-                .filter(arch.eq(&payload.arch).or(arch.eq("noarch")))
-                .first::<Job>(conn)
-                .optional()?
+            sql = sql.filter(arch.eq(&payload.arch).or(arch.eq("noarch")));
         } else {
-            jobs.filter(status.eq("created"))
-                .filter(arch.eq(&payload.arch))
-                .first::<Job>(conn)
-                .optional()?
-        };
+            sql = sql.filter(arch.eq(&payload.arch));
+        }
+
+        // handle filters
+        sql = sql
+            .filter(
+                require_min_core
+                    .is_null()
+                    .or(require_min_core.le(payload.logical_cores)),
+            )
+            .filter(
+                require_min_total_mem
+                    .is_null()
+                    .or(require_min_total_mem.le(payload.memory_bytes)),
+            )
+            .filter(
+                require_min_total_mem_per_core
+                    .is_null()
+                    .or(require_min_total_mem_per_core
+                        .le((payload.memory_bytes as f32) / (payload.logical_cores as f32))),
+            )
+            .filter(
+                require_min_disk
+                    .is_null()
+                    .or(require_min_disk.le(payload.disk_free_space_bytes)),
+            );
+
+        let res = sql.first::<Job>(conn).optional()?;
         match res {
             Some(job) => {
                 // find worker id

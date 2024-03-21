@@ -176,6 +176,10 @@ pub async fn pipeline_new(
             creation_time: chrono::Utc::now(),
             status: "created".to_string(),
             github_check_run_id: github_check_run_id.map(|id| id as i64),
+            require_min_core: None,
+            require_min_total_mem: None,
+            require_min_total_mem_per_core: None,
+            require_min_disk: None,
         };
         diesel::insert_into(jobs::table)
             .values(&new_job)
