@@ -76,6 +76,11 @@ pub async fn pipeline_new(
         return Err(anyhow!("Invalid branch: {git_branch}"));
     }
 
+    let lock = ABBS_REPO_LOCK.lock().await;
+    update_abbs(git_branch, &ARGS.abbs_path)
+        .await
+        .context("Failed to update ABBS tree")?;
+
     // resolve branch name to commit hash if not specified
     let git_sha = match git_sha {
         Some(git_sha) => {
@@ -85,11 +90,6 @@ pub async fn pipeline_new(
             git_sha.to_string()
         }
         None => {
-            let _lock = ABBS_REPO_LOCK.lock().await;
-            update_abbs(git_branch, &ARGS.abbs_path)
-                .await
-                .context("Failed to update ABBS tree")?;
-
             let output = tokio::process::Command::new("git")
                 .arg("rev-parse")
                 .arg("HEAD")
@@ -102,23 +102,17 @@ pub async fn pipeline_new(
     };
 
     // find environment requirements
-    let env_req = {
-        let resolved_pkgs = resolve_packages(
-            &packages
-                .split(",")
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>(),
-            &ARGS.abbs_path,
-        )
-        .context("Resolve packages")?;
+    let resolved_pkgs = resolve_packages(
+        &packages
+            .split(",")
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>(),
+        &ARGS.abbs_path,
+    )
+    .context("Resolve packages")?;
 
-        let _lock = ABBS_REPO_LOCK.lock().await;
-        update_abbs(git_branch, &ARGS.abbs_path)
-            .await
-            .context("Failed to update ABBS tree")?;
-
-        get_environment_requirement(&ARGS.abbs_path, &resolved_pkgs)
-    };
+    let env_req = get_environment_requirement(&ARGS.abbs_path, &resolved_pkgs);
+    drop(lock);
 
     // create a new pipeline
     let mut conn = pool
@@ -243,11 +237,6 @@ pub async fn pipeline_new_pr(
                 return Err(anyhow!("Failed to create job: Pull request is a fork"));
             }
 
-            let _lock = ABBS_REPO_LOCK.lock().await;
-            update_abbs(git_branch, &ARGS.abbs_path)
-                .await
-                .context("Failed to update ABBS tree")?;
-
             // find lines starting with #buildit
             let packages = get_packages_from_pr(&pr);
             if !packages.is_empty() {
@@ -255,6 +244,11 @@ pub async fn pipeline_new_pr(
                     archs.to_string()
                 } else {
                     let path = &ARGS.abbs_path;
+
+                    let _lock = ABBS_REPO_LOCK.lock().await;
+                    update_abbs(git_branch, &ARGS.abbs_path)
+                        .await
+                        .context("Failed to update ABBS tree")?;
 
                     let resolved_packages =
                         resolve_packages(&packages, path).context("Failed to resolve packages")?;
