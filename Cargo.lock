@@ -411,7 +411,6 @@ dependencies = [
  "anyhow",
  "fancy-regex",
  "gix",
- "gix-features",
  "jsonwebtoken",
  "octocrab",
  "thiserror",
@@ -1019,7 +1018,6 @@ checksum = "46303f565772937ffe1d394a4fac6f411c6013172fadde9dcdb1e147a086940e"
 dependencies = [
  "crc32fast",
  "libz-ng-sys",
- "libz-sys",
  "miniz_oxide",
 ]
 
@@ -2186,17 +2184,6 @@ checksum = "c6409efc61b12687963e602df8ecf70e8ddacf95bc6576bcf16e3ac6328083c5"
 dependencies = [
  "cmake",
  "libc",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "037731f5d3aaa87a5675e895b63ddff1a87624bc29f77004ea829809654e48f6"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]

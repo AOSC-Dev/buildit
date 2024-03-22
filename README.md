@@ -20,5 +20,4 @@ Steps (as root):
 
 Arch-specific notes:
 
-- Add `--no-default-features --features gix-faster` to cargo for loongarch64 until libz-ng support lands
 - Add `RUSTFLAGS="-C link-arg=-fuse-ld=gold"` environment for loongson3
