@@ -17,6 +17,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                 memory_bytes: sysinfo::System::new_all().total_memory() as i64,
                 disk_free_space_bytes: fs2::free_space(std::env::current_dir()?)? as i64,
                 logical_cores: num_cpus::get() as i32,
+                performance: args.worker_performance,
             })
             .send()
             .await?;

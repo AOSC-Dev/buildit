@@ -44,4 +44,8 @@ pub struct Args {
         env = "BUILDIT_RSYNC_HOST"
     )]
     pub rsync_host: String,
+
+    /// Performance number of the worker (smaller is better)
+    #[arg(short = 'p', long, env = "BUILDIT_WORKER_PERFORMANCE")]
+    pub worker_performance: Option<i64>,
 }

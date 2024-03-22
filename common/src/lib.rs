@@ -27,6 +27,7 @@ pub struct WorkerHeartbeatRequest {
     pub logical_cores: i32,
     pub disk_free_space_bytes: i64,
     pub worker_secret: String,
+    pub performance: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

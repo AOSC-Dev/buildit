@@ -6,7 +6,7 @@ use crate::{
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::Context;
-use buildit_utils::github::{get_archs, OpenPRError, OpenPRRequest};
+use buildit_utils::github::{OpenPRError, OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;

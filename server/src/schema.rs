@@ -64,6 +64,7 @@ diesel::table! {
         logical_cores -> Int4,
         last_heartbeat_time -> Timestamptz,
         disk_free_space_bytes -> Int8,
+        performance -> Nullable<Int8>,
     }
 }
 

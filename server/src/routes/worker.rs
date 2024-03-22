@@ -130,6 +130,7 @@ pub async fn worker_heartbeat(
                         logical_cores.eq(payload.logical_cores),
                         disk_free_space_bytes.eq(payload.disk_free_space_bytes),
                         last_heartbeat_time.eq(chrono::Utc::now()),
+                        performance.eq(payload.performance),
                     ))
                     .execute(conn)?;
             }
@@ -142,6 +143,7 @@ pub async fn worker_heartbeat(
                     logical_cores: payload.logical_cores,
                     disk_free_space_bytes: payload.disk_free_space_bytes,
                     last_heartbeat_time: chrono::Utc::now(),
+                    performance: payload.performance,
                 };
                 diesel::insert_into(crate::schema::workers::table)
                     .values(&new_worker)
