@@ -70,11 +70,11 @@ pub async fn worker_list(
 
             let workers = if query.items_per_page == -1 {
                 crate::schema::workers::dsl::workers
-                    .order_by(crate::schema::workers::dsl::id)
+                    .order_by(crate::schema::workers::dsl::arch)
                     .load::<Worker>(conn)?
             } else {
                 crate::schema::workers::dsl::workers
-                    .order_by(crate::schema::workers::dsl::id)
+                    .order_by(crate::schema::workers::dsl::arch)
                     .offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
                     .load::<Worker>(conn)?

@@ -10,9 +10,9 @@
           :loading="loading"
           item-value="id"
           @update:options="loadItems">
-          <template #item.id="{ item }">
+          <template #item.hostname="{ item }">
             <router-link :to="{ path: `/workers/${(item as Worker).id}` }">
-              {{ (item as Worker).id }}
+              {{ (item as Worker).hostname }}
             </router-link>
           </template>
           <template #item.status="{ item }">
@@ -65,6 +65,7 @@
 
   interface Worker {
     id: number;
+    hostname: string;
     is_live: boolean;
     last_heartbeat_time: string;
     logical_cores: number;
@@ -76,7 +77,6 @@
     data: () => ({
       itemsPerPage: 25,
       headers: [
-        { title: 'Worker ID', key: 'id', sortable: false },
         { title: 'Hostname', key: 'hostname', sortable: false },
         { title: 'Architecture', key: 'arch', sortable: false },
         { title: 'Logical Cores', key: 'logical_cores', sortable: false },
