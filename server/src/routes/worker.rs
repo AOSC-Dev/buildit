@@ -171,6 +171,17 @@ pub async fn worker_poll(
     match conn.transaction::<Option<(Pipeline, Job)>, diesel::result::Error, _>(|conn| {
         use crate::schema::jobs::dsl::*;
 
+        // find worker id
+        let worker = crate::schema::workers::dsl::workers
+            .filter(crate::schema::workers::dsl::hostname.eq(&payload.hostname))
+            .filter(crate::schema::workers::dsl::arch.eq(&payload.arch))
+            .first::<Worker>(conn)?;
+
+        // remove if any job is already allocated to the worker
+        diesel::update(jobs.filter(assigned_worker_id.eq(worker.id)))
+            .set((status.eq("created"), assigned_worker_id.eq(None::<i32>)))
+            .execute(conn)?;
+
         let mut sql = jobs.filter(status.eq("created")).into_boxed();
         if payload.arch == "amd64" {
             // route noarch to amd64
@@ -206,17 +217,6 @@ pub async fn worker_poll(
         let res = sql.first::<Job>(conn).optional()?;
         match res {
             Some(job) => {
-                // find worker id
-                let worker = crate::schema::workers::dsl::workers
-                    .filter(crate::schema::workers::dsl::hostname.eq(&payload.hostname))
-                    .filter(crate::schema::workers::dsl::arch.eq(&payload.arch))
-                    .first::<Worker>(conn)?;
-
-                // remove if already allocated to the worker
-                diesel::update(jobs.filter(assigned_worker_id.eq(worker.id)))
-                    .set((status.eq("created"), assigned_worker_id.eq(None::<i32>)))
-                    .execute(conn)?;
-
                 // allocate to the worker
                 diesel::update(&job)
                     .set((status.eq("running"), assigned_worker_id.eq(worker.id)))

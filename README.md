@@ -12,7 +12,7 @@ Steps (as root):
 3. `cd /buildroots/buildit && ciel new`, making sure to create an instance named "main" when asked
 4. `cp /buildroots/buildit/buildit/systemd/buildit-worker.service /etc/systemd/system`
 5. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH
-6. `$EDITOR /buildroots/buildit/buildit/.env`: set BUILDIT_SERVER, BUILDIT_WORKER_SECRET and BUILDIT_SSH_KEY; for workers in China, optionally update BUILDIT_RSYNC_HOST to repo-cn.aosc.io
+6. `$EDITOR /buildroots/buildit/buildit/.env`: set BUILDIT_SERVER, BUILDIT_WORKER_SECRET BUILDIT_SSH_KEY and BUILDIT_WORKER_PERFORMANCE; for workers in China, optionally update BUILDIT_RSYNC_HOST to repo-cn.aosc.io
 7. `systemctl enable --now buildit-worker`
 8. `chmod 600 /buildroots/buildit/buildit/.env`
 9. Setup SSH key of AOSC Maintainers at the location of BUILDIT_SSH_KEY
