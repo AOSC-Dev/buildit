@@ -104,6 +104,7 @@ pub async fn pipeline_info(
 
             let jobs: Vec<PipelineInfoResponseJob> = crate::schema::jobs::dsl::jobs
                 .filter(crate::schema::jobs::dsl::pipeline_id.eq(pipeline.id))
+                .order(crate::schema::jobs::dsl::id.asc())
                 .load::<Job>(conn)?
                 .into_iter()
                 .map(|job| PipelineInfoResponseJob {
