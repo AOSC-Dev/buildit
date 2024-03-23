@@ -171,7 +171,7 @@ pub async fn dashboard_status(
                 } else {
                     arch
                 };
-                by_arch.entry(arch).or_default().total_job_count = count;
+                by_arch.entry(arch).or_default().total_job_count += count;
             }
 
             for (arch, count) in crate::schema::jobs::dsl::jobs
@@ -188,7 +188,7 @@ pub async fn dashboard_status(
                 } else {
                     arch
                 };
-                by_arch.entry(arch).or_default().pending_job_count = count;
+                by_arch.entry(arch).or_default().pending_job_count += count;
             }
 
             for (arch, count) in crate::schema::jobs::dsl::jobs
@@ -205,7 +205,7 @@ pub async fn dashboard_status(
                 } else {
                     arch
                 };
-                by_arch.entry(arch).or_default().running_job_count = count;
+                by_arch.entry(arch).or_default().running_job_count += count;
             }
 
             Ok(DashboardStatusResponse {
