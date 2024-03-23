@@ -778,7 +778,7 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#3009ed0489db056b7ce05f89782c49fa05f32e6b"
+source = "git+https://github.com/AOSC-Dev/dickens.git#36ea232d0224902f286de27886ccc4627b67e3c0"
 dependencies = [
  "abbs-meta-apml 0.1.0 (git+https://github.com/AOSC-Dev/abbs-meta-rs)",
  "anyhow",
@@ -788,10 +788,10 @@ dependencies = [
  "log",
  "reqwest",
  "sha2",
+ "size",
  "solver",
  "tokio",
  "walkdir",
- "xz",
 ]
 
 [[package]]
@@ -4566,15 +4566,6 @@ dependencies = [
  "sysinfo",
  "tokio",
  "vergen",
-]
-
-[[package]]
-name = "xz"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c887690ff2a2e233e8e49633461521f98ec57fbff9d59a884c9a4f04ec1da34"
-dependencies = [
- "xz2",
 ]
 
 [[package]]
