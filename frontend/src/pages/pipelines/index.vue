@@ -83,11 +83,11 @@
               Failed
             </v-chip>
             <v-chip
-              color="grey"
+              color="blue"
               variant="flat"
               density="comfortable"
               v-else-if="(item as Job).status === 'running'"
-              prepend-icon="mdi:mdi-progress-question"
+              prepend-icon="mdi:mdi-circle-slice-5"
               :to="{ path: `/pipelines/${(item as Pipeline).id}` }"
               >
               Running
