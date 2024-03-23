@@ -55,6 +55,7 @@ pub fn to_html_build_result(
         r#"{} Job completed on {} ({})
 
 <b>Job</b>: {}
+<b>Pipeline</b>: {}
 <b>Enqueue time</b>: {}
 <b>Time elapsed</b>: {}
 <b>Git commit</b>: {}
@@ -72,6 +73,10 @@ pub fn to_html_build_result(
         format!(
             "<a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>",
             job.id, job.id
+        ),
+        format!(
+            "<a href=\"https://buildit.aosc.io/pipelines/{}\">#{}</a>",
+            pipeline.id, pipeline.id
         ),
         format!("{}", job.creation_time),
         format!("{}s", elapsed_secs),
@@ -123,11 +128,12 @@ pub fn to_markdown_build_result(
     } = job_ok;
 
     format!(
-        "{} Job completed on {} \\({}\\)\n\n**Job**: {}\n**Enqueue time**: {}\n**Time elapsed**: {}s\n{}{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
+        "{} Job completed on {} \\({}\\)\n\n**Job**: {}\n**Pipeline**: {}\n**Enqueue time**: {}\n**Time elapsed**: {}s\n{}{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
         worker_hostname,
         worker_arch,
         format!("[#{}](https://buildit.aosc.io/jobs/{})", job.id, job.id),
+        format!("[#{}](https://buildit.aosc.io/pipelines/{})", pipeline.id, pipeline.id),
         teloxide::utils::markdown::escape(&job.creation_time.to_string()),
         elapsed_secs,
         format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &pipeline.git_sha[..8], pipeline.git_sha),
@@ -213,5 +219,5 @@ fn test_format_html_build_result() {
 
     let s = to_html_build_result(&pipeline, &job, &job_ok, worker_hostname, worker_arch, true);
 
-    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
 }
