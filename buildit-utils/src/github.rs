@@ -188,6 +188,8 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<String> {
         }
     });
 
+    res.sort();
+
     res
 }
 
