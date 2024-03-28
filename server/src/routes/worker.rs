@@ -182,7 +182,16 @@ pub async fn worker_poll(
             .set((status.eq("created"), assigned_worker_id.eq(None::<i32>)))
             .execute(conn)?;
 
-        let mut sql = jobs.filter(status.eq("created")).into_boxed();
+        // prioritize jobs on stable branch
+        let mut sql = jobs
+            .inner_join(crate::schema::pipelines::dsl::pipelines)
+            .order_by(
+                crate::schema::pipelines::dsl::git_branch
+                    .eq("stable")
+                    .desc(),
+            )
+            .filter(status.eq("created"))
+            .into_boxed();
         if payload.arch == "amd64" {
             // route noarch to amd64
             sql = sql.filter(arch.eq(&payload.arch).or(arch.eq("noarch")));
@@ -214,18 +223,13 @@ pub async fn worker_poll(
                     .or(require_min_disk.le(payload.disk_free_space_bytes)),
             );
 
-        let res = sql.first::<Job>(conn).optional()?;
+        let res = sql.first::<(Job, Pipeline)>(conn).optional()?;
         match res {
-            Some(job) => {
+            Some((job, pipeline)) => {
                 // allocate to the worker
                 diesel::update(&job)
                     .set((status.eq("running"), assigned_worker_id.eq(worker.id)))
                     .execute(conn)?;
-
-                // get pipeline the job belongs to
-                let pipeline = crate::schema::pipelines::dsl::pipelines
-                    .find(job.pipeline_id)
-                    .get_result::<Pipeline>(conn)?;
 
                 Ok(Some((pipeline, job)))
             }
