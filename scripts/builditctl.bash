@@ -21,6 +21,14 @@ while read i; do
                     && printf "OK!\n" \
                     || printf "Failed to restart BuildIt worker on $server_name ($server_port)!\n"
             ;;
+        update-keys)
+            printf "Updating contributor pubkeys on $server_name ($server_port) ... "
+            # ssh -n disables reading from stdin, which overrides the while read loop.
+            ssh -n root@relay-cn.aosc.io -p $server_port \
+                 "curl -fsSL https://raw.githubusercontent.com/AOSC-Dev/dev-pubkeys/master/install.sh | bash" \
+                    && printf "OK!\n" \
+                    || printf "Failed to restart BuildIt worker on $server_name ($server_port)!\n"
+            ;;
         *)
             echo "Invalid operation specified! (restart or stop?)"
             exit 1
