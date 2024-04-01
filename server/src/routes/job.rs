@@ -1,5 +1,5 @@
 use crate::github::get_crab_github_installation;
-use crate::models::{Job, NewJob, Pipeline, User};
+use crate::models::{Job, NewJob, Pipeline, User, Worker};
 use crate::routes::{AnyhowError, AppState};
 use anyhow::{bail, Context};
 use axum::extract::{Json, Query, State};
@@ -143,6 +143,10 @@ pub struct JobInfoResponse {
     git_branch: String,
     git_sha: String,
     github_pr: Option<i64>,
+
+    // from worker
+    assigned_worker_hostname: Option<String>,
+    built_by_worker_hostname: Option<String>,
 }
 
 pub async fn job_info(
@@ -155,13 +159,27 @@ pub async fn job_info(
 
     Ok(Json(
         conn.transaction::<JobInfoResponse, diesel::result::Error, _>(|conn| {
-            let job = crate::schema::jobs::dsl::jobs
+            // use alias to allow joining workers table twice
+            // https://github.com/diesel-rs/diesel/issues/2569
+            // https://github.com/diesel-rs/diesel/pull/2254
+            // https://docs.rs/diesel/latest/diesel/macro.alias.html
+            let assigned_workers = diesel::alias!(crate::schema::workers as assigned_workers);
+            let (job, pipeline, assigned_worker, built_by_worker) = crate::schema::jobs::dsl::jobs
                 .find(query.job_id)
-                .get_result::<Job>(conn)?;
-
-            let pipeline = crate::schema::pipelines::dsl::pipelines
-                .find(job.pipeline_id)
-                .get_result::<Pipeline>(conn)?;
+                .inner_join(crate::schema::pipelines::dsl::pipelines)
+                .left_join(
+                    assigned_workers.on(crate::schema::jobs::dsl::assigned_worker_id.eq(
+                        assigned_workers
+                            .field(crate::schema::workers::dsl::id)
+                            .nullable(),
+                    )),
+                )
+                .left_join(
+                    crate::schema::workers::dsl::workers
+                        .on(crate::schema::jobs::dsl::built_by_worker_id
+                            .eq(crate::schema::workers::dsl::id.nullable())),
+                )
+                .get_result::<(Job, Pipeline, Option<Worker>, Option<Worker>)>(conn)?;
 
             Ok(JobInfoResponse {
                 job_id: job.id,
@@ -190,6 +208,10 @@ pub async fn job_info(
                 git_branch: pipeline.git_branch,
                 git_sha: pipeline.git_sha,
                 github_pr: pipeline.github_pr,
+
+                // from worker
+                assigned_worker_hostname: assigned_worker.map(|w| w.hostname),
+                built_by_worker_hostname: built_by_worker.map(|w| w.hostname),
             })
         })?,
     ))

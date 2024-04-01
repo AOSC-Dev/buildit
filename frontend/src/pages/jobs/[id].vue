@@ -46,14 +46,14 @@
         <div v-if="job.assigned_worker_id !== null && job.assigned_worker_id !== undefined">
           Running by worker #
           <router-link :to="{ path: `/workers/${job.assigned_worker_id}` }">
-            {{ job.assigned_worker_id }}
+            {{ job.assigned_worker_id }}: {{ job.assigned_worker_hostname }}
           </router-link>
           <br/>
         </div>
         <div v-if="job.built_by_worker_id !== null && job.built_by_worker_id !== undefined">
           Built by worker #
           <router-link :to="{ path: `/workers/${job.built_by_worker_id}` }">
-            {{ job.built_by_worker_id }}
+            {{ job.built_by_worker_id }}: {{ job.built_by_worker_hostname }}
           </router-link>
           <br/>
         </div>
@@ -132,6 +132,9 @@ import prettyBytes from 'pretty-bytes';
     git_branch: string;
     git_sha: string;
     github_pr: number;
+
+    assigned_worker_hostname: string;
+    built_by_worker_hostname: string;
   }
 
   export default {
