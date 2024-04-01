@@ -147,7 +147,7 @@
               v-if="(item as Job).log_url !== null && (item as Job).log_url !== undefined"
               :to="{ path: (item as Job).log_url.replace('https://buildit.aosc.io/logs/', '/web-logs/') }"
               style="margin-right: 5px;margin-bottom: 5px;">
-              <v-icon>mdi:mdi-history</v-icon>
+              <v-icon>mdi:mdi-receipt-text</v-icon>
               <v-tooltip activator="parent" location="bottom">
                 View Log
               </v-tooltip>
