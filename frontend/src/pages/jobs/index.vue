@@ -212,7 +212,7 @@
   export default {
     data: () => ({
       page: 1,
-      itemsPerPage: 25,
+      itemsPerPage: 100,
       headers: [
         { title: 'Status', key: 'status', sortable: false },
         { title: 'Job', key: 'job', sortable: false },
