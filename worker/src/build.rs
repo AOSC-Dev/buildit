@@ -246,7 +246,7 @@ async fn build(
                 &path,
                 &format!("maintainers@{}:/buildit/logs", args.rsync_host),
             ],
-            &output_path,
+            &tree_path,
             &mut scp_log,
         )
         .await?
