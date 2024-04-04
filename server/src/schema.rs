@@ -24,6 +24,7 @@ diesel::table! {
         require_min_total_mem -> Nullable<Int8>,
         require_min_total_mem_per_core -> Nullable<Float4>,
         require_min_disk -> Nullable<Int8>,
+        assign_time -> Nullable<Timestamptz>,
     }
 }
 

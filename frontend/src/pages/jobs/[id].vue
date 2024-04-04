@@ -13,9 +13,11 @@
       <v-card-text>
         Creation time: {{ job.creation_time }}
         <br/>
-        Finish time: {{ job.finish_time }}
+        Running since: {{ job.assign_time }}
         <br/>
         Time elapsed: {{ job.elapsed_secs }}
+        <br/>
+        Finish time: {{ job.finish_time }}
         <br/>
         Git commit: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/commit/${job.git_sha}`">
           {{ job.git_sha }}
@@ -128,6 +130,7 @@ import prettyBytes from 'pretty-bytes';
     require_min_total_mem: number;
     require_min_total_mem_per_core: number;
     require_min_disk: number;
+    assign_time: string;
 
     git_branch: string;
     git_sha: string;

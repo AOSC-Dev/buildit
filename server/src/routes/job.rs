@@ -138,6 +138,7 @@ pub struct JobInfoResponse {
     require_min_total_mem: Option<i64>,
     require_min_total_mem_per_core: Option<f32>,
     require_min_disk: Option<i64>,
+    assign_time: Option<chrono::DateTime<chrono::Utc>>,
 
     // from pipeline
     git_branch: String,
@@ -203,6 +204,7 @@ pub async fn job_info(
                 require_min_total_mem: job.require_min_total_mem,
                 require_min_total_mem_per_core: job.require_min_total_mem_per_core,
                 require_min_disk: job.require_min_disk,
+                assign_time: job.assign_time,
 
                 // from pipeline
                 git_branch: pipeline.git_branch,

@@ -228,7 +228,11 @@ pub async fn worker_poll(
             Some((job, pipeline)) => {
                 // allocate to the worker
                 diesel::update(&job)
-                    .set((status.eq("running"), assigned_worker_id.eq(worker.id)))
+                    .set((
+                        status.eq("running"),
+                        assigned_worker_id.eq(worker.id),
+                        assign_time.eq(chrono::Utc::now()),
+                    ))
                     .execute(conn)?;
 
                 Ok(Some((pipeline, job)))

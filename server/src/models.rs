@@ -59,6 +59,7 @@ pub struct Job {
     pub require_min_total_mem: Option<i64>,
     pub require_min_total_mem_per_core: Option<f32>,
     pub require_min_disk: Option<i64>,
+    pub assign_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Insertable)]
