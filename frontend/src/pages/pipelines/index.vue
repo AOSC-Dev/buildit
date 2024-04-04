@@ -234,7 +234,7 @@
     data() {
       return {
         page: Number(this.$route.query.page) || 1,
-        itemsPerPage: Number(this.$route.query.items_per_page) || 25,
+        itemsPerPage: Number(this.$route.query.items_per_page) || 100,
         stableOnly: this.$route.query.stable_only === "true",
         githubPROnly: this.$route.query.github_pr_only === "true",
         headers: [
