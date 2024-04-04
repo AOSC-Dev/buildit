@@ -194,6 +194,7 @@ fn test_format_html_build_result() {
         skipped_packages: Some("".to_string()),
         log_url: Some("https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw".to_string()),
         finish_time: Some(DateTime::from_timestamp(61, 0).unwrap()),
+        assign_time: Some(DateTime::from_timestamp(61, 0).unwrap()),
         error_message: None,
         elapsed_secs: Some(888),
         assigned_worker_id: Some(1),

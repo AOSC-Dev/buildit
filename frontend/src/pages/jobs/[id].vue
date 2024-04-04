@@ -46,16 +46,16 @@
         </div>
         Status: {{ job.status }}
         <div v-if="job.assigned_worker_id !== null && job.assigned_worker_id !== undefined">
-          Running by worker #
+          Running by worker
           <router-link :to="{ path: `/workers/${job.assigned_worker_id}` }">
-            {{ job.assigned_worker_id }}: {{ job.assigned_worker_hostname }}
+            #{{ job.assigned_worker_id }}: {{ job.assigned_worker_hostname }}
           </router-link>
           <br/>
         </div>
         <div v-if="job.built_by_worker_id !== null && job.built_by_worker_id !== undefined">
-          Built by worker #
+          Built by worker
           <router-link :to="{ path: `/workers/${job.built_by_worker_id}` }">
-            {{ job.built_by_worker_id }}: {{ job.built_by_worker_hostname }}
+            #{{ job.built_by_worker_id }}: {{ job.built_by_worker_hostname }}
           </router-link>
           <br/>
         </div>
