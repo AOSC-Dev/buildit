@@ -39,7 +39,6 @@
             <br/>
             Last seen {{ new TimeAgo('en-US').format(new Date((item as Worker).last_heartbeat_time)) }}
             <div v-if="(item as Worker).running_job_id !== null && (item as Worker).running_job_id !== undefined">
-              <br/>
               Running job
               <router-link :to="{ path: `/jobs/${(item as Worker).running_job_id}` }">
                 # {{ (item as Worker).running_job_id }}
