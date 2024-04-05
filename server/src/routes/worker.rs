@@ -329,6 +329,7 @@ pub async fn worker_job_update(
                     break;
                 }
                 HandleSuccessResult::Retry(x) => {
+                    info!("Retrying handlE_success_message");
                     retry = Some(x);
                     continue;
                 }
@@ -405,6 +406,7 @@ pub async fn handle_success_message(
 
             if pipeline.source == "telegram" {
                 if let Some(bot) = bot {
+                    info!("Sending result to telegram");
                     let s = to_html_build_result(
                         pipeline,
                         job,
@@ -433,6 +435,7 @@ pub async fn handle_success_message(
             let new_content =
                 to_markdown_build_result(pipeline, job, job_ok, &req.hostname, &req.arch, success);
             if let Some(pr_num) = pipeline.github_pr {
+                info!("Updating GitHub PR comments");
                 let crab = match octocrab::Octocrab::builder()
                     .user_access_token(ARGS.github_access_token.clone())
                     .build()
@@ -500,6 +503,7 @@ pub async fn handle_success_message(
 
                 // update checklist
                 // the operation is not atomic, so we use lock to avoid racing
+                info!("Updating GitHub PR checklist");
                 let _lock = GITHUB_PR_CHECKLIST_LOCK.lock().await;
                 let pr = match crab
                     .pulls("AOSC-Dev", "aosc-os-abbs")
@@ -554,6 +558,7 @@ pub async fn handle_success_message(
 
             // if associated with github check run, update status
             if let Some(github_check_run_id) = job.github_check_run_id {
+                info!("Updating GitHub check run status");
                 // authenticate with github app
                 match get_crab_github_installation().await {
                     Ok(Some(crab)) => {
