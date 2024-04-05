@@ -11,13 +11,13 @@
         </v-card-subtitle>
       </v-card-item>
       <v-card-text>
-        Creation time: {{ job.creation_time }} {{ job.creation_time !== undefined && job.creation_time !== null ? ("," + new TimeAgo('en-US').format(new Date(job.creation_time))) : "" }}
+        Creation time: {{ job.creation_time }}{{ job.creation_time !== undefined && job.creation_time !== null ? (", " + new TimeAgo('en-US').format(new Date(job.creation_time))) : "" }}
         <br/>
-        Running since: {{ job.assign_time }} {{ job.assign_time !== undefined && job.assign_time !== null ? ("," + new TimeAgo('en-US').format(new Date(job.assign_time))) : "" }}
+        Running since: {{ job.assign_time }}{{ job.assign_time !== undefined && job.assign_time !== null ? (", " + new TimeAgo('en-US').format(new Date(job.assign_time))) : "" }}
         <br/>
         Time elapsed: {{ job.elapsed_secs }}
         <br/>
-        Finish time: {{ job.finish_time }} {{ job.finish_time !== undefined && job.finish_time !== null ? ("," + new TimeAgo('en-US').format(new Date(job.finish_time))) : "" }}
+        Finish time: {{ job.finish_time }}{{ job.finish_time !== undefined && job.finish_time !== null ? (", " + new TimeAgo('en-US').format(new Date(job.finish_time))) : "" }}
         <br/>
         Git commit: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/commit/${job.git_sha}`">
           {{ job.git_sha }}
