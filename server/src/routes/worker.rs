@@ -72,7 +72,10 @@ pub async fn worker_list(
 
             let workers = if query.items_per_page == -1 {
                 crate::schema::workers::dsl::workers
-                    .order_by(crate::schema::workers::dsl::arch)
+                    .order_by((
+                        crate::schema::workers::dsl::arch,
+                        crate::schema::workers::dsl::hostname,
+                    ))
                     .left_join(
                         crate::schema::jobs::dsl::jobs
                             .on(crate::schema::jobs::dsl::assigned_worker_id
@@ -81,7 +84,10 @@ pub async fn worker_list(
                     .load::<(Worker, Option<Job>)>(conn)?
             } else {
                 crate::schema::workers::dsl::workers
-                    .order_by(crate::schema::workers::dsl::arch)
+                    .order_by((
+                        crate::schema::workers::dsl::arch,
+                        crate::schema::workers::dsl::hostname,
+                    ))
                     .offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
                     .left_join(
