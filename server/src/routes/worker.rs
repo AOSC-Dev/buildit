@@ -18,7 +18,7 @@ use common::{
     WorkerPollResponse,
 };
 
-use diesel::BoolExpressionMethods;
+use diesel::{BoolExpressionMethods, JoinOnDsl, NullableExpressionMethods};
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use octocrab::models::CheckRunId;
 use octocrab::params::checks::CheckRunConclusion;
@@ -46,6 +46,8 @@ pub struct WorkerListResponseItem {
     disk_free_space_bytes: i64,
     is_live: bool,
     last_heartbeat_time: DateTime<Utc>,
+    // status
+    running_job_id: Option<i32>,
 }
 
 #[derive(Serialize)]
@@ -71,18 +73,28 @@ pub async fn worker_list(
             let workers = if query.items_per_page == -1 {
                 crate::schema::workers::dsl::workers
                     .order_by(crate::schema::workers::dsl::arch)
-                    .load::<Worker>(conn)?
+                    .left_join(
+                        crate::schema::jobs::dsl::jobs
+                            .on(crate::schema::jobs::dsl::assigned_worker_id
+                                .eq(crate::schema::workers::dsl::id.nullable())),
+                    )
+                    .load::<(Worker, Option<Job>)>(conn)?
             } else {
                 crate::schema::workers::dsl::workers
                     .order_by(crate::schema::workers::dsl::arch)
                     .offset((query.page - 1) * query.items_per_page)
                     .limit(query.items_per_page)
-                    .load::<Worker>(conn)?
+                    .left_join(
+                        crate::schema::jobs::dsl::jobs
+                            .on(crate::schema::jobs::dsl::assigned_worker_id
+                                .eq(crate::schema::workers::dsl::id.nullable())),
+                    )
+                    .load::<(Worker, Option<Job>)>(conn)?
             };
 
             let mut items = vec![];
             let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
-            for worker in workers {
+            for (worker, job) in workers {
                 items.push(WorkerListResponseItem {
                     id: worker.id,
                     hostname: worker.hostname,
@@ -92,6 +104,7 @@ pub async fn worker_list(
                     disk_free_space_bytes: worker.disk_free_space_bytes,
                     is_live: worker.last_heartbeat_time > deadline,
                     last_heartbeat_time: worker.last_heartbeat_time,
+                    running_job_id: job.map(|job| job.id),
                 });
             }
 
