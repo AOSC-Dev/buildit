@@ -10,7 +10,7 @@ octocrab = "0.35.0"
 jsonwebtoken = "9"
 anyhow = "1"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "process", "sync", "fs"] }
-gix = { version = "0.58", default-features = false, features = ["max-performance", "revision"] }
+gix = { version = "0.58", default-features = false, features = ["revision"] }
 walkdir = "2.4.0"
 abbs-meta-apml = { git = "https://github.com/AOSC-Dev/abbs-meta-rs", package = "abbs-meta-apml", rev = "4a592937b44e8bb93103edd34eff384169a3248a" }
 fancy-regex = "0.13"
