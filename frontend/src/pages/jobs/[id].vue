@@ -59,7 +59,7 @@
           </router-link>
           <br/>
         </div>
-        <div v-if="job.pushpkg_success === false">
+        <div v-if="job.build_success === true && job.pushpkg_success === false">
           Failed to push package to repo
           <br/>
         </div>
