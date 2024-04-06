@@ -4,7 +4,10 @@ use log::{info, warn};
 use std::time::Duration;
 
 pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap();
     loop {
         // info!("Sending heartbeat");
         client

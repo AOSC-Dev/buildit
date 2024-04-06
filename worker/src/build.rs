@@ -293,7 +293,10 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 
     info!("Receiving new messages");
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap();
     let req = WorkerPollRequest {
         hostname: gethostname::gethostname().to_string_lossy().to_string(),
         arch: args.arch.clone(),
