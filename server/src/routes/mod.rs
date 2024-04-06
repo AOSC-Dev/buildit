@@ -1,4 +1,4 @@
-use crate::DbPool;
+use crate::{DbPool, HEARTBEAT_TIMEOUT};
 
 use anyhow::Context;
 use axum::{
@@ -121,7 +121,7 @@ pub async fn dashboard_status(
                 ))
                 .get_result::<(Option<i64>, Option<bigdecimal::BigDecimal>)>(conn)?;
 
-            let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
+            let deadline = Utc::now() - chrono::Duration::try_seconds(HEARTBEAT_TIMEOUT).unwrap();
             let live_worker_count = crate::schema::workers::dsl::workers
                 .filter(crate::schema::workers::last_heartbeat_time.gt(deadline))
                 .count()

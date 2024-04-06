@@ -1,6 +1,6 @@
 use crate::{
     models::{Job, Worker},
-    DbPool,
+    DbPool, HEARTBEAT_TIMEOUT,
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -10,13 +10,13 @@ use tracing::{info, warn};
 
 pub async fn recycler_worker_inner(pool: DbPool) -> anyhow::Result<()> {
     loop {
-        // recycle jobs whose worker is offline for 300s
+        // recycle jobs whose worker is dead
         use crate::schema::{jobs, workers};
         let mut conn = pool
             .get()
             .context("Failed to get db connection from pool")?;
 
-        let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
+        let deadline = Utc::now() - chrono::Duration::try_seconds(HEARTBEAT_TIMEOUT).unwrap();
         let res = jobs::dsl::jobs
             .inner_join(
                 workers::dsl::workers.on(workers::dsl::id

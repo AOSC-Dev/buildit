@@ -1,4 +1,5 @@
 use crate::routes::{AnyhowError, AppState};
+use crate::HEARTBEAT_TIMEOUT;
 use crate::{
     api::{self},
     formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
@@ -99,7 +100,7 @@ pub async fn worker_list(
             };
 
             let mut items = vec![];
-            let deadline = Utc::now() - chrono::Duration::try_seconds(300).unwrap();
+            let deadline = Utc::now() - chrono::Duration::try_seconds(HEARTBEAT_TIMEOUT).unwrap();
             for (worker, job) in workers {
                 items.push(WorkerListResponseItem {
                     id: worker.id,
