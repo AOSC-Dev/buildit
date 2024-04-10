@@ -1,15 +1,14 @@
-use std::borrow::Cow;
-
-use common::JobOk;
-
 use crate::models::{Job, Pipeline};
+use common::JobOk;
+use std::borrow::Cow;
 
 pub const SUCCESS: &str = "✅️";
 pub const FAILED: &str = "❌";
 
 pub fn to_html_new_pipeline_summary(
     pipeline_id: i32,
-    git_ref: &str,
+    git_branch: &str,
+    git_sha: &str,
     github_pr: Option<u64>,
     archs: &[&str],
     packages: &[&str],
@@ -18,12 +17,15 @@ pub fn to_html_new_pipeline_summary(
         r#"<b><u>New Pipeline Summary</u></b>
 
 <b>Pipeline</b>: <a href="https://buildit.aosc.io/pipelines/{}">#{}</a>
-<b>Git reference</b>: {}{}
+<b>Git branch</b>: {}
+<b>Git commit</b>: <a href="https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}">{}</a>{}
 <b>Architecture(s)</b>: {}
 <b>Package(s)</b>: {}"#,
         pipeline_id,
         pipeline_id,
-        git_ref,
+        git_branch,
+        git_sha,
+        &git_sha[..8],
         if let Some(pr) = github_pr {
             format!("\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>", pr, pr)
         } else {
@@ -157,8 +159,9 @@ pub fn code_repr_string(s: &str) -> String {
 
 #[test]
 fn test_format_html_new_pipeline_summary() {
-    let s = to_html_new_pipeline_summary(1, "fd-9.0.0", Some(4992), &["amd64"], &["fd"]);
-    assert_eq!(s, "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git reference</b>: fd-9.0.0\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
+    let s =
+        to_html_new_pipeline_summary(1, "fd-9.0.0", "123456789", Some(4992), &["amd64"], &["fd"]);
+    assert_eq!(s, "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
 }
 
 #[test]

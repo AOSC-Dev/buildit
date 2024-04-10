@@ -131,6 +131,7 @@ async fn pipeline_new_and_report(
                 to_html_new_pipeline_summary(
                     pipeline.id,
                     &pipeline.git_branch,
+                    &pipeline.git_sha,
                     pipeline.github_pr.map(|n| n as u64),
                     &pipeline.archs.split(',').collect::<Vec<_>>(),
                     &pipeline.packages.split(',').collect::<Vec<_>>(),
@@ -273,6 +274,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                 to_html_new_pipeline_summary(
                                     pipeline.id,
                                     &pipeline.git_branch,
+                                    &pipeline.git_sha,
                                     pipeline.github_pr.map(|n| n as u64),
                                     &pipeline.archs.split(',').collect::<Vec<_>>(),
                                     &pipeline.packages.split(',').collect::<Vec<_>>(),
