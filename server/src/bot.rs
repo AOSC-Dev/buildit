@@ -16,6 +16,7 @@ use teloxide::{
     types::{ChatAction, ParseMode},
     utils::command::BotCommands,
 };
+use tokio::sync::mpsc::Sender;
 use tracing::{warn, Instrument};
 
 #[derive(BotCommands, Clone, Debug)]
@@ -413,6 +414,29 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     }
                 };
 
+                let (tx, mut rx): (Sender<String>, _) = tokio::sync::mpsc::channel(2);
+
+                let botc = bot.clone();
+
+                let (res_tx, mut res_rx) = tokio::sync::mpsc::channel(2);
+
+                tokio::spawn(async move {
+                    loop {
+                        if let Ok(url) = rx.try_recv() {
+                            res_tx
+                                .send(
+                                    botc.send_message(
+                                        msg.chat.id,
+                                        format!("Successfully opened PR: {url}"),
+                                    )
+                                    .await,
+                                )
+                                .await
+                                .unwrap();
+                        }
+                    }
+                });
+
                 match buildit_utils::github::open_pr(
                     app_private_key,
                     &token,
@@ -425,12 +449,14 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         tags: tags.clone(),
                         archs: archs.clone(),
                     },
+                    tx.clone(),
                 )
                 .await
                 {
-                    Ok(url) => {
-                        bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
-                            .await?;
+                    Ok(()) => {
+                        if let Ok(res) = res_rx.try_recv() {
+                            res?;
+                        }
                         return Ok(());
                     }
                     Err(e) => match e {
@@ -468,15 +494,14 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                         tags,
                                         archs,
                                     },
+                                    tx.clone(),
                                 )
                                 .await
                                 {
-                                    Ok(url) => {
-                                        bot.send_message(
-                                            msg.chat.id,
-                                            format!("Successfully opened PR: {url}"),
-                                        )
-                                        .await?;
+                                    Ok(()) => {
+                                        if let Ok(res) = res_rx.try_recv() {
+                                            res?;
+                                        }
                                         return Ok(());
                                     }
                                     Err(e) => {
