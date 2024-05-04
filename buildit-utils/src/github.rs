@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
     process::Output,
 };
-use tokio::{process, sync::mpsc::Sender, task};
+use tokio::{process, task};
 use tracing::{debug, error, info, info_span, warn, Instrument};
 use walkdir::WalkDir;
 
@@ -66,14 +66,13 @@ pub enum OpenPRError {
     Anyhow(#[from] anyhow::Error),
 }
 
-#[tracing::instrument(skip(app_private_key_path, access_token, app_id, url_tx))]
+#[tracing::instrument(skip(app_private_key_path, access_token, app_id))]
 pub async fn open_pr(
     app_private_key_path: &Path,
     access_token: &str,
     app_id: u64,
     openpr_request: OpenPRRequest<'_>,
-    url_tx: Sender<String>,
-) -> Result<(), OpenPRError> {
+) -> Result<String, OpenPRError> {
     let key = tokio::fs::read(app_private_key_path).await?;
     let key = tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
         .await??;
@@ -90,40 +89,12 @@ pub async fn open_pr(
     update_abbs(&git_ref, &abbs_path).await?;
 
     let abbs_path_clone = abbs_path.clone();
-
-    let (err_tx, mut err_rx) = tokio::sync::oneshot::channel();
-    let (tx, mut rx) = tokio::sync::oneshot::channel();
-
-    task::spawn(async move {
-        let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
-            .instrument(info_span!("get_commits"))
-            .await
-            .unwrap();
-
-        let commits = match commits {
-            Ok(commits) => commits,
-            Err(err) => {
-                err_tx.send(err).unwrap();
-                return;
-            }
-        };
-
-        let commits = task::spawn_blocking(move || handle_commits(&commits))
-            .instrument(info_span!("handle_commits"))
-            .await
-            .unwrap();
-
-        let commits = match commits {
-            Ok(commits) => commits,
-            Err(err) => {
-                err_tx.send(err).unwrap();
-                return;
-            }
-        };
-
-        tx.send(commits).unwrap();
-    });
-
+    let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
+        .instrument(info_span!("get_commits"))
+        .await??;
+    let commits = task::spawn_blocking(move || handle_commits(&commits))
+        .instrument(info_span!("handle_commits"))
+        .await??;
     let pkgs = packages
         .split(',')
         .map(|x| x.to_string())
@@ -150,12 +121,6 @@ pub async fn open_pr(
             .instrument(info_span!("find_version_by_packages"))
             .await?;
 
-    let desc = if let Ok(desc) = rx.try_recv() {
-        desc
-    } else {
-        "Generating...".to_string()
-    };
-
     let pr = open_pr_inner(OpenPR {
         access_token: access_token.to_string(),
         title: &title,
@@ -163,41 +128,14 @@ pub async fn open_pr(
         packages: &packages,
         id: app_id,
         key: key.clone(),
-        desc: &desc,
+        desc: &commits,
         pkg_affected: &pkg_affected,
         tags: tags.as_deref(),
         archs: &archs,
     })
     .await?;
 
-    url_tx
-        .send(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
-        .await
-        .unwrap();
-
-    loop {
-        if let Ok(desc) = rx.try_recv() {
-            open_pr_inner(OpenPR {
-                access_token: access_token.to_string(),
-                title: &title,
-                head: &git_ref,
-                packages: &packages,
-                id: app_id,
-                key: key.clone(),
-                desc: &desc,
-                pkg_affected: &pkg_affected,
-                tags: tags.as_deref(),
-                archs: &archs,
-            })
-            .await?;
-
-            return Ok(());
-        }
-
-        if let Ok(err) = err_rx.try_recv() {
-            return Err(err.into());
-        }
-    }
+    Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
 }
 
 /// `packages` should have no groups nor modifiers
@@ -286,7 +224,6 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     Ok(s)
 }
 
-#[derive(Debug)]
 struct Commit {
     _id: String,
     msg: (String, Option<String>),
