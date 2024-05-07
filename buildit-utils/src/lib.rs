@@ -3,10 +3,9 @@ use std::{
     path::Path,
     process::Command,
 };
-
 use anyhow::{bail, Context};
 use walkdir::WalkDir;
-
+use once_cell::sync::Lazy;
 use crate::github::{find_version_by_packages, update_abbs};
 
 pub mod github;
@@ -31,6 +30,8 @@ pub(crate) const ALL_ARCH: &[&str] = &[
     "riscv64",
 ];
 
+pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+
 pub struct FindUpdate {
     pub package: String,
     pub branch: String,
@@ -41,6 +42,8 @@ pub async fn find_update_and_update_checksum(
     pkg: &str,
     abbs_path: &Path,
 ) -> anyhow::Result<FindUpdate> {
+    let lock = ABBS_REPO_LOCK.lock().await;
+
     // switch to stable branch
     update_abbs("stable", &abbs_path).await?;
 

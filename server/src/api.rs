@@ -1,13 +1,13 @@
 use crate::{
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{NewJob, NewPipeline, Pipeline, User, Worker},
-    DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS,
+    DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::anyhow;
 use anyhow::Context;
-use buildit_utils::github::{
+use buildit_utils::{github::{
     get_archs, get_environment_requirement, resolve_packages, update_abbs,
-};
+}, ABBS_REPO_LOCK};
 use diesel::{
     dsl::count, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
 };
