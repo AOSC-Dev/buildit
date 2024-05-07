@@ -116,10 +116,11 @@ pub async fn open_pr(
     };
 
     let abbs_path_clone = abbs_path.clone();
-    let pkg_affected =
-        task::spawn_blocking(move || find_version_by_packages(&resolved_pkgs, &abbs_path_clone))
-            .instrument(info_span!("find_version_by_packages"))
-            .await?;
+    let pkg_affected = task::spawn_blocking(move || {
+        find_version_by_packages_list(&resolved_pkgs, &abbs_path_clone)
+    })
+    .instrument(info_span!("find_version_by_packages_list"))
+    .await?;
 
     let pr = open_pr_inner(OpenPR {
         access_token: access_token.to_string(),
@@ -139,8 +140,9 @@ pub async fn open_pr(
 }
 
 /// `packages` should have no groups nor modifiers
+/// return list of (package_name, version)
 #[tracing::instrument(skip(p))]
-fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<String> {
+pub fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<(String, String)> {
     let mut res = vec![];
 
     for_each_abbs(p, |pkg, path| {
@@ -179,7 +181,7 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<String> {
                             final_version.push_str(&format!("-{rel}"));
                         }
 
-                        res.push(format!("- {pkgname}: {final_version}"));
+                        res.push((pkgname.clone(), final_version));
                     } else {
                         warn!("{pkg} has no PKGNAME variable");
                     }
@@ -189,6 +191,18 @@ fn find_version_by_packages(pkgs: &[String], p: &Path) -> Vec<String> {
     });
 
     res.sort();
+
+    res
+}
+
+/// `packages` should have no groups nor modifiers
+#[tracing::instrument(skip(p))]
+fn find_version_by_packages_list(pkgs: &[String], p: &Path) -> Vec<String> {
+    let mut res = vec![];
+
+    for (name, version) in find_version_by_packages(pkgs, p) {
+        res.push(format!("- {name}: {version}"));
+    }
 
     res
 }

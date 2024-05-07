@@ -7,7 +7,7 @@ use std::{
 use anyhow::{bail, Context};
 use walkdir::WalkDir;
 
-use crate::github::update_abbs;
+use crate::github::{find_version_by_packages, update_abbs};
 
 pub mod github;
 
@@ -75,25 +75,13 @@ pub async fn find_update_and_update_checksum(
                 .current_dir(&abbs_path)
                 .output()?;
 
-            let mut ver = None;
+            let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
+                .into_iter()
+                .next();
 
-            for i in WalkDir::new(".").max_depth(3).min_depth(3) {
-                let i = i?;
-                if i.file_name() == "spec" {
-                    let f = std::fs::File::open(i.path())?;
-                    let line = BufReader::new(f)
-                        .lines()
-                        .flatten()
-                        .next()
-                        .context(format!("Failed to open file: {}", i.path().display()))?;
-                    let (_, v) = line
-                        .split_once('=')
-                        .context(format!("Failed to open file: {}", i.path().display()))?;
-                    ver = Some(v.trim().to_string());
-                }
-            }
-
-            let ver = ver.context(format!("Failed to find pkg version: {}", pkg))?;
+            let ver = ver
+                .context(format!("Failed to find pkg version: {}", pkg))?
+                .1;
             let branch = format!("{pkg}-{ver}");
             let title = format!("{pkg}: update to {ver}");
 
