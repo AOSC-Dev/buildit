@@ -7,6 +7,8 @@ use std::{
 use anyhow::{bail, Context};
 use walkdir::WalkDir;
 
+use crate::github::update_abbs;
+
 pub mod github;
 
 pub const AMD64: &str = "AMD64 `amd64`";
@@ -35,15 +37,23 @@ pub struct FindUpdate {
     pub title: String,
 }
 
-pub fn find_update_and_update_checksum(pkg: &str, abbs_path: &Path) -> anyhow::Result<FindUpdate> {
+pub async fn find_update_and_update_checksum(
+    pkg: &str,
+    abbs_path: &Path,
+) -> anyhow::Result<FindUpdate> {
+    // switch to stable branch
+    update_abbs("stable", &abbs_path).await?;
+
     Command::new("aosc-findupdate")
         .arg("-i")
         .arg(format!("^{pkg}$"))
+        .current_dir(&abbs_path)
         .output()?;
 
     let status = Command::new("git")
         .arg("status")
         .arg("--porcelain")
+        .current_dir(&abbs_path)
         .output()?;
 
     let status = BufReader::new(&*status.stdout).lines().flatten().next();
@@ -62,10 +72,8 @@ pub fn find_update_and_update_checksum(pkg: &str, abbs_path: &Path) -> anyhow::R
                 .arg("acbs-build")
                 .arg("-gw")
                 .arg(pkg)
+                .current_dir(&abbs_path)
                 .output()?;
-
-            let path = std::env::current_dir()?;
-            std::env::set_current_dir(abbs_path)?;
 
             let mut ver = None;
 
@@ -78,7 +86,9 @@ pub fn find_update_and_update_checksum(pkg: &str, abbs_path: &Path) -> anyhow::R
                         .flatten()
                         .next()
                         .context(format!("Failed to open file: {}", i.path().display()))?;
-                    let (_, v) = line.split_once('=').context(format!("Failed to open file: {}", i.path().display()))?;
+                    let (_, v) = line
+                        .split_once('=')
+                        .context(format!("Failed to open file: {}", i.path().display()))?;
                     ver = Some(v.trim().to_string());
                 }
             }
@@ -87,17 +97,36 @@ pub fn find_update_and_update_checksum(pkg: &str, abbs_path: &Path) -> anyhow::R
             let branch = format!("{pkg}-{ver}");
             let title = format!("{pkg}: update to {ver}");
 
-            Command::new("git").arg("checkout").arg("-b").arg(&branch).output()?;
-            Command::new("git").arg("add").arg(".").output()?;
+            Command::new("git")
+                .arg("checkout")
+                .arg("-b")
+                .arg(&branch)
+                .current_dir(&abbs_path)
+                .output()?;
+            Command::new("git")
+                .arg("add")
+                .arg(".")
+                .current_dir(&abbs_path)
+                .output()?;
             Command::new("git")
                 .arg("commit")
                 .arg("-m")
                 .arg(&title)
+                .current_dir(&abbs_path)
                 .output()?;
-            Command::new("git").arg("push").arg("--set-upstream").arg("origin").arg(&branch).output()?;
-            std::env::set_current_dir(path)?;
+            Command::new("git")
+                .arg("push")
+                .arg("--set-upstream")
+                .arg("origin")
+                .arg(&branch)
+                .current_dir(&abbs_path)
+                .output()?;
 
-            return Ok(FindUpdate { package: pkg.to_string(), branch, title });
+            return Ok(FindUpdate {
+                package: pkg.to_string(),
+                branch,
+                title,
+            });
         }
     }
 

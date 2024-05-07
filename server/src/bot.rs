@@ -726,7 +726,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
 
-            match find_update_and_update_checksum(&package, &ARGS.abbs_path) {
+            match find_update_and_update_checksum(&package, &ARGS.abbs_path).await {
                 Ok(f) => {
                     match buildit_utils::github::open_pr(
                         app_private_key,
