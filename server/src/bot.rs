@@ -1,5 +1,5 @@
 use crate::{
-    api::{pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
+    api::{job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
     formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
     models::{NewUser, User},
@@ -50,6 +50,8 @@ pub enum Command {
         description = "Build lagging/missing packages for quality assurance: /qa arch lagging/missing"
     )]
     QA(String),
+    #[command(description = "Restart failed job: /restart job-id")]
+    Restart(String),
 }
 
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
@@ -681,6 +683,29 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             )
             .await?;
         }
+        Command::Restart(arguments) => match str::parse::<i32>(&arguments) {
+            Ok(job_id) => match job_restart(pool, job_id).await {
+                Ok(new_job) => {
+                    bot_send_message_handle_length(
+                        &bot,
+                        &msg,
+                        &format!("Restarted as job #{}", new_job.id),
+                    )
+                    .await?;
+                }
+                Err(err) => {
+                    bot_send_message_handle_length(
+                        &bot,
+                        &msg,
+                        &format!("Failed to restart job: {err}"),
+                    )
+                    .await?;
+                }
+            },
+            Err(err) => {
+                bot_send_message_handle_length(&bot, &msg, &format!("Bad job ID: {err}")).await?;
+            }
+        },
     };
 
     Ok(())

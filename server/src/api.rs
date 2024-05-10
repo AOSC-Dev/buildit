@@ -1,15 +1,18 @@
 use crate::{
     github::{get_crab_github_installation, get_packages_from_pr},
-    models::{NewJob, NewPipeline, Pipeline, User, Worker},
+    models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
     DbPool, ABBS_REPO_LOCK, ALL_ARCH, ARGS,
 };
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::{anyhow, bail};
 use buildit_utils::github::{
     get_archs, get_environment_requirement, resolve_packages, update_abbs,
 };
+use diesel::connection::{AnsiTransactionManager, TransactionManager};
+use diesel::r2d2::PoolTransactionManager;
 use diesel::{
-    dsl::count, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
+    dsl::count, ExpressionMethods, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl,
+    SelectableHelper,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -346,4 +349,95 @@ pub async fn worker_status(pool: DbPool) -> anyhow::Result<Vec<Worker>> {
 
     let workers = crate::schema::workers::dsl::workers.load::<Worker>(&mut conn)?;
     Ok(workers)
+}
+
+async fn job_restart_in_transaction(job_id: i32, conn: &mut PgConnection) -> anyhow::Result<Job> {
+    let job = crate::schema::jobs::dsl::jobs
+        .find(job_id)
+        .get_result::<Job>(conn)?;
+    let pipeline = crate::schema::pipelines::dsl::pipelines
+        .find(job.pipeline_id)
+        .get_result::<Pipeline>(conn)?;
+
+    // job must be failed
+    if job.status != "failed" {
+        bail!("Cannot restart the job unless it was failed");
+    }
+
+    // create a new job
+    use crate::schema::jobs;
+    let mut new_job = NewJob {
+        pipeline_id: job.pipeline_id,
+        packages: job.packages,
+        arch: job.arch.clone(),
+        creation_time: chrono::Utc::now(),
+        status: "created".to_string(),
+        github_check_run_id: None,
+        require_min_core: None,
+        require_min_total_mem: None,
+        require_min_total_mem_per_core: None,
+        require_min_disk: None,
+    };
+
+    // create new github check run if the restarted job has one
+    if job.github_check_run_id.is_some() {
+        // authenticate with github app
+        match get_crab_github_installation().await {
+            Ok(Some(crab)) => {
+                match crab
+                    .checks("AOSC-Dev", "aosc-os-abbs")
+                    .create_check_run(format!("buildit {}", job.arch), &pipeline.git_sha)
+                    .status(octocrab::params::checks::CheckRunStatus::Queued)
+                    .send()
+                    .await
+                {
+                    Ok(check_run) => {
+                        new_job.github_check_run_id = Some(check_run.id.0 as i64);
+                    }
+                    Err(err) => {
+                        warn!("Failed to create check run: {}", err);
+                    }
+                }
+            }
+            Ok(None) => {
+                // github app unavailable
+            }
+            Err(err) => {
+                warn!("Failed to get installation token: {}", err);
+            }
+        }
+    }
+
+    let new_job: Job = diesel::insert_into(jobs::table)
+        .values(&new_job)
+        .get_result(conn)
+        .context("Failed to create job")?;
+    Ok(new_job)
+}
+
+#[tracing::instrument(skip(pool))]
+pub async fn job_restart(pool: DbPool, job_id: i32) -> anyhow::Result<Job> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    // manually handle transaction, since we want to use async in transaction
+    PoolTransactionManager::<AnsiTransactionManager>::begin_transaction(&mut conn)?;
+    match job_restart_in_transaction(job_id, &mut conn).await {
+        Ok(new_job) => {
+            PoolTransactionManager::<AnsiTransactionManager>::commit_transaction(&mut conn)?;
+            return Ok(new_job);
+        }
+        Err(err) => {
+            match PoolTransactionManager::<AnsiTransactionManager>::rollback_transaction(&mut conn)
+            {
+                Ok(()) => {
+                    return Err(err.into());
+                }
+                Err(rollback_err) => {
+                    return Err(err.context(rollback_err).into());
+                }
+            }
+        }
+    }
 }
