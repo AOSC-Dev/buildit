@@ -231,6 +231,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     ),
                 )
                 .await?;
+                return Ok(());
             }
 
             let mut pr_numbers = vec![];
