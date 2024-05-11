@@ -37,6 +37,7 @@ pub struct FindUpdate {
     pub title: String,
 }
 
+#[tracing::instrument(skip(abbs_path))]
 pub async fn find_update_and_update_checksum(
     pkg: &str,
     abbs_path: &Path,
@@ -50,13 +51,15 @@ pub async fn find_update_and_update_checksum(
         .arg("-i")
         .arg(format!("^{pkg}$"))
         .current_dir(&abbs_path)
-        .output()?;
+        .output()
+        .context("Running aosc-findupdate")?;
 
     let status = Command::new("git")
         .arg("status")
         .arg("--porcelain")
         .current_dir(&abbs_path)
-        .output()?;
+        .output()
+        .context("Finding modified files using git")?;
 
     let status = BufReader::new(&*status.stdout).lines().flatten().next();
 
@@ -79,7 +82,8 @@ pub async fn find_update_and_update_checksum(
                 .arg("--tree-dir")
                 .arg(abbs_path)
                 .current_dir(&abbs_path)
-                .output()?;
+                .output()
+                .context("Running acbs-build to update checksums")?;
 
             let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
                 .into_iter()
@@ -96,25 +100,29 @@ pub async fn find_update_and_update_checksum(
                 .arg("-b")
                 .arg(&branch)
                 .current_dir(&abbs_path)
-                .output()?;
+                .output()
+                .context("Checking out to new branch")?;
             Command::new("git")
                 .arg("add")
                 .arg(".")
                 .current_dir(&abbs_path)
-                .output()?;
+                .output()
+                .context("Staging modified files")?;
             Command::new("git")
                 .arg("commit")
                 .arg("-m")
                 .arg(&title)
                 .current_dir(&abbs_path)
-                .output()?;
+                .output()
+                .context("Creating git commit")?;
             Command::new("git")
                 .arg("push")
                 .arg("--set-upstream")
                 .arg("origin")
                 .arg(&branch)
                 .current_dir(&abbs_path)
-                .output()?;
+                .output()
+                .context("Pushing new commit to GitHub")?;
 
             return Ok(FindUpdate {
                 package: pkg.to_string(),
