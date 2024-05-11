@@ -5,7 +5,7 @@ use crate::{
     models::{NewUser, User},
     DbPool, ALL_ARCH, ARGS,
 };
-use anyhow::Context;
+use anyhow::{bail, Context};
 use buildit_utils::{
     find_update_and_update_checksum,
     github::{OpenPRError, OpenPRRequest},
@@ -214,6 +214,36 @@ async fn sync_github_info(pool: DbPool, telegram_chat_id: ChatId, access_token: 
             telegram_chat_id, err
         );
     }
+}
+
+#[tracing::instrument(skip(pool, access_token))]
+async fn get_user(pool: DbPool, chat_id: ChatId, access_token: String) -> anyhow::Result<User> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    use crate::schema::users::dsl::*;
+    if let Some(user) = users
+        .filter(telegram_chat_id.eq(&chat_id.0))
+        .first::<User>(&mut conn)
+        .optional()?
+    {
+        return Ok(user);
+    }
+
+    // not found, try to fetch user info
+    sync_github_info_inner(pool, chat_id, access_token).await?;
+
+    // try again
+    if let Some(user) = users
+        .filter(telegram_chat_id.eq(&chat_id.0))
+        .first::<User>(&mut conn)
+        .optional()?
+    {
+        return Ok(user);
+    }
+
+    bail!("Failed to get user info")
 }
 
 #[tracing::instrument(skip(bot, msg, pool))]
@@ -752,7 +782,29 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
 
-            match find_update_and_update_checksum(&package, &ARGS.abbs_path).await {
+            let user = match get_user(pool, msg.chat.id, token.clone()).await {
+                Ok(user) => user,
+                Err(err) => {
+                    bot.send_message(msg.chat.id, format!("Failed to get user info: {}", err))
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            match find_update_and_update_checksum(
+                &package,
+                &ARGS.abbs_path,
+                user.github_login
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("Unknown"),
+                user.github_email
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("unknown@unknown.com"),
+            )
+            .await
+            {
                 Ok(f) => {
                     match buildit_utils::github::open_pr(
                         app_private_key,
