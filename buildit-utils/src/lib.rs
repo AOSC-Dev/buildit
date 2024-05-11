@@ -94,7 +94,7 @@ pub async fn find_update_and_update_checksum(
                 .arg("--temp-dir")
                 .arg(abbs_path_parent.join("acbs-temp"))
                 .arg("--tree-dir")
-                .arg(abbs_path)
+                .arg(absolute_abbs_path)
                 .current_dir(&abbs_path)
                 .output()
                 .context("Running acbs-build to update checksums")?;
