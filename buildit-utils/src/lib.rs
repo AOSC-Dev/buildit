@@ -64,7 +64,7 @@ pub async fn find_update_and_update_checksum(
     let status = BufReader::new(&*status.stdout).lines().flatten().next();
 
     if let Some(status) = status {
-        let split_status = status.split_once(" ");
+        let split_status = status.trim().split_once(" ");
         if let Some((status, _)) = split_status {
             if status != "M" {
                 bail!("{pkg} has no update");
