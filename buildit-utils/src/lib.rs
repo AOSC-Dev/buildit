@@ -67,13 +67,17 @@ pub async fn find_update_and_update_checksum(
                 bail!("{pkg} has no update");
             }
 
-            Command::new("ciel")
-                .arg("shell")
-                .arg("-i")
-                .arg("main")
-                .arg("acbs-build")
+            Command::new("acbs-build")
                 .arg("-gw")
                 .arg(pkg)
+                .arg("--log-dir")
+                .arg(abbs_path.join("../acbs-log"))
+                .arg("--cache-dir")
+                .arg(abbs_path.join("../acbs-cache"))
+                .arg("--temp-dir")
+                .arg(abbs_path.join("../acbs-temp"))
+                .arg("--tree-dir")
+                .arg(abbs_path)
                 .current_dir(&abbs_path)
                 .output()?;
 
