@@ -70,15 +70,20 @@ pub async fn find_update_and_update_checksum(
                 bail!("{pkg} has no update");
             }
 
+            let abbs_path_parent = if let Some(parent) = abbs_path.parent() {
+                parent
+            } else {
+                bail!("Bad ABBS path");
+            };
             Command::new("acbs-build")
                 .arg("-gw")
                 .arg(pkg)
                 .arg("--log-dir")
-                .arg(abbs_path.join("../acbs-log"))
+                .arg(abbs_path_parent.join("acbs-log"))
                 .arg("--cache-dir")
-                .arg(abbs_path.join("../acbs-cache"))
+                .arg(abbs_path_parent.join("acbs-cache"))
                 .arg("--temp-dir")
-                .arg(abbs_path.join("../acbs-temp"))
+                .arg(abbs_path_parent.join("acbs-temp"))
                 .arg("--tree-dir")
                 .arg(abbs_path)
                 .current_dir(&abbs_path)
@@ -96,12 +101,19 @@ pub async fn find_update_and_update_checksum(
             let title = format!("{pkg}: update to {ver}");
 
             Command::new("git")
+                .arg("branch")
+                .arg("-f")
+                .arg(&branch)
+                .arg("stable")
+                .current_dir(&abbs_path)
+                .output()
+                .context("Point new branch at stable")?;
+            Command::new("git")
                 .arg("checkout")
-                .arg("-b")
                 .arg(&branch)
                 .current_dir(&abbs_path)
                 .output()
-                .context("Checking out to new branch")?;
+                .context("Checking out to the new branch")?;
             Command::new("git")
                 .arg("add")
                 .arg(".")
@@ -120,6 +132,7 @@ pub async fn find_update_and_update_checksum(
                 .arg("--set-upstream")
                 .arg("origin")
                 .arg(&branch)
+                .arg("--force")
                 .current_dir(&abbs_path)
                 .output()
                 .context("Pushing new commit to GitHub")?;
