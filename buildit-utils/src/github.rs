@@ -403,7 +403,7 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
     Ok(())
 }
 
-fn print_stdout_and_stderr(output: &Output) {
+pub fn print_stdout_and_stderr(output: &Output) {
     info!("Output:");
     info!("  Stdout:");
     info!(" {}", String::from_utf8_lossy(&output.stdout));

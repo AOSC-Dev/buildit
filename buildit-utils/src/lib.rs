@@ -1,4 +1,4 @@
-use crate::github::{find_version_by_packages, update_abbs};
+use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
 use anyhow::{bail, Context};
 use once_cell::sync::Lazy;
 use std::{
@@ -6,6 +6,7 @@ use std::{
     path::Path,
     process::Command,
 };
+use tracing::info;
 
 pub mod github;
 
@@ -49,12 +50,16 @@ pub async fn find_update_and_update_checksum(
     // switch to stable branch
     update_abbs("stable", &abbs_path).await?;
 
-    Command::new("aosc-findupdate")
+    info!("Running aosc-findupdate ...");
+
+    let output = Command::new("aosc-findupdate")
         .arg("-i")
         .arg(format!(".*/{pkg}$"))
         .current_dir(&abbs_path)
         .output()
         .context("Running aosc-findupdate")?;
+
+    print_stdout_and_stderr(&output);
 
     let status = Command::new("git")
         .arg("status")
@@ -78,7 +83,8 @@ pub async fn find_update_and_update_checksum(
             } else {
                 bail!("Bad ABBS path");
             };
-            Command::new("acbs-build")
+            info!("Running acbs-build ...");
+            let output = Command::new("acbs-build")
                 .arg("-gw")
                 .arg(pkg)
                 .arg("--log-dir")
@@ -92,6 +98,7 @@ pub async fn find_update_and_update_checksum(
                 .current_dir(&abbs_path)
                 .output()
                 .context("Running acbs-build to update checksums")?;
+            print_stdout_and_stderr(&output);
 
             let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
                 .into_iter()
