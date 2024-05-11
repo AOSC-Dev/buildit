@@ -773,10 +773,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                             bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                                 .await?
                         }
-                        Err(e) => bot.send_message(msg.chat.id, e.to_string()).await?,
+                        Err(e) => bot.send_message(msg.chat.id, format!("{:?}", e)).await?,
                     }
                 }
-                Err(e) => bot.send_message(msg.chat.id, e.to_string()).await?,
+                Err(e) => bot.send_message(msg.chat.id, format!("{:?}", e)).await?,
             };
         }
     };

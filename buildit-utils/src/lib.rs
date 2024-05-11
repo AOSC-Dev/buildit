@@ -70,7 +70,8 @@ pub async fn find_update_and_update_checksum(
                 bail!("{pkg} has no update");
             }
 
-            let abbs_path_parent = if let Some(parent) = abbs_path.parent() {
+            let absolute_abbs_path = std::fs::canonicalize(abbs_path)?;
+            let abbs_path_parent = if let Some(parent) = absolute_abbs_path.parent() {
                 parent
             } else {
                 bail!("Bad ABBS path");
