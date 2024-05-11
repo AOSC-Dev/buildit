@@ -59,7 +59,6 @@ pub struct Args {
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
-pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
 pub const HEARTBEAT_TIMEOUT: i64 = 600; // 10 minutes
 
 // follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline

@@ -420,6 +420,7 @@ dependencies = [
  "gix",
  "jsonwebtoken",
  "octocrab",
+ "once_cell",
  "thiserror",
  "tokio",
  "tracing",

@@ -6,7 +6,10 @@ use crate::{
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::Context;
-use buildit_utils::github::{OpenPRError, OpenPRRequest};
+use buildit_utils::{
+    find_update_and_update_checksum,
+    github::{OpenPRError, OpenPRRequest},
+};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;
@@ -52,6 +55,8 @@ pub enum Command {
     QA(String),
     #[command(description = "Restart failed job: /restart job-id")]
     Restart(String),
+    #[command(description = "Find update and bump package version: /bump package-name")]
+    Bump(String),
 }
 
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
@@ -706,6 +711,74 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 bot_send_message_handle_length(&bot, &msg, &format!("Bad job ID: {err}")).await?;
             }
         },
+        Command::Bump(package) => {
+            let app_private_key = match ARGS.github_app_key.as_ref() {
+                Some(p) => p,
+                None => {
+                    bot.send_message(msg.chat.id, "Got Error: GITHUB_APP_ID is not set")
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            let secret = match ARGS.github_secret.as_ref() {
+                Some(s) => s,
+                None => {
+                    bot.send_message(msg.chat.id, "GITHUB_SECRET is not set")
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            let token = match get_github_token(&msg.chat.id, secret).await {
+                Ok(s) => s.access_token,
+                Err(e) => {
+                    bot.send_message(msg.chat.id, format!("Got error: {e:?}"))
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            let id = match ARGS
+                .github_app_id
+                .as_ref()
+                .and_then(|x| x.parse::<u64>().ok())
+            {
+                Some(id) => id,
+                None => {
+                    bot.send_message(msg.chat.id, "Got Error: GITHUB_APP_ID is not set")
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            match find_update_and_update_checksum(&package, &ARGS.abbs_path).await {
+                Ok(f) => {
+                    match buildit_utils::github::open_pr(
+                        app_private_key,
+                        &token,
+                        id,
+                        OpenPRRequest {
+                            git_ref: f.branch,
+                            abbs_path: ARGS.abbs_path.clone(),
+                            packages: f.package,
+                            title: f.title,
+                            tags: None,
+                            archs: None,
+                        },
+                    )
+                    .await
+                    {
+                        Ok(url) => {
+                            bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
+                                .await?
+                        }
+                        Err(e) => bot.send_message(msg.chat.id, e.to_string()).await?,
+                    }
+                }
+                Err(e) => bot.send_message(msg.chat.id, e.to_string()).await?,
+            };
+        }
     };
 
     Ok(())
