@@ -471,83 +471,15 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                             .await?;
                         return Ok(());
                     }
-                    Err(e) => match e {
-                        OpenPRError::Github(e) => match e {
-                            octocrab::Error::GitHub { source, .. }
-                                if source.message.contains("Bad credentials") =>
-                            {
-                                let client = reqwest::Client::new();
-                                client
-                                    .get("https://minzhengbu.aosc.io/refresh_token")
-                                    .header("secret", secret)
-                                    .query(&[("id", msg.chat.id.0.to_string())])
-                                    .send()
-                                    .await
-                                    .and_then(|x| x.error_for_status())?;
-
-                                let token = match get_github_token(&msg.chat.id, secret).await {
-                                    Ok(s) => s.access_token,
-                                    Err(e) => {
-                                        bot.send_message(msg.chat.id, format!("Got error: {e}"))
-                                            .await?;
-                                        return Ok(());
-                                    }
-                                };
-
-                                match buildit_utils::github::open_pr(
-                                    app_private_key,
-                                    &token,
-                                    id,
-                                    OpenPRRequest {
-                                        git_ref: parts[1].to_owned(),
-                                        abbs_path: ARGS.abbs_path.clone(),
-                                        packages: parts[2].to_owned(),
-                                        title: parts[0].to_string(),
-                                        tags,
-                                        archs,
-                                    },
-                                )
-                                .await
-                                {
-                                    Ok(url) => {
-                                        bot.send_message(
-                                            msg.chat.id,
-                                            format!("Successfully opened PR: {url}"),
-                                        )
-                                        .await?;
-                                        return Ok(());
-                                    }
-                                    Err(e) => {
-                                        bot_send_message_handle_length(
-                                            &bot,
-                                            &msg,
-                                            &format!("Failed to open pr: {e:?}"),
-                                        )
-                                        .await?;
-                                        return Ok(());
-                                    }
-                                }
-                            }
-                            _ => {
-                                bot_send_message_handle_length(
-                                    &bot,
-                                    &msg,
-                                    &format!("Failed to open pr: {e:?}"),
-                                )
-                                .await?;
-                                return Ok(());
-                            }
-                        },
-                        _ => {
-                            bot_send_message_handle_length(
-                                &bot,
-                                &msg,
-                                &format!("Failed to open pr: {e:?}"),
-                            )
-                            .await?;
-                            return Ok(());
-                        }
-                    },
+                    Err(e) => {
+                        bot_send_message_handle_length(
+                            &bot,
+                            &msg,
+                            &format!("Failed to open pr: {e}"),
+                        )
+                        .await?;
+                        return Ok(());
+                    }
                 }
             }
 
@@ -825,10 +757,16 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                             bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                                 .await?
                         }
-                        Err(e) => bot.send_message(msg.chat.id, format!("{:?}", e)).await?,
+                        Err(e) => {
+                            bot.send_message(msg.chat.id, format!("Failed to open PR: {}", e))
+                                .await?
+                        }
                     }
                 }
-                Err(e) => bot.send_message(msg.chat.id, format!("{:?}", e)).await?,
+                Err(e) => {
+                    bot.send_message(msg.chat.id, format!("Failed to find update: {}", e))
+                        .await?
+                }
             };
         }
     };

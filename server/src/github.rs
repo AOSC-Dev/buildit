@@ -3,6 +3,7 @@ use octocrab::models::pulls::PullRequest;
 use octocrab::{models::InstallationId, Octocrab};
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
+use tracing::info;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GithubToken {
@@ -43,7 +44,36 @@ pub async fn get_github_token(msg_chatid: &ChatId, secret: &str) -> anyhow::Resu
         .await
         .and_then(|x| x.error_for_status())?;
 
-    let token = resp.json().await?;
+    let mut token: GithubToken = resp.json().await?;
+
+    // check if the token expired
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(token.access_token.clone())
+        .build()?;
+    if crab.current().user().await.is_err() {
+        // bad
+        info!("Got expired token, refreshing");
+
+        // refresh token
+        client
+            .get("https://minzhengbu.aosc.io/refresh_token")
+            .header("secret", secret)
+            .query(&[("id", msg_chatid.0.to_string())])
+            .send()
+            .await
+            .and_then(|x| x.error_for_status())?;
+
+        // get token again
+        let resp = client
+            .get("https://minzhengbu.aosc.io/get_token")
+            .query(&[("id", &msg_chatid.0.to_string())])
+            .header("secret", secret)
+            .send()
+            .await
+            .and_then(|x| x.error_for_status())?;
+
+        token = resp.json().await?;
+    }
 
     Ok(token)
 }
