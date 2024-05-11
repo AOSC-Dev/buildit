@@ -95,9 +95,15 @@ pub async fn find_update_and_update_checksum(
                 .into_iter()
                 .next();
 
-            let ver = ver
+            let mut ver = ver
                 .context(format!("Failed to find pkg version: {}", pkg))?
                 .1;
+
+            // skip epoch
+            if let Some((_prefix, suffix)) = ver.split_once(':') {
+                ver = suffix.to_string();
+            }
+
             let branch = format!("{pkg}-{ver}");
             let title = format!("{pkg}: update to {ver}");
 
