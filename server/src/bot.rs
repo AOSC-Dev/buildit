@@ -270,9 +270,10 @@ async fn create_pipeline_from_pr(
             .await?;
         }
         Err(err) => {
-            bot.send_message(
-                msg.chat.id,
-                format!("Failed to create pipeline from pr: {err:?}"),
+            bot_send_message_handle_length(
+                &bot,
+                &msg,
+                &format!("Failed to create pipeline from pr: {err:?}"),
             )
             .await?;
         }
@@ -756,21 +757,33 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await
                     {
                         Ok((pr_number, url)) => {
-                            bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
-                                .await?;
+                            bot_send_message_handle_length(
+                                &bot,
+                                &msg,
+                                &format!("Successfully opened PR: {url}"),
+                            )
+                            .await?;
 
                             create_pipeline_from_pr(pool.clone(), pr_number, None, &msg, &bot)
                                 .await?;
                         }
                         Err(e) => {
-                            bot.send_message(msg.chat.id, format!("Failed to open PR: {}", e))
-                                .await?;
+                            bot_send_message_handle_length(
+                                &bot,
+                                &msg,
+                                &format!("Failed to open PR: {:?}", e),
+                            )
+                            .await?;
                         }
                     }
                 }
                 Err(e) => {
-                    bot.send_message(msg.chat.id, format!("Failed to find update: {}", e))
-                        .await?;
+                    bot_send_message_handle_length(
+                        &bot,
+                        &msg,
+                        &format!("Failed to find update: {:?}", e),
+                    )
+                    .await?;
                 }
             };
         }
