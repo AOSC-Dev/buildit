@@ -138,7 +138,7 @@ pub async fn open_pr(
     .await?;
 
     Ok((
-        pr.id.0,
+        pr.number,
         pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url),
     ))
 }
