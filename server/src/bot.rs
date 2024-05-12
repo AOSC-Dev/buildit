@@ -6,10 +6,7 @@ use crate::{
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::{bail, Context};
-use buildit_utils::{
-    find_update_and_update_checksum,
-    github::{OpenPRError, OpenPRRequest},
-};
+use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use serde::Deserialize;
@@ -246,6 +243,44 @@ async fn get_user(pool: DbPool, chat_id: ChatId, access_token: String) -> anyhow
     bail!("Failed to get user info")
 }
 
+async fn create_pipeline_from_pr(
+    pool: DbPool,
+    pr_number: u64,
+    archs: Option<&str>,
+    msg: &Message,
+    bot: &Bot,
+) -> ResponseResult<()> {
+    match pipeline_new_pr(pool, pr_number, archs, &JobSource::Telegram(msg.chat.id.0)).await {
+        Ok(pipeline) => {
+            bot.send_message(
+                msg.chat.id,
+                to_html_new_pipeline_summary(
+                    pipeline.id,
+                    &pipeline.git_branch,
+                    &pipeline.git_sha,
+                    pipeline.github_pr.map(|n| n as u64),
+                    &pipeline.archs.split(',').collect::<Vec<_>>(),
+                    &pipeline.packages.split(',').collect::<Vec<_>>(),
+                ),
+            )
+            .parse_mode(ParseMode::Html)
+            .disable_web_page_preview(true)
+            .send()
+            .instrument(tracing::info_span!("send_message"))
+            .await?;
+        }
+        Err(err) => {
+            bot.send_message(
+                msg.chat.id,
+                format!("Failed to create pipeline from pr: {err:?}"),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
 #[tracing::instrument(skip(bot, msg, pool))]
 pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> ResponseResult<()> {
     bot.send_chat_action(msg.chat.id, ChatAction::Typing)
@@ -298,40 +333,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Some(parts[1])
                 };
                 for pr_number in pr_numbers {
-                    match pipeline_new_pr(
-                        pool.clone(),
-                        pr_number,
-                        archs,
-                        &JobSource::Telegram(msg.chat.id.0),
-                    )
-                    .await
-                    {
-                        Ok(pipeline) => {
-                            bot.send_message(
-                                msg.chat.id,
-                                to_html_new_pipeline_summary(
-                                    pipeline.id,
-                                    &pipeline.git_branch,
-                                    &pipeline.git_sha,
-                                    pipeline.github_pr.map(|n| n as u64),
-                                    &pipeline.archs.split(',').collect::<Vec<_>>(),
-                                    &pipeline.packages.split(',').collect::<Vec<_>>(),
-                                ),
-                            )
-                            .parse_mode(ParseMode::Html)
-                            .disable_web_page_preview(true)
-                            .send()
-                            .instrument(tracing::info_span!("send_message"))
-                            .await?;
-                        }
-                        Err(err) => {
-                            bot.send_message(
-                                msg.chat.id,
-                                format!("Failed to create pipeline from pr: {err:?}"),
-                            )
-                            .await?;
-                        }
-                    }
+                    create_pipeline_from_pr(pool.clone(), pr_number, archs, &msg, &bot).await?;
                 }
             }
         }
@@ -466,7 +468,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 )
                 .await
                 {
-                    Ok(url) => {
+                    Ok((_id, url)) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
                             .await?;
                         return Ok(());
@@ -714,7 +716,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
 
-            let user = match get_user(pool, msg.chat.id, token.clone()).await {
+            let user = match get_user(pool.clone(), msg.chat.id, token.clone()).await {
                 Ok(user) => user,
                 Err(err) => {
                     bot.send_message(msg.chat.id, format!("Failed to get user info: {}", err))
@@ -753,19 +755,22 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     )
                     .await
                     {
-                        Ok(url) => {
+                        Ok((pr_number, url)) => {
                             bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
-                                .await?
+                                .await?;
+
+                            create_pipeline_from_pr(pool.clone(), pr_number, None, &msg, &bot)
+                                .await?;
                         }
                         Err(e) => {
                             bot.send_message(msg.chat.id, format!("Failed to open PR: {}", e))
-                                .await?
+                                .await?;
                         }
                     }
                 }
                 Err(e) => {
                     bot.send_message(msg.chat.id, format!("Failed to find update: {}", e))
-                        .await?
+                        .await?;
                 }
             };
         }

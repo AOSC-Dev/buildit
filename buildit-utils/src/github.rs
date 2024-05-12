@@ -66,13 +66,14 @@ pub enum OpenPRError {
     Anyhow(#[from] anyhow::Error),
 }
 
+// return (pr number, pr url)
 #[tracing::instrument(skip(app_private_key_path, access_token, app_id))]
 pub async fn open_pr(
     app_private_key_path: &Path,
     access_token: &str,
     app_id: u64,
     openpr_request: OpenPRRequest<'_>,
-) -> Result<String, OpenPRError> {
+) -> Result<(u64, String), OpenPRError> {
     let key = tokio::fs::read(app_private_key_path).await?;
     let key = tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
         .await??;
@@ -136,7 +137,10 @@ pub async fn open_pr(
     })
     .await?;
 
-    Ok(pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url))
+    Ok((
+        pr.id.0,
+        pr.html_url.map(|x| x.to_string()).unwrap_or_else(|| pr.url),
+    ))
 }
 
 /// `packages` should have no groups nor modifiers

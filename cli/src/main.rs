@@ -99,7 +99,7 @@ async fn main() -> eyre::Result<()> {
             )
             .await
             {
-                Ok(url) => println!("{url}"),
+                Ok((_id, url)) => println!("{url}"),
                 Err(e) => {
                     eprintln!("{e}");
                 }
