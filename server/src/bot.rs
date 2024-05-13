@@ -9,7 +9,7 @@ use anyhow::{bail, Context};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use teloxide::{
     prelude::*,
@@ -152,6 +152,15 @@ async fn pipeline_new_and_report(
     Ok(())
 }
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GitHubUser {
+    pub login: String,
+    pub id: i64,
+    pub email: Option<String>,
+    pub avatar_url: String,
+    pub name: String,
+}
+
 #[tracing::instrument(skip(pool, access_token))]
 async fn sync_github_info_inner(
     pool: DbPool,
@@ -161,7 +170,7 @@ async fn sync_github_info_inner(
     let crab = octocrab::Octocrab::builder()
         .user_access_token(access_token)
         .build()?;
-    let author = crab.current().user().await?;
+    let author: GitHubUser = crab.get("/user", None::<&()>).await?;
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;
@@ -177,17 +186,18 @@ async fn sync_github_info_inner(
                 diesel::update(users.find(user.id))
                     .set((
                         github_login.eq(author.login),
-                        github_id.eq(author.id.0 as i64),
+                        github_id.eq(author.id),
                         github_avatar_url.eq(author.avatar_url.to_string()),
                         github_email.eq(author.email),
+                        github_name.eq(author.name),
                     ))
                     .execute(conn)?;
             }
             None => {
                 let new_user = NewUser {
                     github_login: Some(author.login),
-                    github_id: Some(author.id.0 as i64),
-                    github_name: None, // TODO
+                    github_id: Some(author.id),
+                    github_name: Some(author.name),
                     github_avatar_url: Some(author.avatar_url.to_string()),
                     github_email: author.email,
                     telegram_chat_id: Some(telegram_chat.0),
