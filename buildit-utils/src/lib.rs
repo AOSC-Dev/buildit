@@ -42,8 +42,7 @@ pub struct FindUpdate {
 pub async fn find_update_and_update_checksum(
     pkg: &str,
     abbs_path: &Path,
-    user_name: &str,
-    user_email: &str,
+    coauthor: &str,
 ) -> anyhow::Result<FindUpdate> {
     let _lock = ABBS_REPO_LOCK.lock().await;
 
@@ -139,10 +138,7 @@ pub async fn find_update_and_update_checksum(
             Command::new("git")
                 .arg("commit")
                 .arg("-m")
-                .arg(format!(
-                    "{}\n\nCo-authored-by: {} <{}>",
-                    title, user_name, user_email
-                ))
+                .arg(format!("{}\n\nCo-authored-by: {}", title, coauthor))
                 .current_dir(&abbs_path)
                 .output()
                 .context("Creating git commit")?;

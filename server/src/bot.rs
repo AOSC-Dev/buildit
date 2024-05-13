@@ -726,20 +726,19 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
 
-            match find_update_and_update_checksum(
-                &package,
-                &ARGS.abbs_path,
-                user.github_login
-                    .as_ref()
-                    .map(|s| s.as_str())
-                    .unwrap_or("Unknown"),
-                user.github_email
-                    .as_ref()
-                    .map(|s| s.as_str())
-                    .unwrap_or("unknown@unknown.com"),
-            )
-            .await
-            {
+            let mut coauthor_parts = vec![];
+            if let Some(name) = &user.github_name {
+                coauthor_parts.push(name.clone());
+            }
+            if let Some(login) = &user.github_login {
+                coauthor_parts.push(format!("(@{})", login));
+            }
+            if let Some(email) = &user.github_email {
+                coauthor_parts.push(format!("<{}>", email));
+            }
+            let coauthor = coauthor_parts.join(" ");
+
+            match find_update_and_update_checksum(&package, &ARGS.abbs_path, &coauthor).await {
                 Ok(f) => {
                     match buildit_utils::github::open_pr(
                         app_private_key,
