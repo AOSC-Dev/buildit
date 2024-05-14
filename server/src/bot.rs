@@ -146,7 +146,8 @@ async fn pipeline_new_and_report(
             .await?;
         }
         Err(err) => {
-            bot.send_message(msg.chat.id, format!("{err}")).await?;
+            bot.send_message(msg.chat.id, truncate(&format!("{err:?}")))
+                .await?;
         }
     }
     Ok(())
@@ -280,10 +281,9 @@ async fn create_pipeline_from_pr(
             .await?;
         }
         Err(err) => {
-            bot_send_message_handle_length(
-                &bot,
-                &msg,
-                &format!("Failed to create pipeline from pr: {err:?}"),
+            bot.send_message(
+                msg.chat.id,
+                truncate(&format!("Failed to create pipeline from pr: {err:?}")),
             )
             .await?;
         }
@@ -376,8 +376,11 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await?;
             }
             Err(err) => {
-                bot.send_message(msg.chat.id, format!("Failed to get status: {}", err))
-                    .await?;
+                bot.send_message(
+                    msg.chat.id,
+                    truncate(&format!("Failed to get status: {:?}", err)),
+                )
+                .await?;
             }
         },
         Command::OpenPR(arguments) => {
@@ -409,7 +412,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             let token = match get_github_token(&msg.chat.id, secret).await {
                 Ok(s) => s.access_token,
                 Err(e) => {
-                    bot.send_message(msg.chat.id, format!("Got error: {e:?}"))
+                    bot.send_message(msg.chat.id, truncate(&format!("Got error: {e:?}")))
                         .await?;
                     return Ok(());
                 }
@@ -485,12 +488,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         return Ok(());
                     }
                     Err(e) => {
-                        bot_send_message_handle_length(
-                            &bot,
-                            &msg,
-                            &format!("Failed to open pr: {e}"),
-                        )
-                        .await?;
+                        bot.send_message(msg.chat.id, truncate(&format!("Failed to open pr: {e}")))
+                            .await?;
                         return Ok(());
                     }
                 }
@@ -519,10 +518,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 match resp {
                     Ok(_) => bot.send_message(msg.chat.id, "Login successful!").await?,
                     Err(e) => {
-                        bot_send_message_handle_length(
-                            &bot,
-                            &msg,
-                            &format!("Login failed with error: {e}"),
+                        bot.send_message(
+                            msg.chat.id,
+                            truncate(&format!("Login failed with error: {e}")),
                         )
                         .await?
                     }
@@ -540,7 +538,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Err(err) => {
                         bot.send_message(
                             msg.chat.id,
-                            format!("Cannot create octocrab instance: {err}"),
+                            truncate(&format!("Cannot create octocrab instance: {err:?}")),
                         )
                         .await?;
                         return Ok(());
@@ -563,44 +561,45 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                 .await
                             {
                                 Ok(comment) => {
-                                    bot_send_message_handle_length(
-                                        &bot,
-                                        &msg,
-                                        &format!("Report posted as comment: {}", comment.html_url),
+                                    bot.send_message(
+                                        msg.chat.id,
+                                        truncate(&format!(
+                                            "Report posted as comment: {}",
+                                            comment.html_url
+                                        )),
                                     )
                                     .await?;
                                 }
                                 Err(err) => {
-                                    bot_send_message_handle_length(
-                                        &bot,
-                                        &msg,
-                                        &format!("Failed to create github comments: {err:?}."),
+                                    bot.send_message(
+                                        msg.chat.id,
+                                        truncate(&format!(
+                                            "Failed to create github comments: {err:?}."
+                                        )),
                                     )
                                     .await?;
                                 }
                             }
                         }
                         Err(err) => {
-                            bot_send_message_handle_length(
-                                &bot,
-                                &msg,
-                                &format!("Failed to generate dickens report: {err}."),
+                            bot.send_message(
+                                msg.chat.id,
+                                truncate(&format!("Failed to generate dickens report: {err:?}.")),
                             )
                             .await?;
                         }
                     },
                     Err(err) => {
-                        bot_send_message_handle_length(
-                            &bot,
-                            &msg,
-                            &format!("Failed to get pr info: {err:?}."),
+                        bot.send_message(
+                            msg.chat.id,
+                            truncate(&format!("Failed to get pr info: {err:?}.")),
                         )
                         .await?;
                     }
                 }
             }
             Err(err) => {
-                bot_send_message_handle_length(&bot, &msg, &format!("Bad PR number: {err}"))
+                bot.send_message(msg.chat.id, truncate(&format!("Bad PR number: {err:?}")))
                     .await?;
             }
         },
@@ -638,7 +637,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         Err(err) => {
                             bot.send_message(
                                 msg.chat.id,
-                                format!("Failed to parse http response: {err}.",),
+                                truncate(&format!("Failed to parse http response: {err:?}",)),
                             )
                             .await?;
                         }
@@ -646,7 +645,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Err(err) => {
                         bot.send_message(
                             msg.chat.id,
-                            format!("Failed to get http response: {err}.",),
+                            truncate(&format!("Failed to get http response: {err:?}")),
                         )
                         .await?;
                     }
@@ -666,24 +665,23 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
         Command::Restart(arguments) => match str::parse::<i32>(&arguments) {
             Ok(job_id) => match job_restart(pool, job_id).await {
                 Ok(new_job) => {
-                    bot_send_message_handle_length(
-                        &bot,
-                        &msg,
-                        &format!("Restarted as job #{}", new_job.id),
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Restarted as job #{}", new_job.id)),
                     )
                     .await?;
                 }
                 Err(err) => {
-                    bot_send_message_handle_length(
-                        &bot,
-                        &msg,
-                        &format!("Failed to restart job: {err}"),
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Failed to restart job: {err:?}")),
                     )
                     .await?;
                 }
             },
             Err(err) => {
-                bot_send_message_handle_length(&bot, &msg, &format!("Bad job ID: {err}")).await?;
+                bot.send_message(msg.chat.id, truncate(&format!("Bad job ID: {err:?}")))
+                    .await?;
             }
         },
         Command::Bump(package) => {
@@ -708,7 +706,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             let token = match get_github_token(&msg.chat.id, secret).await {
                 Ok(s) => s.access_token,
                 Err(e) => {
-                    bot.send_message(msg.chat.id, format!("Got error: {e:?}"))
+                    bot.send_message(msg.chat.id, truncate(&format!("Got error: {e:?}")))
                         .await?;
                     return Ok(());
                 }
@@ -730,8 +728,11 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             let user = match get_user(pool.clone(), msg.chat.id, token.clone()).await {
                 Ok(user) => user,
                 Err(err) => {
-                    bot.send_message(msg.chat.id, format!("Failed to get user info: {}", err))
-                        .await?;
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Failed to get user info: {:?}", err)),
+                    )
+                    .await?;
                     return Ok(());
                 }
             };
@@ -766,10 +767,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await
                     {
                         Ok((pr_number, url)) => {
-                            bot_send_message_handle_length(
-                                &bot,
-                                &msg,
-                                &format!("Successfully opened PR: {url}"),
+                            bot.send_message(
+                                msg.chat.id,
+                                truncate(&format!("Successfully opened PR: {url}")),
                             )
                             .await?;
 
@@ -777,20 +777,18 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                 .await?;
                         }
                         Err(e) => {
-                            bot_send_message_handle_length(
-                                &bot,
-                                &msg,
-                                &format!("Failed to open PR: {:?}", e),
+                            bot.send_message(
+                                msg.chat.id,
+                                truncate(&format!("Failed to open PR: {:?}", e)),
                             )
                             .await?;
                         }
                     }
                 }
                 Err(e) => {
-                    bot_send_message_handle_length(
-                        &bot,
-                        &msg,
-                        &format!("Failed to find update: {:?}", e),
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Failed to find update: {:?}", e)),
                     )
                     .await?;
                 }
@@ -801,19 +799,13 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
     Ok(())
 }
 
-#[tracing::instrument(skip(bot, msg))]
-async fn bot_send_message_handle_length(
-    bot: &Bot,
-    msg: &Message,
-    text: &str,
-) -> Result<Message, teloxide::RequestError> {
+fn truncate<'a>(text: &'a str) -> Cow<'a, str> {
     let text = if text.chars().count() > 1000 {
         console::truncate_str(text, 1000, "...")
     } else {
         Cow::Borrowed(text)
     };
-
-    bot.send_message(msg.chat.id, text).await
+    text
 }
 
 fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
