@@ -99,6 +99,22 @@ pub async fn find_update_and_update_checksum(
                 .context("Running acbs-build to update checksums")?;
             print_stdout_and_stderr(&output);
 
+            if !output.status.success() {
+                // cleanup repo
+                Command::new("git")
+                    .arg("reset")
+                    .arg("HEAD")
+                    .arg("--hard")
+                    .current_dir(&abbs_path)
+                    .output()
+                    .context("Reset git repo status")?;
+
+                bail!(
+                    "Failed to run acbs-build to update checksum: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+
             let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
                 .into_iter()
                 .next();
