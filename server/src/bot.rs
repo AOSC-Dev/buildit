@@ -845,7 +845,7 @@ impl Display for UpdatePkg {
 async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
     let client = ClientBuilder::new().user_agent("buildit").build()?;
     let resp = client
-        .get("https://github.com/AOSC-Dev/anicca/raw/main/pkgsupdate.json")
+        .get("https://raw.githubusercontent.com/AOSC-Dev/anicca/main/pkgsupdate.json")
         .send()
         .await?;
 
