@@ -852,6 +852,10 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
     let resp = resp.error_for_status()?;
     let json = resp.json::<Vec<UpdatePkg>>().await?;
 
+    if json.len() < 10 {
+        return Ok(json);
+    }
+
     let mut rng = thread_rng();
     let mut v = vec![];
 
