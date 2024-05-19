@@ -860,7 +860,7 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
 
     let v = json
         .choose_multiple(&mut rng, 10)
-        .map(|x| x.to_owned())
+        .cloned()
         .collect();
 
     Ok(v)
