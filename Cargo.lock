@@ -3298,6 +3298,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",

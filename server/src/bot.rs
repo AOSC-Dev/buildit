@@ -9,8 +9,11 @@ use anyhow::{bail, Context};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use rand::prelude::SliceRandom;
+use rand::thread_rng;
+use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Display};
 use teloxide::{
     prelude::*,
     types::{ChatAction, ParseMode},
@@ -54,6 +57,8 @@ pub enum Command {
     Restart(String),
     #[command(description = "Find update and bump package version: /bump package-name")]
     Bump(String),
+    #[command(description = "Roll anicca 10 packages")]
+    Roll,
 }
 
 fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
@@ -794,9 +799,75 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
         }
+        Command::Roll => match roll().await {
+            Ok(pkgs) => {
+                let mut s = String::new();
+                for i in pkgs {
+                    s.push_str(&i.to_string());
+                    s.push_str("\n");
+                }
+
+                bot.send_message(msg.chat.id, truncate(&s)).await?;
+            }
+            Err(e) => {
+                bot.send_message(
+                    msg.chat.id,
+                    truncate(&format!("Failed to roll packages: {}", e)),
+                )
+                .await?;
+            }
+        },
     };
 
     Ok(())
+}
+
+#[derive(Deserialize, Clone, PartialEq, Eq)]
+struct UpdatePkg {
+    name: String,
+    before: String,
+    after: String,
+    warnings: Vec<String>,
+}
+
+impl Display for UpdatePkg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {} -> {}", self.name, self.before, self.after)?;
+
+        if !self.warnings.is_empty() {
+            write!(f, " ({})", self.warnings.join("; "))?;
+        }
+
+        Ok(())
+    }
+}
+
+async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
+    let client = ClientBuilder::new().user_agent("buildit").build()?;
+    let resp = client
+        .get("https://github.com/AOSC-Dev/anicca/raw/main/pkgsupdate.json")
+        .send()
+        .await?;
+
+    let resp = resp.error_for_status()?;
+    let json = resp.json::<Vec<UpdatePkg>>().await?;
+
+    let mut rng = thread_rng();
+    let mut v = vec![];
+
+    let mut count = 0;
+
+    while count < 10 {
+        let n = json.choose(&mut rng);
+        if let Some(n) = n {
+            if !v.contains(n) {
+                v.push(n.clone());
+                count += 1;
+            }
+        }
+    }
+
+    Ok(v)
 }
 
 fn truncate<'a>(text: &'a str) -> Cow<'a, str> {

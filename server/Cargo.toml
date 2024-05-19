@@ -34,3 +34,4 @@ opentelemetry = "0.22.0"
 tracing-opentelemetry = "0.23.0"
 opentelemetry-otlp = { version = "0.15.0", features = ["http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio"] }
+rand = "0.8"
