@@ -852,24 +852,16 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
     let resp = resp.error_for_status()?;
     let json = resp.json::<Vec<UpdatePkg>>().await?;
 
-    if json.len() < 10 {
+    if json.len() <= 10 {
         return Ok(json);
     }
 
     let mut rng = thread_rng();
-    let mut v = vec![];
 
-    let mut count = 0;
-
-    while count < 10 {
-        let n = json.choose(&mut rng);
-        if let Some(n) = n {
-            if !v.contains(n) {
-                v.push(n.clone());
-                count += 1;
-            }
-        }
-    }
+    let v = json
+        .choose_multiple(&mut rng, 10)
+        .map(|x| x.to_owned())
+        .collect();
 
     Ok(v)
 }
