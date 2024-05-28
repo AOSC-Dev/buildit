@@ -19,7 +19,7 @@ while read i; do
             ssh -n root@relay-cn.aosc.io -p $server_port \
                 "systemctl stop buildit-worker.service" \
                     && printf "OK!\n" \
-                    || printf "Failed to restart BuildIt worker on $server_name ($server_port)!\n"
+                    || printf "Failed to stop BuildIt worker on $server_name ($server_port)!\n"
             ;;
         update-keys)
             printf "Updating contributor pubkeys on $server_name ($server_port) ... "
@@ -27,7 +27,14 @@ while read i; do
             ssh -n root@relay-cn.aosc.io -p $server_port \
                  "curl -fsSL https://raw.githubusercontent.com/AOSC-Dev/dev-pubkeys/master/install.sh | bash" \
                     && printf "OK!\n" \
-                    || printf "Failed to restart BuildIt worker on $server_name ($server_port)!\n"
+                    || printf "Failed to update contributor pubkeys on $server_name ($server_port)!\n"
+            ;;
+	fastfetch-upgrade)
+            printf "Upgrading bashrc to use fastfetch on $server_name ($server_port) ... "
+            ssh -n root@relay-cn.aosc.io -p $server_port \
+                 "oma install fastfetch && sed -e 's|neofetch|fastfetch|g' -i /root/.bashrc" \
+                    && printf "OK!\n" \
+                    || printf "Failed to upgrade bashrc to use fastfetch on $server_name ($server_port)!\n"
             ;;
         *)
             echo "Invalid operation specified! (restart or stop?)"
