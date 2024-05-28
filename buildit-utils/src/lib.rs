@@ -171,7 +171,7 @@ async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
         match get_new_spec(&mut spec).await {
             Ok(()) => {
                 if i > 1 {
-                    info!("({i}/5) Retrying to get new spec...");
+                    warn!("({i}/5) Retrying to get new spec...");
                 }
 
                 fs::write(p, spec).await?;
@@ -180,7 +180,7 @@ async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
             Err(e) => {
                 if let Some(e) = e.downcast_ref::<ParseErrors>() {
                     warn!("{e}, try use acbs-build fallback to get new checksum ...");
-                    acbs_build_gw(&pkg, &abbs_path)?;
+                    acbs_build_gw(&pkg, &abbs_path).await?;
                 } else {
                     error!("Failed to get new spec: {e}");
                     if i == 5 {
@@ -194,8 +194,8 @@ async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Result<()> {
-    let output = Command::new("acbs-build")
+async fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Result<()> {
+    let output = tokio::process::Command::new("acbs-build")
         .arg("-gw")
         .arg(pkg_shared)
         .arg("--log-dir")
@@ -208,6 +208,7 @@ fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Result<()
         .arg(abbs_path_shared)
         .current_dir(abbs_path_shared)
         .output()
+        .await
         .context("Running acbs-build to update checksums")?;
 
     print_stdout_and_stderr(&output);
