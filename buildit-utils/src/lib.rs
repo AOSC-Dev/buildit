@@ -1,12 +1,15 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
-use anyhow::{bail, Context};
+use abbs_update_checksum_core::get_new_spec;
+use anyhow::{anyhow, bail, Context};
+use github::get_spec;
 use once_cell::sync::Lazy;
 use std::{
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
 };
-use tracing::info;
+use tokio::{fs, task::spawn_blocking};
+use tracing::{error, info};
 
 pub mod github;
 
@@ -77,29 +80,14 @@ pub async fn find_update_and_update_checksum(
             }
 
             let absolute_abbs_path = std::fs::canonicalize(abbs_path)?;
-            let abbs_path_parent = if let Some(parent) = absolute_abbs_path.parent() {
-                parent
-            } else {
-                bail!("Bad ABBS path");
-            };
-            info!("Running acbs-build ...");
-            let output = Command::new("acbs-build")
-                .arg("-gw")
-                .arg(pkg)
-                .arg("--log-dir")
-                .arg(abbs_path_parent.join("acbs-log"))
-                .arg("--cache-dir")
-                .arg(abbs_path_parent.join("acbs-cache"))
-                .arg("--temp-dir")
-                .arg(abbs_path_parent.join("acbs-temp"))
-                .arg("--tree-dir")
-                .arg(absolute_abbs_path)
-                .current_dir(&abbs_path)
-                .output()
-                .context("Running acbs-build to update checksums")?;
-            print_stdout_and_stderr(&output);
 
-            if !output.status.success() {
+            let abbs_path_shared = absolute_abbs_path.clone();
+            let pkg_shared = pkg.to_owned();
+
+            info!("Writting new checksum ...");
+            let res = write_new_spec(abbs_path_shared, pkg_shared).await;
+
+            if let Err(e) = res {
                 // cleanup repo
                 Command::new("git")
                     .arg("reset")
@@ -109,10 +97,7 @@ pub async fn find_update_and_update_checksum(
                     .output()
                     .context("Reset git repo status")?;
 
-                bail!(
-                    "Failed to run acbs-build to update checksum: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
+                bail!("Failed to run acbs-build to update checksum: {}", e);
             }
 
             let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
@@ -177,4 +162,25 @@ pub async fn find_update_and_update_checksum(
     }
 
     bail!("{pkg} has no update")
+}
+
+async fn write_new_spec(abbs_path_shared: PathBuf, pkg_shared: String) -> anyhow::Result<()> {
+    let (mut spec, p) = spawn_blocking(move || get_spec(&abbs_path_shared, &pkg_shared)).await??;
+
+    for i in 1..=5 {
+        match get_new_spec(&mut spec).await.map_err(|e| anyhow!("{e}")) {
+            Ok(()) => {
+                fs::write(p, spec).await?;
+                return Ok(());
+            }
+            Err(e) => {
+                error!("Failed to get new spec: {e}");
+                if i == 5 {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
