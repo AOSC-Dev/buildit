@@ -1,6 +1,6 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
 use abbs_update_checksum_core::get_new_spec;
-use anyhow::{anyhow, bail, Context};
+use anyhow::{bail, Context};
 use github::get_spec;
 use once_cell::sync::Lazy;
 use std::{
@@ -168,15 +168,19 @@ async fn write_new_spec(abbs_path_shared: PathBuf, pkg_shared: String) -> anyhow
     let (mut spec, p) = spawn_blocking(move || get_spec(&abbs_path_shared, &pkg_shared)).await??;
 
     for i in 1..=5 {
-        match get_new_spec(&mut spec).await.map_err(|e| anyhow!("{e}")) {
+        match get_new_spec(&mut spec).await {
             Ok(()) => {
+                if i > 1 {
+                    info!("({i}/5) Retrying to get new spec...");
+                }
+
                 fs::write(p, spec).await?;
                 return Ok(());
             }
             Err(e) => {
                 error!("Failed to get new spec: {e}");
                 if i == 5 {
-                    return Err(e);
+                    bail!("{e}");
                 }
             }
         }
