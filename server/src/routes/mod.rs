@@ -112,6 +112,7 @@ pub async fn dashboard_status(
                 .count()
                 .get_result(conn)?;
             let total_worker_count = crate::schema::workers::dsl::workers
+                .filter(crate::schema::workers::dsl::visible.eq(true))
                 .count()
                 .get_result(conn)?;
             let (total_logical_cores, total_memory_bytes) = crate::schema::workers::dsl::workers
@@ -119,11 +120,13 @@ pub async fn dashboard_status(
                     sum(crate::schema::workers::dsl::logical_cores),
                     sum(crate::schema::workers::dsl::memory_bytes),
                 ))
+                .filter(crate::schema::workers::dsl::visible.eq(true))
                 .get_result::<(Option<i64>, Option<bigdecimal::BigDecimal>)>(conn)?;
 
             let deadline = Utc::now() - chrono::Duration::try_seconds(HEARTBEAT_TIMEOUT).unwrap();
             let live_worker_count = crate::schema::workers::dsl::workers
                 .filter(crate::schema::workers::last_heartbeat_time.gt(deadline))
+                .filter(crate::schema::workers::dsl::visible.eq(true))
                 .count()
                 .get_result(conn)?;
 
@@ -138,6 +141,7 @@ pub async fn dashboard_status(
                     sum(crate::schema::workers::dsl::logical_cores),
                     sum(crate::schema::workers::dsl::memory_bytes),
                 ))
+                .filter(crate::schema::workers::dsl::visible.eq(true))
                 .load::<(String, i64, Option<i64>, Option<bigdecimal::BigDecimal>)>(conn)?
             {
                 by_arch.entry(arch.clone()).or_default().total_worker_count = count;
