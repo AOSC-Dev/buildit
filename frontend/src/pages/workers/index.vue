@@ -82,7 +82,7 @@
 
   export default {
     data: () => ({
-      itemsPerPage: 25,
+      itemsPerPage: 50,
       headers: [
         { title: 'Hostname', key: 'hostname', sortable: false },
         { title: 'Architecture', key: 'arch', sortable: false },
