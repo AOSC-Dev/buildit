@@ -91,6 +91,7 @@ pub struct Worker {
     pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
     pub disk_free_space_bytes: i64,
     pub performance: Option<i64>,
+    pub visible: bool,
 }
 
 #[derive(Insertable, AsChangeset)]

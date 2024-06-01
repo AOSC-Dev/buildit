@@ -68,11 +68,13 @@ pub async fn worker_list(
     Ok(Json(
         conn.transaction::<WorkerListResponse, diesel::result::Error, _>(|conn| {
             let total_items = crate::schema::workers::dsl::workers
+                .filter(crate::schema::workers::dsl::visible.eq(true))
                 .count()
                 .get_result(conn)?;
 
             let workers = if query.items_per_page == -1 {
                 crate::schema::workers::dsl::workers
+                    .filter(crate::schema::workers::dsl::visible.eq(true))
                     .order_by((
                         crate::schema::workers::dsl::arch,
                         crate::schema::workers::dsl::hostname,
@@ -85,6 +87,7 @@ pub async fn worker_list(
                     .load::<(Worker, Option<Job>)>(conn)?
             } else {
                 crate::schema::workers::dsl::workers
+                    .filter(crate::schema::workers::dsl::visible.eq(true))
                     .order_by((
                         crate::schema::workers::dsl::arch,
                         crate::schema::workers::dsl::hostname,
