@@ -56,6 +56,10 @@ pub struct Args {
     /// Local repo path if available
     #[arg(env = "BUILDIT_REPO_PATH")]
     pub local_repo: Option<PathBuf>,
+
+    /// Listen to unix socket if set
+    #[arg(env = "BUILDIT_LISTEN_SOCKET_PATH")]
+    pub unix_socket: Option<PathBuf>,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);

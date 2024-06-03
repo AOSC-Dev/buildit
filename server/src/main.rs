@@ -1,10 +1,12 @@
-use axum::extract::MatchedPath;
+use axum::extract::{connect_info, MatchedPath};
 use axum::http::Method;
 use axum::routing::post;
-use axum::{routing::get, Router};
+use axum::{http::Request, routing::get, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use hyper::body::Incoming;
+use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace;
@@ -18,7 +20,11 @@ use server::routes::{
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
+use std::sync::Arc;
 use teloxide::prelude::*;
+use tokio::net::unix::UCred;
+use tokio::net::UnixStream;
+use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info_span;
@@ -145,10 +151,43 @@ async fn main() -> anyhow::Result<()> {
         app = app.layer(cors);
     }
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    handles.push(tokio::spawn(async {
-        axum::serve(listener, app).await.unwrap()
-    }));
+    if let Some(path) = &ARGS.unix_socket {
+        let listener = tokio::net::UnixListener::bind(&path)?;
+        // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
+        handles.push(tokio::spawn(async move {
+            let mut make_service = app.into_make_service_with_connect_info::<UdsConnectInfo>();
+
+            // See https://github.com/tokio-rs/axum/blob/main/examples/serve-with-hyper/src/main.rs for
+            // more details about this setup
+            loop {
+                let (socket, _remote_addr) = listener.accept().await.unwrap();
+
+                let tower_service = make_service.call(&socket).await.unwrap();
+
+                tokio::spawn(async move {
+                    let socket = TokioIo::new(socket);
+
+                    let hyper_service =
+                        hyper::service::service_fn(move |request: Request<Incoming>| {
+                            tower_service.clone().call(request)
+                        });
+
+                    if let Err(err) =
+                        hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
+                            .serve_connection_with_upgrades(socket, hyper_service)
+                            .await
+                    {
+                        eprintln!("failed to serve connection: {err:#}");
+                    }
+                });
+            }
+        }));
+    } else {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+        handles.push(tokio::spawn(async {
+            axum::serve(listener, app).await.unwrap()
+        }));
+    }
 
     handles.push(tokio::spawn(recycler_worker(pool)));
 
@@ -157,4 +196,24 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+// https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct UdsConnectInfo {
+    peer_addr: Arc<tokio::net::unix::SocketAddr>,
+    peer_cred: UCred,
+}
+
+impl connect_info::Connected<&UnixStream> for UdsConnectInfo {
+    fn connect_info(target: &UnixStream) -> Self {
+        let peer_addr = target.peer_addr().unwrap();
+        let peer_cred = target.peer_cred().unwrap();
+
+        Self {
+            peer_addr: Arc::new(peer_addr),
+            peer_cred,
+        }
+    }
 }
