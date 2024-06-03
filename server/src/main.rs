@@ -20,6 +20,7 @@ use server::routes::{
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 use teloxide::prelude::*;
 use tokio::net::unix::UCred;
@@ -27,7 +28,7 @@ use tokio::net::UnixStream;
 use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tracing::info_span;
+use tracing::{info, info_span};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
@@ -152,7 +153,14 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if let Some(path) = &ARGS.unix_socket {
+        info!("Listening on unix socket {}", path.display());
         let listener = tokio::net::UnixListener::bind(&path)?;
+
+        // chmod 777
+        let mut perms = std::fs::metadata(&path)?.permissions();
+        perms.set_mode(0o777);
+        std::fs::set_permissions(&path, perms)?;
+
         // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
         handles.push(tokio::spawn(async move {
             let mut make_service = app.into_make_service_with_connect_info::<UdsConnectInfo>();
@@ -184,6 +192,7 @@ async fn main() -> anyhow::Result<()> {
         }));
     } else {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+        info!("Listening on 127.0.0.1:3000");
         handles.push(tokio::spawn(async {
             axum::serve(listener, app).await.unwrap()
         }));
