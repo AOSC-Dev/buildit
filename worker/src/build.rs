@@ -204,20 +204,20 @@ async fn build(
 
             if build_success {
                 if let Some(upload_ssh_key) = &args.upload_ssh_key {
-                    pushpkg_success = run_logged_with_retry(
-                        "pushpkg",
-                        &[
-                            "--host",
-                            &args.rsync_host,
-                            "-i",
-                            upload_ssh_key,
-                            "maintainers",
-                            &job.git_branch,
-                        ],
-                        &output_path,
-                        &mut logs,
-                    )
-                    .await?;
+                    let mut args = vec![
+                        "--host",
+                        &args.rsync_host,
+                        "-i",
+                        upload_ssh_key,
+                        "maintainers",
+                        &job.git_branch,
+                    ];
+                    if &job.git_branch != "stable" {
+                        // allow force push if noarch and non stable
+                        args.insert(0, "--force-push-noarch-package");
+                    }
+                    pushpkg_success =
+                        run_logged_with_retry("pushpkg", &args, &output_path, &mut logs).await?;
                 }
             }
         }
