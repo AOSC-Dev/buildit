@@ -47,6 +47,7 @@ pub struct WorkerListResponseItem {
     disk_free_space_bytes: i64,
     is_live: bool,
     last_heartbeat_time: DateTime<Utc>,
+    internet_connectivity: bool,
     // status
     running_job_id: Option<i32>,
     running_job_assign_time: Option<chrono::DateTime<chrono::Utc>>,
@@ -115,6 +116,7 @@ pub async fn worker_list(
                     disk_free_space_bytes: worker.disk_free_space_bytes,
                     is_live: worker.last_heartbeat_time > deadline,
                     last_heartbeat_time: worker.last_heartbeat_time,
+                    internet_connectivity: worker.internet_connectivity,
                     running_job_id: job.as_ref().map(|job| job.id),
                     running_job_assign_time: job.and_then(|job| job.assign_time),
                 });
@@ -156,6 +158,7 @@ pub async fn worker_heartbeat(
                         disk_free_space_bytes.eq(payload.disk_free_space_bytes),
                         last_heartbeat_time.eq(chrono::Utc::now()),
                         performance.eq(payload.performance),
+                        internet_connectivity.eq(payload.internet_connectivity.unwrap_or(false)),
                     ))
                     .execute(conn)?;
             }
@@ -169,6 +172,7 @@ pub async fn worker_heartbeat(
                     disk_free_space_bytes: payload.disk_free_space_bytes,
                     last_heartbeat_time: chrono::Utc::now(),
                     performance: payload.performance,
+                    internet_connectivity: payload.internet_connectivity.unwrap_or(false),
                 };
                 diesel::insert_into(crate::schema::workers::table)
                     .values(&new_worker)

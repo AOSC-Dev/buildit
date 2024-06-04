@@ -67,10 +67,16 @@ diesel::table! {
         disk_free_space_bytes -> Int8,
         performance -> Nullable<Int8>,
         visible -> Bool,
+        internet_connectivity -> Bool,
     }
 }
 
 diesel::joinable!(jobs -> pipelines (pipeline_id));
 diesel::joinable!(pipelines -> users (creator_user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);
+diesel::allow_tables_to_appear_in_same_query!(
+    jobs,
+    pipelines,
+    users,
+    workers,
+);
