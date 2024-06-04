@@ -154,6 +154,11 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(path) = &ARGS.unix_socket {
         info!("Listening on unix socket {}", path.display());
+        // remove old unix socket to avoid "Already already in use" error
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+
         let listener = tokio::net::UnixListener::bind(&path)?;
 
         // chmod 777
