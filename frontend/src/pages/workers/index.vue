@@ -48,10 +48,9 @@
                   " since " + new TimeAgo('en-US').format(new Date((item as Worker).running_job_assign_time)) : ""
               }}
             </div>
-            <br/>
-            {{
-              (item as Worker).internet_connectivity === false ? "No internet connectivity" : ""
-            }}
+            <div v-if="(item as Worker).internet_connectivity === false">
+              No internet connectivity
+            </div>
           </template>
         </v-data-table-server>
       </v-col>
