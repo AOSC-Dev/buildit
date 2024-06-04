@@ -47,7 +47,11 @@
                 (item as Worker).running_job_assign_time !== null && (item as Worker).running_job_assign_time !== undefined ?
                   " since " + new TimeAgo('en-US').format(new Date((item as Worker).running_job_assign_time)) : ""
               }}
+              <br/>
             </div>
+            {{
+              (item as Worker).internet_connectivity === false ? "No internet connectivity" : ""
+            }}
           </template>
         </v-data-table-server>
       </v-col>
@@ -83,6 +87,7 @@
     disk_free_space_bytes: number;
     running_job_id: number;
     running_job_assign_time: string;
+    internet_connectivity: boolean;
   }
 
   export default {
