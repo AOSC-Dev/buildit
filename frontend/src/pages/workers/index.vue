@@ -47,8 +47,8 @@
                 (item as Worker).running_job_assign_time !== null && (item as Worker).running_job_assign_time !== undefined ?
                   " since " + new TimeAgo('en-US').format(new Date((item as Worker).running_job_assign_time)) : ""
               }}
-              <br/>
             </div>
+            <br/>
             {{
               (item as Worker).internet_connectivity === false ? "No internet connectivity" : ""
             }}
