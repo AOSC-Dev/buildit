@@ -43,6 +43,10 @@
               <router-link :to="{ path: `/jobs/${(item as Worker).running_job_id}` }">
                 # {{ (item as Worker).running_job_id }}
               </router-link>
+              {{ 
+                (item as Worker).running_job_assign_time !== null && (item as Worker).running_job_assign_time !== undefined ?
+                  " since " + new TimeAgo('en-US').format(new Date((item as Worker).running_job_assign_time)) : ""
+              }}
             </div>
           </template>
         </v-data-table-server>
@@ -78,6 +82,7 @@
     memory_bytes: number;
     disk_free_space_bytes: number;
     running_job_id: number;
+    running_job_assign_time: string;
   }
 
   export default {

@@ -49,6 +49,7 @@ pub struct WorkerListResponseItem {
     last_heartbeat_time: DateTime<Utc>,
     // status
     running_job_id: Option<i32>,
+    running_job_assign_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Serialize)]
@@ -114,7 +115,8 @@ pub async fn worker_list(
                     disk_free_space_bytes: worker.disk_free_space_bytes,
                     is_live: worker.last_heartbeat_time > deadline,
                     last_heartbeat_time: worker.last_heartbeat_time,
-                    running_job_id: job.map(|job| job.id),
+                    running_job_id: job.as_ref().map(|job| job.id),
+                    running_job_assign_time: job.and_then(|job| job.assign_time),
                 });
             }
 
