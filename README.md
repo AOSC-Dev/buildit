@@ -8,7 +8,7 @@ Steps (as root):
 
 0. Install git, ciel, pushpkg, rustc (with Cargo), compiler toolchain (LLVM/Clang)
 1. `mkdir -p /buildroots/buildit`
-2. `cd /buildroots/buildit && git clone https://github.com/AOSC-Dev/buildit`
+2. `cd /buildroots/buildit && git clone https://github.com/AOSC-Dev/buildit`, set git user.name to `AOSC OS Maintainers`, user.email to `maintainers@aosc.io`
 3. `cd /buildroots/buildit && ciel new` with maintainer called `AOSC OS Maintainers <maintainers@aosc.io>`, making sure to create an instance named "main" when asked
 4. `cp /buildroots/buildit/buildit/systemd/buildit-worker.service /etc/systemd/system`
 5. `$EDITOR /etc/systemd/system/buildit-worker.service`：update ARCH
