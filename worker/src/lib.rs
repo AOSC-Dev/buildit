@@ -1,5 +1,6 @@
 use clap::Parser;
 use std::path::PathBuf;
+use sysinfo::System;
 
 pub mod build;
 pub mod heartbeat;
@@ -48,4 +49,13 @@ pub struct Args {
     /// Performance number of the worker (smaller is better)
     #[arg(short = 'p', long, env = "BUILDIT_WORKER_PERFORMANCE")]
     pub worker_performance: Option<i64>,
+}
+
+pub fn get_memory_bytes() -> i64 {
+    let system = System::new_all();
+    if let Some(limits) = system.cgroup_limits() {
+        limits.total_memory as i64
+    } else {
+        system.total_memory() as i64
+    }
 }

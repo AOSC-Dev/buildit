@@ -1,4 +1,4 @@
-use crate::Args;
+use crate::{get_memory_bytes, Args};
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
 use log::{error, info, warn};
@@ -301,7 +301,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         hostname: gethostname::gethostname().to_string_lossy().to_string(),
         arch: args.arch.clone(),
         worker_secret: args.worker_secret.clone(),
-        memory_bytes: sysinfo::System::new_all().total_memory() as i64,
+        memory_bytes: get_memory_bytes(),
         disk_free_space_bytes: fs2::free_space(std::env::current_dir()?)? as i64,
         logical_cores: num_cpus::get() as i32,
     };

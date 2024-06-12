@@ -1,4 +1,4 @@
-use crate::Args;
+use crate::{get_memory_bytes, Args};
 use common::WorkerHeartbeatRequest;
 use log::{info, warn};
 use std::{
@@ -40,7 +40,7 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
                 arch: args.arch.clone(),
                 worker_secret: args.worker_secret.clone(),
                 git_commit: env!("VERGEN_GIT_DESCRIBE").to_string(),
-                memory_bytes: sysinfo::System::new_all().total_memory() as i64,
+                memory_bytes: get_memory_bytes(),
                 disk_free_space_bytes: fs2::free_space(std::env::current_dir()?)? as i64,
                 logical_cores: num_cpus::get() as i32,
                 performance: args.worker_performance,
