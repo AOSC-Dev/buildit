@@ -18,7 +18,7 @@ serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
 teloxide = { version = "0.12.2", features = ["macros"] }
 timeago = { version = "0.4.2", features = ["chrono"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "process", "sync"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "process", "sync", "time"] }
 console = "0.15.8"
 buildit-utils = { path = "../buildit-utils" }
 jsonwebtoken = "9.2.0"

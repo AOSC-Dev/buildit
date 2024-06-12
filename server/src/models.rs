@@ -92,7 +92,7 @@ pub struct Worker {
     pub disk_free_space_bytes: i64,
     pub performance: Option<i64>,
     pub visible: bool,
-    pub internet_connectivity: bool
+    pub internet_connectivity: bool,
 }
 
 #[derive(Insertable, AsChangeset)]
@@ -107,7 +107,7 @@ pub struct NewWorker {
     pub last_heartbeat_time: chrono::DateTime<chrono::Utc>,
     pub disk_free_space_bytes: i64,
     pub performance: Option<i64>,
-    pub internet_connectivity: bool
+    pub internet_connectivity: bool,
 }
 
 #[derive(Queryable, Selectable)]

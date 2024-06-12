@@ -28,7 +28,7 @@ pub struct WorkerHeartbeatRequest {
     pub disk_free_space_bytes: i64,
     pub worker_secret: String,
     pub performance: Option<i64>,
-    pub internet_connectivity: Option<bool>
+    pub internet_connectivity: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

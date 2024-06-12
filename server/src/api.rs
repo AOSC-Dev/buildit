@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::warn;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum JobSource {
     /// Telegram user/group
     Telegram(i64),
@@ -39,7 +39,7 @@ pub async fn pipeline_new(
     github_pr: Option<u64>,
     packages: &str,
     archs: &str,
-    source: &JobSource,
+    source: JobSource,
 ) -> anyhow::Result<Pipeline> {
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(',').collect();
@@ -135,7 +135,7 @@ pub async fn pipeline_new(
             let creator_user_id = user.map(|user| user.id);
             ("telegram", github_pr, Some(id), creator_user_id)
         }
-        JobSource::Github(id) => ("github", Some(*id), None, None),
+        JobSource::Github(id) => ("github", Some(id), None, None),
         JobSource::Manual => ("manual", github_pr, None, None),
     };
     let new_pipeline = NewPipeline {
@@ -146,7 +146,7 @@ pub async fn pipeline_new(
         creation_time: chrono::Utc::now(),
         source: source.to_string(),
         github_pr: github_pr.map(|pr| pr as i64),
-        telegram_user: telegram_user.copied(),
+        telegram_user: telegram_user,
         creator_user_id: creator_user_id,
     };
     let pipeline = diesel::insert_into(pipelines::table)
@@ -218,7 +218,7 @@ pub async fn pipeline_new_pr(
     pool: DbPool,
     pr: u64,
     archs: Option<&str>,
-    source: &JobSource,
+    source: JobSource,
 ) -> anyhow::Result<Pipeline> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
