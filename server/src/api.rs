@@ -32,6 +32,7 @@ pub enum JobSource {
 }
 
 // create github check run for the specified git commit
+#[tracing::instrument(skip(crab))]
 async fn create_check_run(crab: octocrab::Octocrab, arch: String, git_sha: String) -> Option<u64> {
     match crab
         .checks("AOSC-Dev", "aosc-os-abbs")
