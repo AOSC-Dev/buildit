@@ -1,6 +1,7 @@
 use crate::{
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
+    schema::jobs::github_check_run_id,
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::Context;
@@ -29,6 +30,25 @@ pub enum JobSource {
     Github(u64),
     /// Manual
     Manual,
+}
+
+// create github check run for the specified git commit
+async fn create_check_run(crab: &octocrab::Octocrab, arch: &str, git_sha: &str) -> Option<u64> {
+    match crab
+        .checks("AOSC-Dev", "aosc-os-abbs")
+        .create_check_run(format!("buildit {}", arch), git_sha.to_string())
+        .status(octocrab::params::checks::CheckRunStatus::Queued)
+        .send()
+        .await
+    {
+        Ok(check_run) => {
+            return Some(check_run.id.0);
+        }
+        Err(err) => {
+            warn!("Failed to create check run: {}", err);
+        }
+    }
+    return None;
 }
 
 #[tracing::instrument(skip(pool))]
@@ -168,27 +188,20 @@ pub async fn pipeline_new(
         }
     };
 
-    // for each arch, create a new job
-    for arch in &archs {
-        // create github check run
-        let mut github_check_run_id = None;
-        if let Some(crab) = &crab {
-            match crab
-                .checks("AOSC-Dev", "aosc-os-abbs")
-                .create_check_run(format!("buildit {}", arch), &git_sha)
-                .status(octocrab::params::checks::CheckRunStatus::Queued)
-                .send()
-                .await
-            {
-                Ok(check_run) => {
-                    github_check_run_id = Some(check_run.id.0);
-                }
-                Err(err) => {
-                    warn!("Failed to create check run: {}", err);
-                }
-            }
-        }
+    // for eatch arch, create github check run in parallel
+    let github_check_run_ids: Vec<Option<u64>> = if let Some(crab) = &crab {
+        futures::future::join_all(
+            archs
+                .iter()
+                .map(|arch| create_check_run(crab, arch, &git_sha)),
+        )
+        .await
+    } else {
+        vec![None; archs.len()]
+    };
 
+    // for each arch, create a new job
+    for (arch, check_run_id) in archs.iter().zip(github_check_run_ids.iter()) {
         // create a new job
         use crate::schema::jobs;
         let env_req_current = env_req.get(*arch).cloned().unwrap_or_default();
@@ -198,7 +211,7 @@ pub async fn pipeline_new(
             arch: arch.to_string(),
             creation_time: chrono::Utc::now(),
             status: "created".to_string(),
-            github_check_run_id: github_check_run_id.map(|id| id as i64),
+            github_check_run_id: check_run_id.map(|id| id as i64),
             require_min_core: env_req_current.min_core,
             require_min_total_mem: env_req_current.min_total_mem,
             require_min_total_mem_per_core: env_req_current.min_total_mem_per_core,
