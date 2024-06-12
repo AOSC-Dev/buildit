@@ -332,17 +332,6 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
 
     print_stdout_and_stderr(&output);
 
-    info!("Running git pull ...");
-
-    let output = process::Command::new("git")
-        .arg("pull")
-        .current_dir(abbs_path)
-        .output()
-        .instrument(info_span!("git_pull"))
-        .await?;
-
-    print_stdout_and_stderr(&output);
-
     info!("Running git fetch origin {git_ref} ...");
 
     let output = process::Command::new("git")
@@ -359,6 +348,19 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
     if !output.status.success() {
         bail!("Failed to fetch origin git-ref: {git_ref}");
     }
+
+    info!("Running git reset origin/stable --hard ...");
+
+    let output = process::Command::new("git")
+        .arg("reset")
+        .arg("origin/stable")
+        .arg("--hard")
+        .current_dir(abbs_path)
+        .output()
+        .instrument(info_span!("git_reset_origin_stable"))
+        .await?;
+
+    print_stdout_and_stderr(&output);
 
     info!("Running git checkout -b {git_ref} ...");
 
