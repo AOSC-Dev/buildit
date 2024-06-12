@@ -50,7 +50,7 @@ pub async fn find_update_and_update_checksum(
     let _lock = ABBS_REPO_LOCK.lock().await;
 
     // switch to stable branch
-    update_abbs("stable", &abbs_path).await?;
+    update_abbs("stable", &abbs_path, false).await?;
 
     info!("Running aosc-findupdate ...");
 

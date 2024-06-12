@@ -1,7 +1,6 @@
 use crate::{
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
-    schema::jobs::github_check_run_id,
     DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::Context;
@@ -60,6 +59,7 @@ pub async fn pipeline_new(
     packages: &str,
     archs: &str,
     source: &JobSource,
+    skip_git_fetch: bool,
 ) -> anyhow::Result<Pipeline> {
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(',').collect();
@@ -103,7 +103,7 @@ pub async fn pipeline_new(
     }
 
     let lock = ABBS_REPO_LOCK.lock().await;
-    update_abbs(git_branch, &ARGS.abbs_path)
+    update_abbs(git_branch, &ARGS.abbs_path, skip_git_fetch)
         .await
         .context("Failed to update ABBS tree")?;
 
@@ -267,15 +267,18 @@ pub async fn pipeline_new_pr(
             // find lines starting with #buildit
             let packages = get_packages_from_pr(&pr);
             if !packages.is_empty() {
+                let mut skip_git_fetch = false;
                 let archs = if let Some(archs) = archs {
                     archs.to_string()
                 } else {
                     let path = &ARGS.abbs_path;
 
                     let _lock = ABBS_REPO_LOCK.lock().await;
-                    update_abbs(git_branch, &ARGS.abbs_path)
+                    update_abbs(git_branch, &ARGS.abbs_path, false)
                         .await
                         .context("Failed to update ABBS tree")?;
+                    // skip next git fetch in pipeline_new
+                    skip_git_fetch = true;
 
                     let resolved_packages =
                         resolve_packages(&packages, path).context("Failed to resolve packages")?;
@@ -291,6 +294,7 @@ pub async fn pipeline_new_pr(
                     &packages.join(","),
                     &archs,
                     source,
+                    skip_git_fetch,
                 )
                 .await
             } else {

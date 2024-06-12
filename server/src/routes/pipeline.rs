@@ -37,6 +37,7 @@ pub async fn pipeline_new(
         &payload.packages,
         &payload.archs,
         &JobSource::Manual,
+        false,
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))

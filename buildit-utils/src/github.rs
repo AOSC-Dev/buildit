@@ -87,7 +87,7 @@ pub async fn open_pr(
         archs,
     } = openpr_request;
 
-    update_abbs(&git_ref, &abbs_path).await?;
+    update_abbs(&git_ref, &abbs_path, false).await?;
 
     let abbs_path_clone = abbs_path.clone();
     let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
@@ -304,7 +304,11 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
 
 /// Update ABBS tree commit logs
 #[tracing::instrument(skip(abbs_path))]
-pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow::Result<()> {
+pub async fn update_abbs<P: AsRef<Path>>(
+    git_ref: &str,
+    abbs_path: P,
+    skip_git_fetch: bool,
+) -> anyhow::Result<()> {
     info!("Running git checkout -b stable ...");
 
     let abbs_path = abbs_path.as_ref();
@@ -332,21 +336,25 @@ pub async fn update_abbs<P: AsRef<Path>>(git_ref: &str, abbs_path: P) -> anyhow:
 
     print_stdout_and_stderr(&output);
 
-    info!("Running git fetch origin {git_ref} ...");
+    if skip_git_fetch {
+        info!("Skippping git fetch ...")
+    } else {
+        info!("Running git fetch origin {git_ref} ...");
 
-    let output = process::Command::new("git")
-        .arg("fetch")
-        .arg("origin")
-        .arg(git_ref)
-        .current_dir(abbs_path)
-        .output()
-        .instrument(info_span!("git_fetch_origin"))
-        .await?;
+        let output = process::Command::new("git")
+            .arg("fetch")
+            .arg("origin")
+            .arg(git_ref)
+            .current_dir(abbs_path)
+            .output()
+            .instrument(info_span!("git_fetch_origin"))
+            .await?;
 
-    print_stdout_and_stderr(&output);
+        print_stdout_and_stderr(&output);
 
-    if !output.status.success() {
-        bail!("Failed to fetch origin git-ref: {git_ref}");
+        if !output.status.success() {
+            bail!("Failed to fetch origin git-ref: {git_ref}");
+        }
     }
 
     info!("Running git reset origin/stable --hard ...");

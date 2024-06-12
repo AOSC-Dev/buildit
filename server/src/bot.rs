@@ -131,6 +131,7 @@ async fn pipeline_new_and_report(
         packages,
         archs,
         &JobSource::Telegram(msg.chat.id.0),
+        false,
     )
     .await
     {
