@@ -33,10 +33,10 @@ pub enum JobSource {
 }
 
 // create github check run for the specified git commit
-async fn create_check_run(crab: &octocrab::Octocrab, arch: &str, git_sha: &str) -> Option<u64> {
+async fn create_check_run(crab: octocrab::Octocrab, arch: String, git_sha: String) -> Option<u64> {
     match crab
         .checks("AOSC-Dev", "aosc-os-abbs")
-        .create_check_run(format!("buildit {}", arch), git_sha.to_string())
+        .create_check_run(format!("buildit {}", arch), git_sha)
         .status(octocrab::params::checks::CheckRunStatus::Queued)
         .send()
         .await
@@ -190,12 +190,20 @@ pub async fn pipeline_new(
 
     // for eatch arch, create github check run in parallel
     let github_check_run_ids: Vec<Option<u64>> = if let Some(crab) = &crab {
-        futures::future::join_all(
-            archs
-                .iter()
-                .map(|arch| create_check_run(crab, arch, &git_sha)),
-        )
-        .await
+        let mut handles = vec![];
+        for arch in &archs {
+            handles.push(tokio::spawn(create_check_run(
+                crab.clone(),
+                arch.to_string(),
+                git_sha.to_string(),
+            )));
+        }
+
+        let mut res = vec![];
+        for handle in handles {
+            res.push(handle.await.unwrap());
+        }
+        res
     } else {
         vec![None; archs.len()]
     };
