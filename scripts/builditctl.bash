@@ -29,6 +29,13 @@ while read i; do
                     && printf "OK!\n" \
                     || printf "Failed to update contributor pubkeys on $server_name ($server_port)!\n"
             ;;
+	clean-src)
+	    printf "Clearing source cache on $server_name ($server_port) ... "
+	    ssh -n root@relay-cn.aosc.io -p $server_port \
+                "rm -r /buildroots/buildit/SRCS/*" \
+		    && printf "OK!\n" \
+		    || printf "Failed to clear source cache on $server_name ($server_port)!\n"
+	    ;;
 	fastfetch-upgrade)
             printf "Upgrading bashrc to use fastfetch on $server_name ($server_port) ... "
             ssh -n root@relay-cn.aosc.io -p $server_port \
