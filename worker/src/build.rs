@@ -5,6 +5,7 @@ use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollRespons
 use flume::{unbounded, Receiver, Sender};
 use futures_util::StreamExt;
 use log::{error, info, warn};
+use reqwest::Url;
 use std::{
     path::Path,
     process::{Output, Stdio},
@@ -371,7 +372,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         logical_cores: num_cpus::get() as i32,
     };
 
-    let ws = args.websocket.clone();
+    let ws = Url::parse(&args.websocket)?.join(&args.port.to_string())?;
 
     let (tx, rx) = unbounded();
 
@@ -430,10 +431,10 @@ pub async fn build_worker(args: Args) -> ! {
     }
 }
 
-pub async fn websocket_connect(rx: Receiver<Message>, ws: String) -> ! {
+pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> ! {
     loop {
         info!("Starting websocket connect");
-        match connect_async(&ws).await {
+        match connect_async(ws.as_str()).await {
             Ok((ws_stream, _)) => {
                 let (write, _) = ws_stream.split();
                 let rx = rx.clone().into_stream();
