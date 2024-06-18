@@ -15,8 +15,8 @@ Steps (as root):
 6. `$EDITOR /buildroots/buildit/buildit/.env`: set BUILDIT_SERVER, BUILDIT_WORKER_SECRET BUILDIT_SSH_KEY and BUILDIT_WORKER_PERFORMANCE; for workers in China, optionally update BUILDIT_RSYNC_HOST to repo-cn.aosc.io
 7. `systemctl enable --now buildit-worker`
 8. `chmod 600 /buildroots/buildit/buildit/.env`
-9. Generate a new SSH key at the location of BUILDIT_SSH_KEY, and setup authorized_keys on repo
-10. Add SSH known hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan repo-cn.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
+9. Generate a new SSH key at the location of BUILDIT_SSH_KEY, and setup authorized_keys on repo.aosc.io (contact infra team)
+10. Add SSH known hosts from repo.aosc.io, repo-cn.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan repo-cn.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
 
 Arch-specific notes:
 
