@@ -2,8 +2,8 @@ use crate::{get_memory_bytes, Args};
 use anyhow::Context;
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
-use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{SinkExt, StreamExt};
+use flume::{unbounded, Receiver, Sender};
+use futures_util::StreamExt;
 use log::{error, info, warn};
 use std::{
     path::Path,
@@ -23,7 +23,7 @@ async fn get_output_logged(
     args: &[&str],
     cwd: &Path,
     logs: &mut Vec<u8>,
-    mut tx: UnboundedSender<Message>,
+    tx: Sender<Message>,
 ) -> anyhow::Result<Output> {
     let begin = Instant::now();
     let msg = format!(
@@ -49,13 +49,13 @@ async fn get_output_logged(
     let mut stdout_reader = BufReader::new(stdout).lines();
     let stderr = output.stderr.take().context("Failed to get stderr")?;
 
-    let mut txc = tx.clone();
+    let txc = tx.clone();
 
     let stderr_task = tokio::spawn(async move {
         let mut res = vec![];
         let mut stderr_reader = BufReader::new(stderr).lines();
         while let Ok(Some(v)) = stderr_reader.next_line().await {
-            let _ = txc.send(Message::Text(v.clone())).await;
+            let _ = txc.clone().into_send_async(Message::Text(v.clone())).await;
             res.push(v);
         }
 
@@ -64,7 +64,7 @@ async fn get_output_logged(
 
     let mut stdout_out = vec![];
     while let Ok(Some(v)) = stdout_reader.next_line().await {
-        tx.send(Message::Text(v.clone())).await?;
+        tx.clone().into_send_async(Message::Text(v.clone())).await?;
         stdout_out.push(v);
     }
 
@@ -95,7 +95,7 @@ async fn run_logged_with_retry(
     args: &[&str],
     cwd: &Path,
     logs: &mut Vec<u8>,
-    tx: UnboundedSender<Message>,
+    tx: Sender<Message>,
 ) -> anyhow::Result<bool> {
     for i in 0..5 {
         if i > 0 {
@@ -128,7 +128,7 @@ async fn build(
     job: &WorkerPollResponse,
     tree_path: &Path,
     args: &Args,
-    tx: UnboundedSender<Message>,
+    tx: Sender<Message>,
 ) -> anyhow::Result<WorkerJobUpdateRequest> {
     let begin = Instant::now();
     let mut successful_packages = vec![];
@@ -353,12 +353,6 @@ async fn build(
 }
 
 async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
-    let ws = &args.websocket;
-    let (ws_stream, _) = connect_async(ws).await?;
-    let (write, _) = ws_stream.split();
-
-    let (tx, rx) = unbounded();
-
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
@@ -377,7 +371,13 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         logical_cores: num_cpus::get() as i32,
     };
 
-    tokio::spawn(async move { rx.map(Ok).forward(write) });
+    let ws = args.websocket.clone();
+
+    let (tx, rx) = unbounded();
+
+    tokio::spawn(async move {
+        websocket_connect(rx, ws).await;
+    });
 
     loop {
         if let Some(job) = client
@@ -426,6 +426,26 @@ pub async fn build_worker(args: Args) -> ! {
         if let Err(err) = build_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);
         }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+pub async fn websocket_connect(rx: Receiver<Message>, ws: String) -> ! {
+    loop {
+        info!("Starting websocket connect");
+        match connect_async(&ws).await {
+            Ok((ws_stream, _)) => {
+                let (write, _) = ws_stream.split();
+                let rx = rx.clone().into_stream();
+                if let Err(e) = rx.map(Ok).forward(write).await {
+                    warn!("{e}");
+                }
+            }
+            Err(err) => {
+                warn!("Got error connecting to websocket: {}", err);
+            }
+        }
+
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
