@@ -4675,6 +4675,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "fs2",
+ "futures-channel",
  "futures-util",
  "gethostname",
  "log",
