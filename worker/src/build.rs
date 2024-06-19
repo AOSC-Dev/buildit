@@ -1,5 +1,4 @@
 use crate::{get_memory_bytes, Args};
-use anyhow::Context;
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
 use flume::{unbounded, Receiver, Sender};
@@ -7,6 +6,8 @@ use futures_util::StreamExt;
 use log::{error, info, warn};
 use reqwest::Url;
 use std::{
+    os::fd::AsRawFd,
+    os::fd::FromRawFd,
     path::Path,
     process::{Output, Stdio},
     time::{Duration, Instant},
@@ -37,31 +38,17 @@ async fn get_output_logged(
     logs.extend(msg.as_bytes());
     info!("{}", msg.trim());
 
-    let mut output = Command::new(cmd)
+    // join stdout and stderr together
+    let (writer, reader) = tokio::net::unix::pipe::pipe()?;
+    let writer_fd = writer.into_blocking_fd()?;
+    let output = Command::new(cmd)
         .args(args)
         .current_dir(cwd)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(unsafe { Stdio::from_raw_fd(writer_fd.as_raw_fd()) })
+        .stderr(unsafe { Stdio::from_raw_fd(writer_fd.as_raw_fd()) })
         .spawn()?;
 
-    let elapsed = begin.elapsed();
-
-    let stdout = output.stdout.as_mut().context("Failed to get stdout")?;
-    let mut stdout_reader = BufReader::new(stdout).lines();
-    let stderr = output.stderr.take().context("Failed to get stderr")?;
-
-    let txc = tx.clone();
-
-    let stderr_task = tokio::spawn(async move {
-        let mut res = vec![];
-        let mut stderr_reader = BufReader::new(stderr).lines();
-        while let Ok(Some(v)) = stderr_reader.next_line().await {
-            let _ = txc.clone().into_send_async(Message::Text(v.clone())).await;
-            res.push(v);
-        }
-
-        res
-    });
+    let mut stdout_reader = BufReader::new(reader).lines();
 
     let mut stdout_out = vec![];
     while let Ok(Some(v)) = stdout_reader.next_line().await {
@@ -70,6 +57,7 @@ async fn get_output_logged(
     }
 
     let output = output.wait_with_output().await?;
+    let elapsed = begin.elapsed();
 
     logs.extend(
         format!(
@@ -82,10 +70,8 @@ async fn get_output_logged(
         )
         .as_bytes(),
     );
-    logs.extend("STDOUT:\n".as_bytes());
+    logs.extend("STDOUT/ERR:\n".as_bytes());
     logs.extend(stdout_out.join("\n").as_bytes());
-    logs.extend("STDERR:\n".as_bytes());
-    logs.extend(stderr_task.await?.join("\n").as_bytes());
 
     Ok(output)
 }
