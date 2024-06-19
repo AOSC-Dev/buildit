@@ -374,7 +374,12 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         logical_cores: num_cpus::get() as i32,
     };
 
-    let ws = Url::parse(&args.websocket)?.join(&hostname)?;
+    // wss://hostname/api/ws/worker/:hostname
+    let ws = Url::parse(&args.server.replace("http", "ws"))?
+        .join("api/")?
+        .join("ws/")?
+        .join("worker/")?
+        .join(&hostname)?;
 
     let (tx, rx) = unbounded();
 
@@ -435,7 +440,7 @@ pub async fn build_worker(args: Args) -> ! {
 
 pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> ! {
     loop {
-        info!("Starting websocket connect");
+        info!("Starting websocket connect to {:?}", ws);
         match connect_async(ws.as_str()).await {
             Ok((ws_stream, _)) => {
                 let (write, _) = ws_stream.split();
