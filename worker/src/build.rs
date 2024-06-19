@@ -52,7 +52,9 @@ async fn get_output_logged(
 
     let mut stdout_out = vec![];
     while let Ok(Some(v)) = stdout_reader.next_line().await {
-        tx.clone().into_send_async(Message::Text(v.clone())).await?;
+        tx.clone()
+            .into_send_async(Message::Text(v.replace("\r\n", "\n").replace("\r", "\n")))
+            .await?;
         stdout_out.push(v);
     }
 
@@ -70,7 +72,7 @@ async fn get_output_logged(
         )
         .as_bytes(),
     );
-    logs.extend("STDOUT/ERR:\n".as_bytes());
+    logs.extend("STDOUT&STDERR:\n".as_bytes());
     logs.extend(stdout_out.join("\n").as_bytes());
 
     Ok(output)
