@@ -24,7 +24,7 @@ buildit-utils = { path = "../buildit-utils" }
 jsonwebtoken = "9.2.0"
 size = "0.4.1"
 dickens = { git = "https://github.com/AOSC-Dev/dickens.git", version = "0.1.0" }
-axum = "0.7.4"
+axum = { version = "0.7.4", features = ["ws"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = "0.1.40"
 tower-http = { version = "0.5.2", features = ["trace", "fs", "cors"] }

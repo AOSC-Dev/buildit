@@ -13,28 +13,39 @@ use diesel::dsl::{count, sum};
 
 use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
 
+use futures::channel::mpsc::UnboundedSender;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 
 use teloxide::prelude::*;
 use tracing::info;
 
 pub mod job;
 pub mod pipeline;
+pub mod websocket;
 pub mod worker;
 
 pub use job::*;
 pub use pipeline::*;
+pub use websocket::*;
 pub use worker::*;
 
 pub async fn ping() -> &'static str {
     "PONG"
 }
 
+type Tx = (UnboundedSender<axum::extract::ws::Message>, String);
+pub type PeerMap = Arc<RwLock<HashMap<SocketAddr, Tx>>>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub pool: DbPool,
     pub bot: Option<Bot>,
+    pub ws_peer_map: PeerMap,
 }
 
 // learned from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs
