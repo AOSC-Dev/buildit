@@ -41,7 +41,7 @@ async fn get_output_logged(
         .args(args)
         .current_dir(cwd)
         .stdout(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()?;
 
     let elapsed = begin.elapsed();
