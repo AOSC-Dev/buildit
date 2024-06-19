@@ -28,7 +28,7 @@ export default {
         const data = event.data;
         let ansi_up = new AnsiUp();
         this.html += ansi_up.ansi_to_html(data) + " <br/> ";
-        this.line += 1;
+        this.lines += 1;
         window.scrollTo(0, document.body.scrollHeight);
       };
     },
