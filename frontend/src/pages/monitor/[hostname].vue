@@ -5,6 +5,7 @@
 </template>
 
 <script lang="ts">
+import { AnsiUp } from 'ansi_up';
 export default {
   mounted() {
     this.fetchData();
@@ -25,7 +26,8 @@ export default {
           this.lines = 0;
         }
         const data = event.data;
-        this.html += data + " <br/> ";
+        let ansi_up = new AnsiUp();
+        this.html += ansi_up.ansi_to_html(data) + " <br/> ";
         this.line += 1;
         window.scrollTo(0, document.body.scrollHeight);
       };
