@@ -52,7 +52,11 @@ async fn get_output_logged(
 
     let mut stdout_out = vec![];
     while let Ok(Some(v)) = stdout_reader.next_line().await {
-        tx.clone().into_send_async(Message::Text(v.clone())).await?;
+        for line in v.split("\r") {
+            tx.clone()
+                .into_send_async(Message::Text(line.to_string()))
+                .await?;
+        }
         stdout_out.push(v);
     }
 
