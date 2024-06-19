@@ -1,6 +1,6 @@
 <template>
   <v-container style="height: 100%; font-family: monospace">
-    <div v-html="html"></div>
+    <div v-for="line in lines" v-html="line"></div>
   </v-container>
 </template>
 
@@ -11,8 +11,7 @@ export default {
     this.fetchData();
   },
   data: () => ({
-    html: "",
-    lines: 0,
+    lines: [] as string[]
   }),
   methods: {
     fetchData() {
@@ -21,14 +20,12 @@ export default {
         `wss://buildit.aosc.io/api/ws/viewer/${name}`
       );
       socket.onmessage = (event) => {
-        if (this.lines > 5000) {
-          this.html = "";
-          this.lines = 0;
+        if (this.lines.length > 5000) {
+          this.lines = [];
         }
         const data = event.data;
         let ansi_up = new AnsiUp();
-        this.html += ansi_up.ansi_to_html(data) + " <br/> ";
-        this.lines += 1;
+        this.lines.push(ansi_up.ansi_to_html(data) + " <br/> ");
         window.scrollTo(0, document.body.scrollHeight);
       };
     },
