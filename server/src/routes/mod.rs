@@ -11,8 +11,8 @@ use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
 use futures::channel::mpsc::UnboundedSender;
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock},
+    collections::{BTreeMap, HashMap, VecDeque},
+    sync::{Arc, Mutex},
 };
 
 use teloxide::prelude::*;
@@ -37,14 +37,20 @@ pub struct Viewer {
     sender: UnboundedSender<axum::extract::ws::Message>,
 }
 
-// map from hostname to viewer
-pub type ViewerMap = Arc<RwLock<HashMap<String, Vec<Arc<Viewer>>>>>;
+#[derive(Default)]
+pub struct WSState {
+    last_logs: VecDeque<axum::extract::ws::Message>,
+    viewers: Vec<Arc<Viewer>>,
+}
+
+// map from hostname to ws state
+pub type WSStateMap = Arc<Mutex<HashMap<String, WSState>>>;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: DbPool,
     pub bot: Option<Bot>,
-    pub ws_viewer_map: ViewerMap,
+    pub ws_state_map: WSStateMap,
 }
 
 // learned from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs

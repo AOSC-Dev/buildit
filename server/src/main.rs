@@ -16,14 +16,14 @@ use server::recycler::recycler_worker;
 use server::routes::{
     dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
     pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, ws_viewer_handler,
-    ws_worker_handler, AppState, ViewerMap,
+    ws_worker_handler, AppState, WSStateMap,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, RemoteAddr, ARGS};
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
-use std::sync::RwLock;
+use std::sync::Mutex;
 use teloxide::prelude::*;
 use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
@@ -99,7 +99,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         pool: pool.clone(),
         bot,
-        ws_viewer_map: ViewerMap::new(RwLock::new(HashMap::new())),
+        ws_state_map: WSStateMap::new(Mutex::new(HashMap::new())),
     };
 
     let mut app = Router::new()
