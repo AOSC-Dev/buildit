@@ -53,10 +53,6 @@ pub struct Args {
     /// Websocket uri
     #[arg(short = 'w', long, env = "BUILDIT_WS")]
     pub websocket: String,
-
-    /// Worker machine relay port
-    #[arg(long, env = "BUILDIT_RELAY_PORT")]
-    pub port: u16,
 }
 
 pub fn get_memory_bytes() -> i64 {

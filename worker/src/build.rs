@@ -363,8 +363,10 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         .timeout(Duration::from_secs(30))
         .build()
         .unwrap();
+
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let req = WorkerPollRequest {
-        hostname: gethostname::gethostname().to_string_lossy().to_string(),
+        hostname: hostname.clone(),
         arch: args.arch.clone(),
         worker_secret: args.worker_secret.clone(),
         memory_bytes: get_memory_bytes(),
@@ -372,7 +374,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         logical_cores: num_cpus::get() as i32,
     };
 
-    let ws = Url::parse(&args.websocket)?.join(&args.port.to_string())?;
+    let ws = Url::parse(&args.websocket)?.join(&hostname)?;
 
     let (tx, rx) = unbounded();
 
