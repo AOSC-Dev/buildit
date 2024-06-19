@@ -1,23 +1,17 @@
-use crate::{DbPool, HEARTBEAT_TIMEOUT};
-
+use crate::{DbPool, RemoteAddr, HEARTBEAT_TIMEOUT};
 use anyhow::Context;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-
 use chrono::Utc;
-
 use diesel::dsl::{count, sum};
-
 use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
-
 use futures::channel::mpsc::UnboundedSender;
 use serde::Serialize;
 use std::{
     collections::{BTreeMap, HashMap},
-    net::SocketAddr,
     sync::{Arc, RwLock},
 };
 
@@ -38,14 +32,19 @@ pub async fn ping() -> &'static str {
     "PONG"
 }
 
-type Tx = (UnboundedSender<axum::extract::ws::Message>, String);
-pub type PeerMap = Arc<RwLock<HashMap<SocketAddr, Tx>>>;
+pub struct Viewer {
+    remote_addr: RemoteAddr,
+    sender: UnboundedSender<axum::extract::ws::Message>,
+}
+
+// map from hostname to viewer
+pub type ViewerMap = Arc<RwLock<HashMap<String, Vec<Arc<Viewer>>>>>;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: DbPool,
     pub bot: Option<Bot>,
-    pub ws_peer_map: PeerMap,
+    pub ws_viewer_map: ViewerMap,
 }
 
 // learned from https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs

@@ -1,4 +1,4 @@
-use axum::extract::{connect_info, MatchedPath};
+use axum::extract::MatchedPath;
 use axum::http::Method;
 use axum::routing::post;
 use axum::{http::Request, routing::get, Router};
@@ -15,18 +15,16 @@ use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
     dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
-    pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, ws_handler,
-    AppState, PeerMap,
+    pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, ws_viewer_handler,
+    ws_worker_handler, AppState, ViewerMap,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
-use server::{DbPool, ARGS};
+use server::{DbPool, RemoteAddr, ARGS};
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use teloxide::prelude::*;
-use tokio::net::unix::UCred;
-use tokio::net::UnixStream;
 use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
@@ -101,7 +99,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         pool: pool.clone(),
         bot,
-        ws_peer_map: PeerMap::new(RwLock::new(HashMap::new())),
+        ws_viewer_map: ViewerMap::new(RwLock::new(HashMap::new())),
     };
 
     let mut app = Router::new()
@@ -121,7 +119,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/list", get(worker_list))
         .route("/api/worker/info", get(worker_info))
         .route("/api/dashboard/status", get(dashboard_status))
-        .route("/api/ws/:hostname", get(ws_handler))
+        .route("/api/ws/viewer/:hostname", get(ws_viewer_handler))
+        .route("/api/ws/worker/:hostname", get(ws_worker_handler))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
         .fallback_service(ServeFile::new("frontend/dist/index.html"))
@@ -173,7 +172,7 @@ async fn main() -> anyhow::Result<()> {
 
         // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
         handles.push(tokio::spawn(async move {
-            let mut make_service = app.into_make_service_with_connect_info::<UdsConnectInfo>();
+            let mut make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
 
             // See https://github.com/tokio-rs/axum/blob/main/examples/serve-with-hyper/src/main.rs for
             // more details about this setup
@@ -204,7 +203,8 @@ async fn main() -> anyhow::Result<()> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
         info!("Listening on 127.0.0.1:3000");
         handles.push(tokio::spawn(async {
-            axum::serve(listener, app).await.unwrap()
+            let make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
+            axum::serve(listener, make_service).await.unwrap()
         }));
     }
 
@@ -215,24 +215,4 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-// https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
-struct UdsConnectInfo {
-    peer_addr: Arc<tokio::net::unix::SocketAddr>,
-    peer_cred: UCred,
-}
-
-impl connect_info::Connected<&UnixStream> for UdsConnectInfo {
-    fn connect_info(target: &UnixStream) -> Self {
-        let peer_addr = target.peer_addr().unwrap();
-        let peer_cred = target.peer_cred().unwrap();
-
-        Self {
-            peer_addr: Arc::new(peer_addr),
-            peer_cred,
-        }
-    }
 }

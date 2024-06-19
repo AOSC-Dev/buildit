@@ -1,10 +1,12 @@
+use axum::{extract::connect_info, serve::IncomingStream};
 use clap::Parser;
 use diesel::{
     r2d2::{ConnectionManager, Pool},
     PgConnection,
 };
 use once_cell::sync::Lazy;
-use std::path::PathBuf;
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use tokio::net::{unix::UCred, UnixStream};
 
 pub mod api;
 pub mod bot;
@@ -75,3 +77,35 @@ pub(crate) const ALL_ARCH: &[&str] = &[
     "ppc64el",
     "riscv64",
 ];
+
+// https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
+#[derive(Clone, Debug)]
+pub enum RemoteAddr {
+    Uds(UdsSocketAddr),
+    Inet(SocketAddr),
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+pub struct UdsSocketAddr {
+    peer_addr: Arc<tokio::net::unix::SocketAddr>,
+    peer_cred: UCred,
+}
+
+impl connect_info::Connected<&UnixStream> for RemoteAddr {
+    fn connect_info(target: &UnixStream) -> Self {
+        let peer_addr = target.peer_addr().unwrap();
+        let peer_cred = target.peer_cred().unwrap();
+
+        Self::Uds(UdsSocketAddr {
+            peer_addr: Arc::new(peer_addr),
+            peer_cred,
+        })
+    }
+}
+
+impl<'a> connect_info::Connected<IncomingStream<'a>> for RemoteAddr {
+    fn connect_info(target: IncomingStream) -> Self {
+        Self::Inet(target.remote_addr())
+    }
+}
