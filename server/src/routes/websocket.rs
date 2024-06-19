@@ -24,15 +24,13 @@ async fn handle_worker_socket(
     hostname: String,
     viewer_map: ViewerMap,
 ) {
-    info!("{:?} connected as worker", who);
+    info!("{:?} connected as worker with hostname {}", who, hostname);
 
     let (_outgoing, incoming) = socket.split();
 
     // forward websocket to tx
     if let Err(err) = incoming
         .try_for_each(|msg| {
-            info!("Received a message from {:?}: {:?}", who, msg);
-
             // We want to broadcast the message to viewers subscribing to the hostname
             if let Some(viewers) = viewer_map.read().unwrap().get(&hostname) {
                 for recp in viewers {
@@ -44,10 +42,16 @@ async fn handle_worker_socket(
         })
         .await
     {
-        info!("{:?} errored with {:?}", who, err);
+        info!(
+            "{:?} finished with {:?} as worker with hostname {}",
+            who, err, hostname
+        );
     }
 
-    info!("{:?} disconnected as worker", who);
+    info!(
+        "{:?} disconnected as worker with hostname {}",
+        who, hostname
+    );
 }
 
 pub async fn ws_viewer_handler(
@@ -66,7 +70,7 @@ async fn handle_viewer_socket(
     viewer_map: ViewerMap,
 ) {
     let (tx, rx) = unbounded();
-    info!("{:?} connected as viewer", who);
+    info!("{:?} connected as viewer with hostname {}", who, hostname);
 
     // register our tx to ViewerMap
     let viewer = Arc::new(Viewer {
@@ -83,10 +87,16 @@ async fn handle_viewer_socket(
     let (outgoing, _incoming) = socket.split();
     // forward rx to websocket
     if let Err(err) = rx.map(Ok).forward(outgoing).await {
-        info!("{:?} errored with {:?}", who, err);
+        info!(
+            "{:?} finished with {:?} as viewer with hostname {}",
+            who, err, hostname
+        );
     }
 
-    info!("{:?} disconnected as viewer", who);
+    info!(
+        "{:?} disconnected as viewer with hostname {}",
+        who, hostname
+    );
 
     // remove from viewer map
     viewer_map
