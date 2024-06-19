@@ -15,13 +15,15 @@ use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
     dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
-    pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, AppState,
+    pipeline_new_pr, worker_info, worker_job_update, worker_list, worker_poll, ws_handler,
+    AppState, PeerMap,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
 use server::{DbPool, ARGS};
+use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use teloxide::prelude::*;
 use tokio::net::unix::UCred;
 use tokio::net::UnixStream;
@@ -99,7 +101,9 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         pool: pool.clone(),
         bot,
+        ws_peer_map: PeerMap::new(RwLock::new(HashMap::new())),
     };
+
     let mut app = Router::new()
         .route("/api/ping", get(ping))
         .route("/api/pipeline/new", post(pipeline_new))
@@ -117,6 +121,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/list", get(worker_list))
         .route("/api/worker/info", get(worker_info))
         .route("/api/dashboard/status", get(dashboard_status))
+        .route("/api/ws/:hostname", get(ws_handler))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
         .fallback_service(ServeFile::new("frontend/dist/index.html"))

@@ -1,19 +1,30 @@
 use crate::{get_memory_bytes, Args};
+use anyhow::Context;
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
+use flume::{unbounded, Receiver, Sender};
+use futures_util::StreamExt;
 use log::{error, info, warn};
+use reqwest::Url;
 use std::{
     path::Path,
-    process::Output,
+    process::{Output, Stdio},
     time::{Duration, Instant},
 };
-use tokio::{fs, process::Command, time::sleep};
+use tokio::{
+    fs,
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+    time::sleep,
+};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 async fn get_output_logged(
     cmd: &str,
     args: &[&str],
     cwd: &Path,
     logs: &mut Vec<u8>,
+    tx: Sender<Message>,
 ) -> anyhow::Result<Output> {
     let begin = Instant::now();
     let msg = format!(
@@ -26,13 +37,40 @@ async fn get_output_logged(
     logs.extend(msg.as_bytes());
     info!("{}", msg.trim());
 
-    let output = Command::new(cmd)
+    let mut output = Command::new(cmd)
         .args(args)
         .current_dir(cwd)
-        .output()
-        .await?;
+        .stdout(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
 
     let elapsed = begin.elapsed();
+
+    let stdout = output.stdout.as_mut().context("Failed to get stdout")?;
+    let mut stdout_reader = BufReader::new(stdout).lines();
+    let stderr = output.stderr.take().context("Failed to get stderr")?;
+
+    let txc = tx.clone();
+
+    let stderr_task = tokio::spawn(async move {
+        let mut res = vec![];
+        let mut stderr_reader = BufReader::new(stderr).lines();
+        while let Ok(Some(v)) = stderr_reader.next_line().await {
+            let _ = txc.clone().into_send_async(Message::Text(v.clone())).await;
+            res.push(v);
+        }
+
+        res
+    });
+
+    let mut stdout_out = vec![];
+    while let Ok(Some(v)) = stdout_reader.next_line().await {
+        tx.clone().into_send_async(Message::Text(v.clone())).await?;
+        stdout_out.push(v);
+    }
+
+    let output = output.wait_with_output().await?;
+
     logs.extend(
         format!(
             "{}: `{} {}` finished in {:?} with {}\n",
@@ -40,14 +78,14 @@ async fn get_output_logged(
             cmd,
             args.join(" "),
             elapsed,
-            output.status
+            output.status.success()
         )
         .as_bytes(),
     );
     logs.extend("STDOUT:\n".as_bytes());
-    logs.extend(output.stdout.clone());
+    logs.extend(stdout_out.join("\n").as_bytes());
     logs.extend("STDERR:\n".as_bytes());
-    logs.extend(output.stderr.clone());
+    logs.extend(stderr_task.await?.join("\n").as_bytes());
 
     Ok(output)
 }
@@ -58,12 +96,13 @@ async fn run_logged_with_retry(
     args: &[&str],
     cwd: &Path,
     logs: &mut Vec<u8>,
+    tx: Sender<Message>,
 ) -> anyhow::Result<bool> {
     for i in 0..5 {
         if i > 0 {
             info!("Attempt #{i} to run `{cmd} {}`", args.join(" "));
         }
-        match get_output_logged(cmd, args, cwd, logs).await {
+        match get_output_logged(cmd, args, cwd, logs, tx.clone()).await {
             Ok(output) => {
                 if output.status.success() {
                     return Ok(true);
@@ -90,6 +129,7 @@ async fn build(
     job: &WorkerPollResponse,
     tree_path: &Path,
     args: &Args,
+    tx: Sender<Message>,
 ) -> anyhow::Result<WorkerJobUpdateRequest> {
     let begin = Instant::now();
     let mut successful_packages = vec![];
@@ -103,7 +143,7 @@ async fn build(
 
     // clear output directory
     if output_path.exists() {
-        get_output_logged("rm", &["-rf", "debs"], &output_path, &mut logs).await?;
+        get_output_logged("rm", &["-rf", "debs"], &output_path, &mut logs, tx.clone()).await?;
     }
 
     // switch to git ref
@@ -116,6 +156,7 @@ async fn build(
         ],
         tree_path,
         &mut logs,
+        tx.clone(),
     )
     .await?;
 
@@ -129,10 +170,18 @@ async fn build(
             &["checkout", "-b", &job.git_branch],
             tree_path,
             &mut logs,
+            tx.clone(),
         )
         .await?;
         // checkout to branch
-        get_output_logged("git", &["checkout", &job.git_branch], tree_path, &mut logs).await?;
+        get_output_logged(
+            "git",
+            &["checkout", &job.git_branch],
+            tree_path,
+            &mut logs,
+            tx.clone(),
+        )
+        .await?;
 
         // switch to the commit by sha
         // to avoid race condition, resolve branch name to sha in server
@@ -141,17 +190,27 @@ async fn build(
             &["reset", &job.git_sha, "--hard"],
             tree_path,
             &mut logs,
+            tx.clone(),
         )
         .await?;
 
         if output.status.success() {
             // update container
-            get_output_logged("ciel", &["update-os"], &args.ciel_path, &mut logs).await?;
+            get_output_logged(
+                "ciel",
+                &["update-os"],
+                &args.ciel_path,
+                &mut logs,
+                tx.clone(),
+            )
+            .await?;
 
             // build packages
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.split(','));
-            let output = get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs).await?;
+            let output =
+                get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs, tx.clone())
+                    .await?;
 
             build_success = output.status.success();
 
@@ -216,8 +275,14 @@ async fn build(
                         // allow force push if noarch and non stable
                         args.insert(0, "--force-push-noarch-package");
                     }
-                    pushpkg_success =
-                        run_logged_with_retry("pushpkg", &args, &output_path, &mut logs).await?;
+                    pushpkg_success = run_logged_with_retry(
+                        "pushpkg",
+                        &args,
+                        &output_path,
+                        &mut logs,
+                        tx.clone(),
+                    )
+                    .await?;
                 }
             }
         }
@@ -248,6 +313,7 @@ async fn build(
             ],
             &tree_path,
             &mut scp_log,
+            tx,
         )
         .await?
         {
@@ -297,14 +363,24 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         .timeout(Duration::from_secs(30))
         .build()
         .unwrap();
+
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let req = WorkerPollRequest {
-        hostname: gethostname::gethostname().to_string_lossy().to_string(),
+        hostname: hostname.clone(),
         arch: args.arch.clone(),
         worker_secret: args.worker_secret.clone(),
         memory_bytes: get_memory_bytes(),
         disk_free_space_bytes: fs2::free_space(std::env::current_dir()?)? as i64,
         logical_cores: num_cpus::get() as i32,
     };
+
+    let ws = Url::parse(&args.websocket)?.join(&hostname)?;
+
+    let (tx, rx) = unbounded();
+
+    tokio::spawn(async move {
+        websocket_connect(rx, ws).await;
+    });
 
     loop {
         if let Some(job) = client
@@ -317,7 +393,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         {
             info!("Processing job {:?}", job);
 
-            match build(&job, &tree_path, args).await {
+            match build(&job, &tree_path, args, tx.clone()).await {
                 Ok(result) => {
                     // post result
                     info!("Finished to run job {:?} with result {:?}", job, result);
@@ -353,6 +429,26 @@ pub async fn build_worker(args: Args) -> ! {
         if let Err(err) = build_worker_inner(&args).await {
             warn!("Got error running heartbeat worker: {}", err);
         }
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> ! {
+    loop {
+        info!("Starting websocket connect");
+        match connect_async(ws.as_str()).await {
+            Ok((ws_stream, _)) => {
+                let (write, _) = ws_stream.split();
+                let rx = rx.clone().into_stream();
+                if let Err(e) = rx.map(Ok).forward(write).await {
+                    warn!("{e}");
+                }
+            }
+            Err(err) => {
+                warn!("Got error connecting to websocket: {}", err);
+            }
+        }
+
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }

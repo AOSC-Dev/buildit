@@ -49,6 +49,10 @@ pub struct Args {
     /// Performance number of the worker (smaller is better)
     #[arg(short = 'p', long, env = "BUILDIT_WORKER_PERFORMANCE")]
     pub worker_performance: Option<i64>,
+
+    /// Websocket uri
+    #[arg(short = 'w', long, env = "BUILDIT_WS")]
+    pub websocket: String,
 }
 
 pub fn get_memory_bytes() -> i64 {

@@ -309,7 +309,7 @@ pub async fn worker_poll(
 }
 
 pub async fn worker_job_update(
-    State(AppState { pool, bot }): State<AppState>,
+    State(AppState { pool, bot, .. }): State<AppState>,
     Json(payload): Json<WorkerJobUpdateRequest>,
 ) -> Result<(), AnyhowError> {
     if payload.worker_secret != ARGS.worker_secret {
