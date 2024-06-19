@@ -34,7 +34,7 @@ async fn handle_worker_socket(
             let mut map = state_map.lock().unwrap();
             if let Some(state) = map.get_mut(&hostname) {
                 for recp in &state.viewers {
-                    recp.sender.unbounded_send(msg.clone()).unwrap();
+                    recp.sender.unbounded_send(msg.clone()).ok();
                 }
 
                 // save last 1000 entries
