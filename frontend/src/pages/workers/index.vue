@@ -36,6 +36,17 @@
               >
               Dead
             </v-chip>
+            <v-btn
+              icon="true"
+              rounded
+              size="x-small"
+              :to="{ path: '/monitor/' + (item as Worker).hostname }"
+              style="margin-right: 5px;margin-bottom: 5px;">
+              <v-icon>mdi:mdi-receipt-text</v-icon>
+              <v-tooltip activator="parent" location="bottom">
+                Monitor
+              </v-tooltip>
+            </v-btn>
             <br/>
             Last seen {{ new TimeAgo('en-US').format(new Date((item as Worker).last_heartbeat_time)) }}
             <div v-if="(item as Worker).running_job_id !== null && (item as Worker).running_job_id !== undefined">
