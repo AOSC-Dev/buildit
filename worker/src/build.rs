@@ -60,7 +60,14 @@ async fn get_output_logged(
         stdout_out.push(v);
     }
 
-    let output = output.wait_with_output().await?;
+    let mut output = output.wait_with_output().await?;
+
+    // save data back to output.stdout, since we captured it manually
+    for line in &stdout_out {
+        output.stdout.extend_from_slice(line.as_bytes());
+        output.stdout.push(b'\n');
+    }
+
     let elapsed = begin.elapsed();
 
     logs.extend(
