@@ -10,22 +10,26 @@ export default {
   mounted() {
     this.fetchData();
   },
+  unmounted() {
+    this.socket?.close();
+    this.socket = undefined;
+  },
   data: () => ({
-    lines: [] as string[]
+    lines: [] as string[],
+    socket: undefined as WebSocket | undefined,
   }),
   methods: {
     fetchData() {
       let name = (this.$route.params as { hostname: string }).hostname;
-      const socket = new WebSocket(
+      this.socket = new WebSocket(
         `wss://buildit.aosc.io/api/ws/viewer/${name}`
       );
-      socket.onmessage = (event) => {
+      let ansi_up = new AnsiUp();
+      this.socket.onmessage = (event) => {
         if (this.lines.length > 5000) {
           this.lines = [];
         }
-        const data = event.data;
-        let ansi_up = new AnsiUp();
-        this.lines.push(ansi_up.ansi_to_html(data) + " <br/> ");
+        this.lines.push(ansi_up.ansi_to_html(event.data) + " <br/> ");
         window.scrollTo(0, document.body.scrollHeight);
       };
     },
