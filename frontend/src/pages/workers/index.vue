@@ -40,8 +40,9 @@
               icon="true"
               rounded
               size="x-small"
+              v-if="(item as Worker).is_live"
               :to="{ path: '/monitor/' + (item as Worker).hostname }"
-              style="margin-right: 5px;margin-bottom: 5px;">
+              style="margin-left: 5px;margin-bottom: 5px;">
               <v-icon>mdi:mdi-receipt-text</v-icon>
               <v-tooltip activator="parent" location="bottom">
                 Monitor
