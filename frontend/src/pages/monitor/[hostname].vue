@@ -27,7 +27,7 @@ export default {
       let ansi_up = new AnsiUp();
       this.socket.onmessage = (event) => {
         if (this.lines.length > 5000) {
-          this.lines = [];
+          this.lines = this.lines.slice(0, 2500);
         }
         this.lines.push(ansi_up.ansi_to_html(event.data) + " <br/> ");
         setTimeout(() => {
