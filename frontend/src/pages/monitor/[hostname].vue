@@ -30,7 +30,9 @@ export default {
           this.lines = [];
         }
         this.lines.push(ansi_up.ansi_to_html(event.data) + " <br/> ");
-        window.scrollTo(0, document.body.scrollHeight);
+        setTimeout(() => {
+          window.scrollTo(0, document.body.scrollHeight);
+        }, 100);
       };
     },
   },
