@@ -11,12 +11,14 @@ export default {
     this.fetchData();
   },
   unmounted() {
+    this.reconnect = false;
     this.socket?.close();
     this.socket = undefined;
   },
   data: () => ({
     lines: [] as string[],
     socket: undefined as WebSocket | undefined,
+    reconnect: true,
   }),
   methods: {
     fetchData() {
@@ -36,9 +38,11 @@ export default {
       };
       this.socket.onclose = (event) => {
         // reconnect after 1s
-        setTimeout(() => {
-          this.fetchData();
-        }, 1000);
+        if (this.reconnect) {
+          setTimeout(() => {
+            this.fetchData();
+          }, 1000);
+        }
       }
     },
   },
