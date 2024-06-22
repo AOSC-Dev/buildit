@@ -51,11 +51,23 @@ async fn get_output_logged(
         let mut res = String::new();
         if let Some(io) = io.as_mut() {
             let mut reader = BufReader::new(io).lines();
-            while let Ok(Some(v)) = reader.next_line().await {
-                for line in v.split("\r") {
-                    tx.send_async(Message::Text(line.to_string())).await.ok();
-                    res += &line;
-                    res += "\n";
+            loop {
+                match reader.next_line().await {
+                    Ok(Some(v)) => {
+                        for line in v.split("\r") {
+                            tx.send_async(Message::Text(line.to_string())).await.ok();
+                            res += &line;
+                            res += "\n";
+                        }
+                    }
+                    Ok(None) => {
+                        info!("No more lines to read");
+                        break;
+                    }
+                    Err(err) => {
+                        warn!("Failed to read next line: {err}");
+                        break;
+                    }
                 }
             }
         }
