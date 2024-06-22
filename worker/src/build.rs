@@ -50,25 +50,30 @@ async fn get_output_logged(
     ) -> tokio::io::Result<String> {
         let mut res = String::new();
         if let Some(io) = io.as_mut() {
-            let mut reader = BufReader::new(io).lines();
+            // do not use next_line: stream may contain invalid utf-8!
+            let mut reader = BufReader::new(io);
+            let mut buffer = vec![];
             loop {
-                match reader.next_line().await {
-                    Ok(Some(v)) => {
-                        for line in v.split("\r") {
+                match reader.read_until(b'\n', &mut buffer).await {
+                    Ok(_size) => {
+                        // drop trailing \n
+                        if buffer.ends_with(&[b'\n']) {
+                            buffer.pop();
+                        }
+
+                        // convert \r to \n
+                        for line in String::from_utf8_lossy(&buffer).split("\r") {
                             tx.send_async(Message::Text(line.to_string())).await.ok();
                             res += &line;
                             res += "\n";
                         }
-                    }
-                    Ok(None) => {
-                        info!("No more lines to read");
-                        break;
                     }
                     Err(err) => {
                         warn!("Failed to read next line: {err}");
                         break;
                     }
                 }
+                buffer.clear();
             }
         }
         Ok(res)
