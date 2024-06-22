@@ -34,6 +34,12 @@ export default {
           window.scrollTo(0, document.body.scrollHeight);
         }, 100);
       };
+      this.socket.onclose = (event) => {
+        // reconnect after 1s
+        setTimeout(() => {
+          this.fetchData();
+        }, 1000);
+      }
     },
   },
 };
