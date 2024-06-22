@@ -58,9 +58,12 @@ async fn get_output_logged(
                     // EOF
                     Ok(0) => break,
                     Ok(_size) => {
-                        // drop trailing \n
+                        // drop trailing \n or \r\n
                         if buffer.ends_with(&[b'\n']) {
                             buffer.pop();
+                            if buffer.ends_with(&[b'\r']) {
+                                buffer.pop();
+                            }
                         }
 
                         // convert \r to \n
