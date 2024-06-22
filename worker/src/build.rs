@@ -55,6 +55,8 @@ async fn get_output_logged(
             let mut buffer = vec![];
             loop {
                 match reader.read_until(b'\n', &mut buffer).await {
+                    // EOF
+                    Ok(0) => break,
                     Ok(_size) => {
                         // drop trailing \n
                         if buffer.ends_with(&[b'\n']) {
