@@ -15,6 +15,6 @@ async fn main() -> anyhow::Result<()> {
     s.refresh_memory();
 
     tokio::spawn(heartbeat_worker(args.clone()));
-    build_worker(args.clone()).await;
+    build_worker(args.clone()).await?;
     Ok(())
 }
