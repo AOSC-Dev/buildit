@@ -14,6 +14,7 @@ use tokio::{
     fs,
     io::{AsyncBufReadExt, AsyncRead, BufReader},
     process::Command,
+    select,
     time::sleep,
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -409,10 +410,22 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 
     let (tx, rx) = unbounded();
 
-    tokio::spawn(async move {
-        websocket_connect(rx, ws).await;
-    });
+    select! { res = poll_server(client, args, req, tree_path, tx) => {
+        warn!("{res:?}");
+        res
+    }, res = websocket_connect(rx, ws) => {
+        warn!("{res:?}");
+        res
+    } }
+}
 
+async fn poll_server(
+    client: reqwest::Client,
+    args: &Args,
+    req: WorkerPollRequest,
+    tree_path: std::path::PathBuf,
+    tx: Sender<Message>,
+) -> Result<(), anyhow::Error> {
     loop {
         if let Some(job) = client
             .post(format!("{}/api/worker/poll", args.server))
@@ -464,7 +477,7 @@ pub async fn build_worker(args: Args) -> ! {
     }
 }
 
-pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> ! {
+pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> anyhow::Result<()> {
     loop {
         info!("Starting websocket connect to {:?}", ws);
         match connect_async(ws.as_str()).await {
