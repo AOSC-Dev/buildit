@@ -1,12 +1,13 @@
 use crate::{get_memory_bytes, Args};
+use backoff::ExponentialBackoff;
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
 use flume::{unbounded, Receiver, Sender};
 use futures_util::{future::try_join3, StreamExt};
 use log::{error, info, warn};
-use reqwest::Url;
+use reqwest::{Client, Url};
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
     process::{Output, Stdio},
     time::{Duration, Instant},
 };
@@ -386,7 +387,7 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 
     info!("Receiving new messages");
 
-    let client = reqwest::Client::builder()
+    let client = Client::builder()
         .timeout(Duration::from_secs(30))
         .build()
         .unwrap();
@@ -420,12 +421,12 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
 }
 
 async fn poll_server(
-    client: reqwest::Client,
+    client: Client,
     args: &Args,
     req: WorkerPollRequest,
-    tree_path: std::path::PathBuf,
+    tree_path: PathBuf,
     tx: Sender<Message>,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     loop {
         if let Some(job) = client
             .post(format!("{}/api/worker/poll", args.server))
@@ -467,32 +468,26 @@ async fn poll_server(
     }
 }
 
-pub async fn build_worker(args: Args) -> ! {
-    loop {
-        info!("Starting build worker");
-        if let Err(err) = build_worker_inner(&args).await {
-            warn!("Got error running heartbeat worker: {}", err);
-        }
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
+pub async fn build_worker(args: Args) -> anyhow::Result<()> {
+    backoff::future::retry(ExponentialBackoff::default(), || async {
+        info!("Starting build worker ...");
+        Ok(build_worker_inner(&args).await?)
+    })
+    .await
 }
 
 pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> anyhow::Result<()> {
-    loop {
-        info!("Starting websocket connect to {:?}", ws);
-        match connect_async(ws.as_str()).await {
-            Ok((ws_stream, _)) => {
-                let (write, _) = ws_stream.split();
-                let rx = rx.clone().into_stream();
-                if let Err(e) = rx.map(Ok).forward(write).await {
-                    warn!("{e}");
-                }
-            }
-            Err(err) => {
-                warn!("Got error connecting to websocket: {}", err);
-            }
-        }
+    backoff::future::retry(ExponentialBackoff::default(), || async {
+        Ok(websocket_connect_inner(rx.clone(), ws.as_str()).await?)
+    })
+    .await
+}
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
+async fn websocket_connect_inner(rx: Receiver<Message>, ws: &str) -> anyhow::Result<()> {
+    info!("Starting websocket connect to {}", ws);
+    let (ws_stream, _) = connect_async(ws).await?;
+    let (write, _) = ws_stream.split();
+    let rx = rx.clone().into_stream();
+
+    Ok(rx.map(Ok).forward(write).await?)
 }

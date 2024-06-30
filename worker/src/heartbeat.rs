@@ -1,4 +1,5 @@
 use crate::{get_memory_bytes, Args};
+use backoff::ExponentialBackoff;
 use common::WorkerHeartbeatRequest;
 use log::{info, warn};
 use std::{
@@ -52,13 +53,12 @@ pub async fn heartbeat_worker_inner(args: &Args) -> anyhow::Result<()> {
     }
 }
 
-pub async fn heartbeat_worker(args: Args) -> ! {
+pub async fn heartbeat_worker(args: Args) -> anyhow::Result<()> {
     tokio::spawn(internet_connectivity_worker());
-    loop {
-        info!("Starting heartbeat worker");
-        if let Err(err) = heartbeat_worker_inner(&args).await {
-            warn!("Got error running heartbeat worker: {}", err);
-        }
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
+
+    backoff::future::retry(ExponentialBackoff::default(), || async {
+        warn!("Retry send heartbeat ...");
+        Ok(heartbeat_worker_inner(&args).await?)
+    })
+    .await
 }
