@@ -1,10 +1,9 @@
 use crate::{get_memory_bytes, Args};
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
-use flume::{unbounded, Receiver, Sender};
-use futures_util::{future::try_join3, StreamExt};
+use flume::Sender;
+use futures_util::future::try_join3;
 use log::{error, info, warn};
-use reqwest::Url;
 use std::{
     path::Path,
     process::{Output, Stdio},
@@ -14,10 +13,9 @@ use tokio::{
     fs,
     io::{AsyncBufReadExt, AsyncRead, BufReader},
     process::Command,
-    select,
     time::sleep,
 };
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::tungstenite::Message;
 
 async fn get_output_logged(
     cmd: &str,
@@ -380,7 +378,7 @@ async fn build(
     Ok(result)
 }
 
-async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
+async fn build_worker_inner(args: &Args, tx: Sender<Message>) -> anyhow::Result<()> {
     let mut tree_path = args.ciel_path.clone();
     tree_path.push("TREE");
 
@@ -401,31 +399,6 @@ async fn build_worker_inner(args: &Args) -> anyhow::Result<()> {
         logical_cores: num_cpus::get() as i32,
     };
 
-    // wss://hostname/api/ws/worker/:hostname
-    let ws = Url::parse(&args.server.replace("http", "ws"))?
-        .join("api/")?
-        .join("ws/")?
-        .join("worker/")?
-        .join(&hostname)?;
-
-    let (tx, rx) = unbounded();
-
-    select! { res = poll_server(client, args, req, tree_path, tx) => {
-        warn!("{res:?}");
-        res
-    }, res = websocket_connect(rx, ws) => {
-        warn!("{res:?}");
-        res
-    } }
-}
-
-async fn poll_server(
-    client: reqwest::Client,
-    args: &Args,
-    req: WorkerPollRequest,
-    tree_path: std::path::PathBuf,
-    tx: Sender<Message>,
-) -> Result<(), anyhow::Error> {
     loop {
         if let Some(job) = client
             .post(format!("{}/api/worker/poll", args.server))
@@ -467,32 +440,12 @@ async fn poll_server(
     }
 }
 
-pub async fn build_worker(args: Args) -> ! {
+pub async fn build_worker(args: Args, tx: Sender<Message>) -> ! {
     loop {
         info!("Starting build worker");
-        if let Err(err) = build_worker_inner(&args).await {
+        if let Err(err) = build_worker_inner(&args, tx.clone()).await {
             warn!("Got error running heartbeat worker: {}", err);
         }
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
-}
-
-pub async fn websocket_connect(rx: Receiver<Message>, ws: Url) -> anyhow::Result<()> {
-    loop {
-        info!("Starting websocket connect to {:?}", ws);
-        match connect_async(ws.as_str()).await {
-            Ok((ws_stream, _)) => {
-                let (write, _) = ws_stream.split();
-                let rx = rx.clone().into_stream();
-                if let Err(e) = rx.map(Ok).forward(write).await {
-                    warn!("{e}");
-                }
-            }
-            Err(err) => {
-                warn!("Got error connecting to websocket: {}", err);
-            }
-        }
-
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }

@@ -1,7 +1,8 @@
 use clap::Parser;
 use log::info;
 use sysinfo::System;
-use worker::{build::build_worker, heartbeat::heartbeat_worker, Args};
+use worker::{build::build_worker, heartbeat::heartbeat_worker, websocket::websocket_worker, Args};
+use flume::{unbounded};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -14,7 +15,9 @@ async fn main() -> anyhow::Result<()> {
     let mut s = System::new();
     s.refresh_memory();
 
+    let (tx, rx) = unbounded();
+    tokio::spawn(websocket_worker(args.clone(), rx));
     tokio::spawn(heartbeat_worker(args.clone()));
-    build_worker(args.clone()).await;
+    build_worker(args.clone(), tx).await;
     Ok(())
 }

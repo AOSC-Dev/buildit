@@ -4,6 +4,7 @@ use sysinfo::System;
 
 pub mod build;
 pub mod heartbeat;
+pub mod websocket;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
