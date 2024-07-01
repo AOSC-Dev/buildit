@@ -22,11 +22,13 @@ pub mod job;
 pub mod pipeline;
 pub mod websocket;
 pub mod worker;
+pub mod webhook;
 
 pub use job::*;
 pub use pipeline::*;
 pub use websocket::*;
 pub use worker::*;
+pub use webhook::*;
 
 pub async fn ping() -> &'static str {
     "PONG"
