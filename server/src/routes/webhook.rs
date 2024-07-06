@@ -54,7 +54,7 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
         return Ok(());
     }
 
-    let body = comment.body.split_whitespace();
+    let body = comment.body.split_whitespace().collect::<Vec<_>>();
 
     let num = comment
         .issue_url
@@ -64,28 +64,39 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
         .ok_or_else(|| anyhow!("Failed to get pr number"))?;
 
     let mut is_request = false;
-    for i in body {
+
+    for (i, c) in body.iter().enumerate() {
         if is_request {
-            match i {
+            match c.to_owned() {
                 "build" => {
+                    let mut archs = None;
+                    if let Some(v) = body.get(i + 1) {
+                        archs = Some(v.to_owned());
+                    }
+
                     let res =
-                        api::pipeline_new_pr(pool, num, None, api::JobSource::Github(num)).await?;
+                        api::pipeline_new_pr(pool, num, archs, api::JobSource::Github(num)).await;
 
                     let crab = octocrab::Octocrab::builder()
                         .user_access_token(ARGS.github_access_token.clone())
                         .build()?;
 
-                    let summary = to_html_new_pipeline_summary(
-                        res.id,
-                        &res.git_branch,
-                        &res.git_sha,
-                        res.github_pr.map(|n| n as u64),
-                        &res.archs.split(',').collect::<Vec<_>>(),
-                        &res.packages.split(',').collect::<Vec<_>>(),
-                    );
+                    let msg = match res {
+                        Ok(res) => to_html_new_pipeline_summary(
+                            res.id,
+                            &res.git_branch,
+                            &res.git_sha,
+                            res.github_pr.map(|n| n as u64),
+                            &res.archs.split(',').collect::<Vec<_>>(),
+                            &res.packages.split(',').collect::<Vec<_>>(),
+                        ),
+                        Err(e) => {
+                            format!("Failed to create pipeline: {e}")
+                        }
+                    };
 
                     crab.issues("aosc-dev", "aosc-os-abbs")
-                        .create_comment(num, summary)
+                        .create_comment(num, msg)
                         .await?;
                 }
                 x => {
@@ -94,7 +105,7 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
             }
             break;
         }
-        if i == "@aosc-buildit-bot" {
+        if *c == "@aosc-buildit-bot" {
             is_request = true;
         }
     }
