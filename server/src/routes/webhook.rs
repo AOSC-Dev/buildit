@@ -1,5 +1,7 @@
 use anyhow::{anyhow, bail};
 use axum::{extract::State, Json};
+use hyper::HeaderMap;
+use octocrab::models::pulls::PullRequest;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
@@ -10,8 +12,15 @@ use crate::{api, formatter::to_html_new_pipeline_summary, DbPool, ARGS};
 use super::{AnyhowError, AppState};
 
 #[derive(Debug, Deserialize)]
-pub struct GithubWebhook {
-    comment: Option<Comment>,
+pub struct WebhookComment {
+    action: String,
+    comment: Comment,   
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookPullRequest {
+    action: String,
+    pr: PullRequest,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,21 +37,52 @@ struct User {
 
 pub async fn webhook_handler(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(json): Json<Value>,
 ) -> Result<(), AnyhowError> {
     info!("Got Github webhook request: {}", json);
-    let webhook: Result<GithubWebhook, serde_json::Error> = serde_json::from_value(json);
 
-    if let Ok(webhook) = webhook {
-        if let Some(comment) = webhook.comment {
-            tokio::spawn(async move {
-                let res = handle_webhook_comment(&comment, state.pool).await;
-                if let Err(err) = res {
-                    warn!("Failed to handle webhook comment: {}", err);
-                }
-            });
+    match headers.get("X-GitHub-Event").and_then(|x| x.to_str().ok()) {
+        Some("issue_comment") => {
+            let webhook_comment: WebhookComment = serde_json::from_value(json)?;
+            let pool = state.pool;
+
+            if webhook_comment.action == "created" {
+                tokio::spawn(async move {
+                    let res = handle_webhook_comment(&webhook_comment.comment, pool).await;
+                    if let Err(err) = res {
+                        warn!("Failed to handle webhook comment: {}", err);
+                    }
+                });
+            }
+        }
+        Some("pull_request") => {
+            let webhook_pr: WebhookPullRequest = serde_json::from_value(json)?;
+            let pool = state.pool;
+
+            if webhook_pr.action == "closed" {
+                tokio::spawn(async move {
+                    let res = handle_merged_pr(&webhook_pr.pr, pool).await;
+                    if let Err(err) = res {
+                        warn!("Failed to handle webhook pr: {}", err);
+                    }
+                });
+            }
+        }
+        x => {
+            warn!("Unsupported Github event: {:?}", x);
         }
     }
+
+    Ok(())
+}
+
+async fn handle_merged_pr(pr: &PullRequest, pool: DbPool) -> anyhow::Result<()> {
+    if pr.merged_at.is_none() {
+        return Ok(());
+    }
+
+    pipeline_new_pr_impl(pool, pr.number, None).await?;
 
     Ok(())
 }
@@ -74,30 +114,7 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
                         archs = Some(v.to_owned());
                     }
 
-                    let res =
-                        api::pipeline_new_pr(pool, num, archs, api::JobSource::Github(num)).await;
-
-                    let crab = octocrab::Octocrab::builder()
-                        .user_access_token(ARGS.github_access_token.clone())
-                        .build()?;
-
-                    let msg = match res {
-                        Ok(res) => to_html_new_pipeline_summary(
-                            res.id,
-                            &res.git_branch,
-                            &res.git_sha,
-                            res.github_pr.map(|n| n as u64),
-                            &res.archs.split(',').collect::<Vec<_>>(),
-                            &res.packages.split(',').collect::<Vec<_>>(),
-                        ),
-                        Err(e) => {
-                            format!("Failed to create pipeline: {e}")
-                        }
-                    };
-
-                    crab.issues("aosc-dev", "aosc-os-abbs")
-                        .create_comment(num, msg)
-                        .await?;
+                    pipeline_new_pr_impl(pool, num, archs).await?;
                 }
                 x => {
                     warn!("Unsupport request: {x}")
@@ -109,6 +126,38 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
             is_request = true;
         }
     }
+
+    Ok(())
+}
+
+async fn pipeline_new_pr_impl(
+    pool: DbPool,
+    num: u64,
+    archs: Option<&str>,
+) -> Result<(), anyhow::Error> {
+    let res = api::pipeline_new_pr(pool, num, archs, api::JobSource::Github(num)).await;
+
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(ARGS.github_access_token.clone())
+        .build()?;
+
+    let msg = match res {
+        Ok(res) => to_html_new_pipeline_summary(
+            res.id,
+            &res.git_branch,
+            &res.git_sha,
+            res.github_pr.map(|n| n as u64),
+            &res.archs.split(',').collect::<Vec<_>>(),
+            &res.packages.split(',').collect::<Vec<_>>(),
+        ),
+        Err(e) => {
+            format!("Failed to create pipeline: {e}")
+        }
+    };
+
+    crab.issues("aosc-dev", "aosc-os-abbs")
+        .create_comment(num, msg)
+        .await?;
 
     Ok(())
 }
