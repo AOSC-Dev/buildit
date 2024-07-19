@@ -4,6 +4,8 @@ use std::borrow::Cow;
 
 pub const SUCCESS: &str = "✅️";
 pub const FAILED: &str = "❌";
+pub const SUCCESS_TEXT: &str = "successfully";
+pub const FAILED_TEXT: &str = "unsuccessfully";
 
 pub fn to_html_new_pipeline_summary(
     pipeline_id: i32,
@@ -54,7 +56,7 @@ pub fn to_html_build_result(
     } = job_ok;
 
     format!(
-        r#"{} Job completed on {} ({})
+        r#"{} Job {} completed on {} ({})
 
 <b>Job</b>: {}
 <b>Pipeline</b>: {}
@@ -70,6 +72,7 @@ pub fn to_html_build_result(
 
 {}"#,
         if success { SUCCESS } else { FAILED },
+        if success { SUCCESS_TEXT } else { FAILED_TEXT },
         worker_hostname,
         worker_arch,
         format!(
@@ -130,8 +133,9 @@ pub fn to_markdown_build_result(
     } = job_ok;
 
     format!(
-        "{} Job completed on {} \\({}\\)\n\n**Job**: {}\n**Pipeline**: {}\n**Enqueue time**: {}\n**Time elapsed**: {}s\n{}{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
+        "{} Job {} completed on {} \\({}\\)\n\n**Job**: {}\n**Pipeline**: {}\n**Enqueue time**: {}\n**Time elapsed**: {}s\n{}{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
+        if success { SUCCESS_TEXT } else { FAILED_TEXT },
         worker_hostname,
         worker_arch,
         format!("[#{}](https://buildit.aosc.io/jobs/{})", job.id, job.id),
@@ -223,5 +227,5 @@ fn test_format_html_build_result() {
 
     let s = to_html_build_result(&pipeline, &job, &job_ok, worker_hostname, worker_arch, true);
 
-    assert_eq!(s, "✅\u{fe0f} Job completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd, fd2\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(s, "✅\u{fe0f} Job successfully completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd, fd2\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
 }
