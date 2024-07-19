@@ -2,8 +2,8 @@ use crate::models::{Job, Pipeline};
 use common::JobOk;
 use std::borrow::Cow;
 
-pub const SUCCESS: &str = "✅️";
-pub const FAILED: &str = "❌";
+pub const SUCCESS: &str = "✅️ ";
+pub const FAILED: &str = "❌ ";
 
 pub fn to_html_new_pipeline_summary(
     pipeline_id: i32,
