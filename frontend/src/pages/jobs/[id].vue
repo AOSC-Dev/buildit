@@ -45,6 +45,7 @@
           <br/>
         </div>
         Status: {{ job.status }}
+        Monitor:  <a href="/monitor/{{ job.built_by_worker_hostname }}"></a>
         <div v-if="job.assigned_worker_id !== null && job.assigned_worker_id !== undefined">
           Running on
           <router-link :to="{ path: `/workers/${job.assigned_worker_id}` }">
