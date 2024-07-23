@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail};
 use axum::{extract::State, Json};
 use hyper::HeaderMap;
-use octocrab::models::pulls::PullRequest;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
@@ -15,12 +14,6 @@ use super::{AnyhowError, AppState};
 pub struct WebhookComment {
     action: String,
     comment: Comment,   
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WebhookPullRequest {
-    action: String,
-    pr: PullRequest,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,33 +49,10 @@ pub async fn webhook_handler(
                 });
             }
         }
-        Some("pull_request") => {
-            let webhook_pr: WebhookPullRequest = serde_json::from_value(json)?;
-            let pool = state.pool;
-
-            if webhook_pr.action == "closed" {
-                tokio::spawn(async move {
-                    let res = handle_merged_pr(&webhook_pr.pr, pool).await;
-                    if let Err(err) = res {
-                        warn!("Failed to handle webhook pr: {}", err);
-                    }
-                });
-            }
-        }
         x => {
             warn!("Unsupported Github event: {:?}", x);
         }
     }
-
-    Ok(())
-}
-
-async fn handle_merged_pr(pr: &PullRequest, pool: DbPool) -> anyhow::Result<()> {
-    if pr.merged_at.is_none() {
-        return Ok(());
-    }
-
-    pipeline_new_pr_impl(pool, pr.number, None).await?;
 
     Ok(())
 }
