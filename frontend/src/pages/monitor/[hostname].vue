@@ -1,5 +1,5 @@
 <template>
-  <v-container style="height: 100%; font-family: monospace; background-color: black; color: white;">
+  <v-container class="overflow-auto" style="height: 100%; font-family: monospace; background-color: black; color: white; white-space: nowarp;">
     <div v-for="line in lines" v-html="line"></div>
   </v-container>
 </template>

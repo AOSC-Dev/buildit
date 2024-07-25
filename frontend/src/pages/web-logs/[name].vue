@@ -1,5 +1,5 @@
 <template>
-  <v-container style="height: 100%;font-family: monospace;">
+  <v-container class="overflow-auto" style="height: 100%;font-family: monospace; white-space: nowarp;">
     <v-row v-if="loading">
       <v-spacer></v-spacer>
       <v-progress-circular indeterminate></v-progress-circular>
