@@ -46,7 +46,7 @@
         </div>
         Status: {{ job.status }}
         <br/>
-        Monitor: <a :href="'/monitor/' + job.built_by_worker_hostname">{{ job.built_by_worker_hostname }}</a>
+        Monitor: <a :href="'/monitor/' + job.assigned_worker_hostname">{{ job.assigned_worker_hostname }}</a>
         <br/>
         <div v-if="job.assigned_worker_id !== null && job.assigned_worker_id !== undefined">
           Running on
