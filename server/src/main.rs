@@ -14,7 +14,9 @@ use opentelemetry_sdk::Resource;
 use server::bot::{answer, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
-    dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list, pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list, worker_poll, ws_viewer_handler, ws_worker_handler, AppState, WSStateMap
+    dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
+    pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list, worker_poll,
+    ws_viewer_handler, ws_worker_handler, AppState, WSStateMap,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};

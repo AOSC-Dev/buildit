@@ -13,7 +13,7 @@ use super::{AnyhowError, AppState};
 #[derive(Debug, Deserialize)]
 pub struct WebhookComment {
     action: String,
-    comment: Comment,   
+    comment: Comment,
 }
 
 #[derive(Debug, Deserialize)]

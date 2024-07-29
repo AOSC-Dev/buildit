@@ -246,10 +246,7 @@ pub async fn pipeline_list(
                         }
                         "failed" => {
                             // failed
-                            // ignore failure if arch is mips64r6el
-                            if job.arch != "mips64r6el" {
-                                has_failed = true;
-                            }
+                            has_failed = true;
                         }
                         "created" => {
                             has_unfinished = true;

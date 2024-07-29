@@ -1,8 +1,8 @@
 use clap::Parser;
+use flume::unbounded;
 use log::info;
 use sysinfo::System;
 use worker::{build::build_worker, heartbeat::heartbeat_worker, websocket::websocket_worker, Args};
-use flume::{unbounded};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

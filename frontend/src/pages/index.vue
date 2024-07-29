@@ -121,7 +121,6 @@
         "arm64",
         "loongarch64",
         "loongson3",
-        "mips64r6el",
         "ppc64el",
         "riscv64"
       ]

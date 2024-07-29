@@ -18,8 +18,7 @@ use tracing::{debug, error, info, info_span, warn, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
-    ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, MIPS64R6EL, NOARCH,
-    PPC64EL, RISCV64,
+    ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH, PPC64EL, RISCV64,
 };
 
 macro_rules! PR {
@@ -586,7 +585,6 @@ fn auto_add_label(title: &str) -> Vec<String> {
         ("builddep", vec![String::from("dependencies")]),
         ("depend", vec![String::from("dependencies")]),
         ("core", vec![String::from("core")]),
-        ("mips64r6el", vec![String::from("cip-pilot")]),
         ("mipsisa64r6el", vec![String::from("cip-pilot")]),
         ("mipsr6", vec![String::from("cip-pilot")]),
         ("r6", vec![String::from("cip-pilot")]),
@@ -628,7 +626,6 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("noarch", NOARCH);
     map.insert("loongarch64", LOONGARCH64);
     map.insert("loongson3", LOONGSON3);
-    map.insert("mips64r6el", MIPS64R6EL);
     map.insert("ppc64el", PPC64EL);
     map.insert("riscv64", RISCV64);
 
@@ -656,24 +653,9 @@ fn format_archs(archs: &[&str]) -> String {
             s.push('\n');
         }
         s.push_str("**Secondary Architectures**\n\n");
-        newline = true;
     }
 
     for i in ["loongson3", "ppc64el", "riscv64"] {
-        if archs.contains(&i) {
-            s.push_str(&format!("- [ ] {}\n", map[i]));
-        }
-    }
-
-    // Experimental Architectures
-    if archs.contains(&"mips64r6el") {
-        if newline {
-            s.push('\n');
-        }
-        s.push_str("**Experimental Architectures**\n\n");
-    }
-
-    for i in ["mips64r6el"] {
         if archs.contains(&i) {
             s.push_str(&format!("- [ ] {}\n", map[i]));
         }
@@ -987,7 +969,6 @@ fn test_get_archs() {
             "arm64",
             "loongarch64",
             "loongson3",
-            "mips64r6el",
             "ppc64el",
             "riscv64",
         ]

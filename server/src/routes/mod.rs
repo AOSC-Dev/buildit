@@ -20,15 +20,15 @@ use tracing::info;
 
 pub mod job;
 pub mod pipeline;
+pub mod webhook;
 pub mod websocket;
 pub mod worker;
-pub mod webhook;
 
 pub use job::*;
 pub use pipeline::*;
+pub use webhook::*;
 pub use websocket::*;
 pub use worker::*;
-pub use webhook::*;
 
 pub async fn ping() -> &'static str {
     "PONG"

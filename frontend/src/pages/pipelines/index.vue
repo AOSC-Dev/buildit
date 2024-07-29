@@ -170,9 +170,6 @@
                   <v-icon v-if="(job as Job).status === 'success'" color="green" size="large">
                     mdi:mdi-check-circle-outline
                   </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'failed' && (job as Job).arch === 'mips64r6el'" color="orange" size="large">
-                    mdi:mdi-alert-circle-outline
-                  </v-icon>
                   <v-icon v-else-if="(job as Job).status === 'failed'" color="red" size="large">
                     mdi:mdi-close-circle-outline
                   </v-icon>
