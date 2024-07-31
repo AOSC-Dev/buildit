@@ -293,6 +293,7 @@ async fn build(
                         &args.rsync_host,
                         "-i",
                         upload_ssh_key,
+                        &args.pushpkg_options,
                         "maintainers",
                         &job.git_branch,
                     ];

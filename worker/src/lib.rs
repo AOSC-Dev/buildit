@@ -47,6 +47,15 @@ pub struct Args {
     )]
     pub rsync_host: String,
 
+    /// pushpkg extra options
+    #[arg(
+        short,
+        long,
+        default_value = "",
+        env = "BUILDIT_PUSHPKG_OPTIONS"
+    )]
+    pub pushpkg_options: String,
+
     /// Performance number of the worker (smaller is better)
     #[arg(short = 'p', long, env = "BUILDIT_WORKER_PERFORMANCE")]
     pub worker_performance: Option<i64>,
