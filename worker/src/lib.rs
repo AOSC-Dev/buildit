@@ -49,7 +49,6 @@ pub struct Args {
 
     /// pushpkg extra options
     #[arg(
-        short,
         long,
         default_value = "",
         env = "BUILDIT_PUSHPKG_OPTIONS"
