@@ -18,7 +18,7 @@ use tracing::{debug, error, info, info_span, warn, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
-    ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH, PPC64EL, RISCV64,
+    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH, PPC64EL, RISCV64
 };
 
 macro_rules! PR {
@@ -85,6 +85,8 @@ pub async fn open_pr(
         tags,
         archs,
     } = openpr_request;
+
+    let _lock = ABBS_REPO_LOCK.lock().await;
 
     update_abbs(&git_ref, &abbs_path, false).await?;
 
