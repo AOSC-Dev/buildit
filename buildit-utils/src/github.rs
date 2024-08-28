@@ -593,6 +593,10 @@ fn auto_add_label(title: &str) -> Vec<String> {
         ("linux-kernel", vec![String::from("kernel")]),
         ("new", vec![String::from("new-packages")]),
         ("preview", vec![String::from("preview")]),
+        ("alpha", vec![String::from("pre-release")]),
+        ("beta", vec![String::from("pre-release")]),
+        ("rc", vec![String::from("pre-release")]),
+        ("pre-release", vec![String::from("pre-release")]),
         (
             "ftbfs",
             vec![String::from("has-fix"), String::from("ftbfs")],
