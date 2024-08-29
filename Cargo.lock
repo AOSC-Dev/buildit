@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "abbs-update-checksum-core"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/abbs-update-checksum?rev=f9c19dc3cb978e0cf23a6ad7031e48d7f56bb37e#f9c19dc3cb978e0cf23a6ad7031e48d7f56bb37e"
+source = "git+https://github.com/AOSC-Dev/abbs-update-checksum?rev=a9343be2d48c3edae38655dac9b04e1ac8569fe6#a9343be2d48c3edae38655dac9b04e1ac8569fe6"
 dependencies = [
  "abbs-meta-apml",
  "eyre",
@@ -3055,7 +3055,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
- "futures-channel",
  "futures-core",
  "futures-util",
  "h2 0.4.5",

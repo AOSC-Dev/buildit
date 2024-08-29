@@ -166,7 +166,7 @@ async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
     let (mut spec, p) = spawn_blocking(move || get_spec(&abbs_path_shared, &pkg_shared)).await??;
 
     for i in 1..=5 {
-        match get_new_spec(&mut spec).await {
+        match get_new_spec(&mut spec, |_, _, _, _| {}, 4).await {
             Ok(()) => {
                 if i > 1 {
                     warn!("({i}/5) Retrying to get new spec...");
