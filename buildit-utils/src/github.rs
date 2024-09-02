@@ -597,6 +597,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
         ("beta", vec![String::from("pre-release")]),
         ("rc", vec![String::from("pre-release")]),
         ("pre-release", vec![String::from("pre-release")]),
+        ("flight", vec![String::from("flight")]),
         (
             "ftbfs",
             vec![String::from("has-fix"), String::from("ftbfs")],
