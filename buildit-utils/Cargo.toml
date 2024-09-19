@@ -17,4 +17,4 @@ fancy-regex = "0.13"
 thiserror ="1.0"
 tracing = "0.1.40"
 once_cell = "1.19.0"
-abbs-update-checksum-core = { git = "https://github.com/AOSC-Dev/abbs-update-checksum", package = "abbs-update-checksum-core", rev = "a9343be2d48c3edae38655dac9b04e1ac8569fe6" }
+abbs-update-checksum-core = { git = "https://github.com/AOSC-Dev/abbs-update-checksum", package = "abbs-update-checksum-core", rev = "b21eb4b58a080fb09d76384d453f718307a211ec" }
