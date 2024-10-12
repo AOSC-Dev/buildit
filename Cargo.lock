@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "abbs-update-checksum-core"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/abbs-update-checksum?rev=b21eb4b58a080fb09d76384d453f718307a211ec#b21eb4b58a080fb09d76384d453f718307a211ec"
+source = "git+https://github.com/AOSC-Dev/abbs-update-checksum?rev=869fe90568e39130a439ca56f4d9a9483349b884#869fe90568e39130a439ca56f4d9a9483349b884"
 dependencies = [
  "abbs-meta-apml",
  "eyre",
