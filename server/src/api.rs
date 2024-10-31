@@ -96,10 +96,14 @@ pub async fn pipeline_new(
     }
 
     // sanitize git_branch arg
-    if !git_branch
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '+' || ch == '_')
-    {
+    let output = tokio::process::Command::new("git")
+        .arg("check-ref-format")
+        .arg("--branch")
+        .arg(git_branch)
+        .output()
+        .await
+        .context("Failed to check git branch")?;
+    if !output.status.success() {
         return Err(anyhow!("Invalid branch: {git_branch}"));
     }
 
