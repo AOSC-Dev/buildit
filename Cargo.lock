@@ -758,7 +758,7 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#079304222e39553cef4b348cd4137b8180ceda23"
+source = "git+https://github.com/AOSC-Dev/dickens.git#57e26aa27944ab4467aae0abc12b0e67e6aba350"
 dependencies = [
  "anyhow",
  "libaosc",
@@ -3530,7 +3530,7 @@ dependencies = [
 [[package]]
 name = "solver"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/abbs-meta-rs#59fb161e8462ed6c5665bab4de05bc473b18004a"
+source = "git+https://github.com/AOSC-Dev/abbs-meta-rs#064ed4bd6a4db2c88e25f7f9c22c12d97a9ff391"
 dependencies = [
  "anyhow",
  "lazy_static",
