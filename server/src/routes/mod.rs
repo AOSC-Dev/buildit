@@ -188,7 +188,7 @@ pub async fn dashboard_status(
                 ))
                 .load::<(String, i64)>(conn)?
             {
-                let arch = if arch == "noarch" {
+                let arch = if arch == "noarch" || arch == "optenv32" {
                     "amd64".to_string()
                 } else {
                     arch
@@ -205,7 +205,7 @@ pub async fn dashboard_status(
                 ))
                 .load::<(String, i64)>(conn)?
             {
-                let arch = if arch == "noarch" {
+                let arch = if arch == "noarch" || arch == "optenv32" {
                     "amd64".to_string()
                 } else {
                     arch
@@ -222,7 +222,7 @@ pub async fn dashboard_status(
                 ))
                 .load::<(String, i64)>(conn)?
             {
-                let arch = if arch == "noarch" {
+                let arch = if arch == "noarch" || arch == "optenv32" {
                     "amd64".to_string()
                 } else {
                     arch

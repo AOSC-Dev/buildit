@@ -356,6 +356,10 @@ pub async fn pipeline_status(pool: DbPool) -> anyhow::Result<Vec<PipelineStatus>
     *pending.entry("amd64".to_string()).or_default() += pending_noarch;
     let running_noarch = *running.get("noarch").unwrap_or(&0);
     *running.entry("amd64".to_string()).or_default() += running_noarch;
+    let pending_noarch = *pending.get("optenv32").unwrap_or(&0);
+    *pending.entry("amd64".to_string()).or_default() += pending_noarch;
+    let running_noarch = *running.get("optenv32").unwrap_or(&0);
+    *running.entry("amd64".to_string()).or_default() += running_noarch;
 
     let mut res = vec![];
     for a in ALL_ARCH {
