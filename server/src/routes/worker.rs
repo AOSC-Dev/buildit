@@ -223,7 +223,11 @@ pub async fn worker_poll(
             .into_boxed();
         if payload.arch == "amd64" {
             // route noarch to amd64
-            sql = sql.filter(arch.eq(&payload.arch).or(arch.eq("noarch")));
+            sql = sql.filter(
+                arch.eq(&payload.arch)
+                    .or(arch.eq("noarch"))
+                    .or(arch.eq("optenv32")),
+            );
         } else {
             sql = sql.filter(arch.eq(&payload.arch));
         }
