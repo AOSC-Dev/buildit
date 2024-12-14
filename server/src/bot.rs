@@ -5,9 +5,9 @@ use crate::{
     models::{NewUser, User},
     DbPool, ALL_ARCH, ARGS,
 };
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
-use chrono::Local;
+use chrono::{Datelike, Days, Local};
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -965,6 +965,60 @@ fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
     let parts = parts.map(|x| x.trim()).collect::<Vec<_>>();
 
     (title, parts)
+}
+
+async fn paste_to_aosc_io(title: &str, text: &str) -> Result<String> {
+    if text.len() > 10485760 {
+        bail!("text is too large to be pasted to https://aosc.io/paste")
+    }
+    let client = ClientBuilder::new().user_agent("buildit").build()?;
+    let exp_date = chrono::Utc::now()
+        .checked_add_days(Days::new(7))
+        .context("failed to generate expDate")?;
+    let exp_date = format!(
+        "{:04}-{:02}-{:02}",
+        exp_date.year(),
+        exp_date.month(),
+        exp_date.day()
+    );
+    let resp = client
+        .post("https://aosc.io/pasteApi/paste")
+        .form(&[
+            ("title", title),
+            ("language", "plaintext"),
+            ("content", text),
+            ("expDate", &exp_date),
+        ])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<serde_json::Value>()
+        .await?;
+    if resp.get("code").and_then(|v| v.as_u64()) != Some(0) {
+        let msg = resp
+            .get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or("(no message field)");
+        bail!("aosc.io/paste error: {}", msg)
+    } else {
+        let id = resp
+            .get("data")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str())
+            .context("$.data.id not found from paste response")?;
+        Ok(id.to_string())
+    }
+}
+
+#[tokio::test]
+async fn test_paste_to_aosc_io() {
+    let id = paste_to_aosc_io(
+        "Test message for test_paste_to_aosc_io",
+        "Some random texts here",
+    )
+    .await
+    .unwrap();
+    dbg!(id);
 }
 
 #[test]
