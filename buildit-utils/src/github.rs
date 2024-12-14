@@ -18,7 +18,8 @@ use tracing::{debug, error, info, info_span, warn, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
-    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH, PPC64EL, RISCV64
+    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH,
+    PPC64EL, RISCV64,
 };
 
 macro_rules! PR {
@@ -81,7 +82,7 @@ pub async fn open_pr(
         git_ref,
         abbs_path,
         packages,
-        title,
+        mut title,
         tags,
         archs,
     } = openpr_request;
@@ -94,6 +95,16 @@ pub async fn open_pr(
     let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
         .instrument(info_span!("get_commits"))
         .await??;
+
+    if title.is_empty() && commits.len() == 1 {
+        // try to generate title
+        title = commits[0].msg.0.to_owned();
+    }
+
+    if title.is_empty() {
+        return Err(OpenPRError::Anyhow(anyhow!("PR title cannot be empty")));
+    }
+
     let commits = task::spawn_blocking(move || handle_commits(&commits))
         .instrument(info_span!("handle_commits"))
         .await??;
