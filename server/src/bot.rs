@@ -618,6 +618,26 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await
                     {
                         Ok(report) => {
+                            let report = if report.len() > 32 * 1024 {
+                                // paste to aosc.io pastebin first
+                                match paste_to_aosc_io(&format!("Dickens-topic report for PR {pr_number}"), &report).await {
+                                    Ok(id) => {
+                                        format!("Dickens-topic report has been uploaded to pastebin as [paste {id}](https://aosc.io/paste/detail?id={id}).")
+                                    }
+                                    Err(err) => {
+                                        bot.send_message(
+                                            msg.chat.id,
+                                            truncate(&format!(
+                                                "Failed to upload report to aosc.io pastebin: {err:?}."
+                                            )),
+                                        )
+                                        .await?;
+                                        return Ok(());
+                                    }
+                                }
+                            } else {
+                                report
+                            };
                             // post report as github comment
                             match wait_with_send_typing(
                                 crab.issues("AOSC-Dev", "aosc-os-abbs")
