@@ -106,7 +106,7 @@ pub async fn find_update_and_update_checksum(
                         let mut is_upstream_ver = false;
                         for line in &lines {
                             if line.starts_with("UPSTREAM_VER") {
-                                if let Err(e) = update_version(&version, spec, true) {
+                                if let Err(e) = update_version(&version, &spec, true) {
                                     res = Err(e.into());
                                     return;
                                 }
@@ -117,7 +117,7 @@ pub async fn find_update_and_update_checksum(
                         if !is_upstream_ver {
                             for line in lines {
                                 if line.starts_with("VER") {
-                                    if let Err(e) = update_version(&version, spec, false) {
+                                    if let Err(e) = update_version(&version, &spec, false) {
                                         res = Err(e.into());
                                         return;
                                     }
