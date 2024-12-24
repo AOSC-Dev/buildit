@@ -72,10 +72,9 @@ pub async fn find_update_and_update_checksum(
     // switch to stable branch
     update_abbs("stable", &abbs_path, false).await?;
 
-    info!("Running aosc-findupdate ...");
-
     match manual_update {
         Some(version) => {
+            info!("manual version: {version}");
             let pkg: Box<str> = Box::from(pkg);
             let version = Box::from(version);
             let abbs_path: Box<Path> = Box::from(abbs_path);
@@ -113,6 +112,8 @@ pub async fn find_update_and_update_checksum(
             .await?;
         }
         None => {
+            info!("Running aosc-findupdate ...");
+
             let output = Command::new("aosc-findupdate")
                 .arg("-i")
                 .arg(format!(".*/{pkg}$"))
