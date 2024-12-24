@@ -3,8 +3,10 @@ use abbs_update_checksum_core::{get_new_spec, ParseErrors};
 use anyhow::{bail, Context};
 use github::{for_each_abbs, get_spec};
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::{
-    io::{BufRead, BufReader},
+    fs::OpenOptions,
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -39,25 +41,34 @@ pub struct FindUpdate {
     pub title: String,
 }
 
-fn update_version_manual(spec: &mut String, key: &str, ver: &str) -> Option<()> {
-    let start = spec.find(&key)?;
-    let mut tmp_ref = spec.as_str();
-    tmp_ref = &tmp_ref[start..];
-    let start_delimit = tmp_ref.find("\"")?;
-    tmp_ref = &tmp_ref[start_delimit + 1..];
-    let end_delimit = tmp_ref.find("\"")?;
+fn update_version<P: AsRef<Path>>(
+    new: &str,
+    spec: P,
+    replace_upstream_ver: bool,
+) -> anyhow::Result<()> {
+    let mut f = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(spec.as_ref())?;
+    let mut content = String::new();
+    f.read_to_string(&mut content)?;
+    let replace_rel = Regex::new("REL=.+\\s+").unwrap();
 
-    debug!(
-        "replace range: {}",
-        &spec[start..start + start_delimit + end_delimit + 2]
-    );
+    let replaced = if replace_upstream_ver {
+        let replace = Regex::new("UPSTREAM_VER=.+").unwrap();
+        replace.replace(&content, format!("UPSTREAM_VER={}", new))
+    } else {
+        let replace = Regex::new("VER=.+").unwrap();
+        replace.replace(&content, format!("VER={}", new))
+    };
+    let replaced = replace_rel.replace(&replaced, "");
 
-    spec.replace_range(
-        start..start + start_delimit + end_delimit + 2,
-        &format!("{key}=\"{}\"", ver),
-    );
+    f.seek(SeekFrom::Start(0))?;
+    let bytes = replaced.as_bytes();
+    f.write_all(bytes)?;
+    f.set_len(bytes.len() as u64)?;
 
-    Some(())
+    Ok(())
 }
 
 #[tracing::instrument(skip(abbs_path))]
@@ -84,7 +95,7 @@ pub async fn find_update_and_update_checksum(
                     if *for_each_pkg == *pkg {
                         let spec = path.join("spec");
                         let f = std::fs::read_to_string(&spec);
-                        let mut f = match f {
+                        let f = match f {
                             Ok(f) => f,
                             Err(e) => {
                                 res = Err(e.into());
@@ -95,7 +106,10 @@ pub async fn find_update_and_update_checksum(
                         let mut is_upstream_ver = false;
                         for line in &lines {
                             if line.starts_with("UPSTREAM_VER") {
-                                update_version_manual(&mut f, "UPSTREAM_VER", &version);
+                                if let Err(e) = update_version(&version, path, true) {
+                                    res = Err(e.into());
+                                    return;
+                                }
                                 is_upstream_ver = true;
                             }
                         }
@@ -103,7 +117,10 @@ pub async fn find_update_and_update_checksum(
                         if !is_upstream_ver {
                             for line in lines {
                                 if line.starts_with("VER") {
-                                    update_version_manual(&mut f, "VER", &version);
+                                    if let Err(e) = update_version(&version, path, false) {
+                                        res = Err(e.into());
+                                        return;
+                                    }
                                 }
                             }
                         }
