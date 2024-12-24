@@ -778,7 +778,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await?;
             }
         },
-        Command::Bump(package) => {
+        Command::Bump(package_and_version) => {
             let app_private_key = match ARGS.github_app_key.as_ref() {
                 Some(p) => p,
                 None => {
@@ -855,8 +855,20 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
             let coauthor = coauthor_parts.join(" ");
 
+            let mut split_args = package_and_version.split_ascii_whitespace();
+            let pkg = split_args.next().context("Failed to parse argument");
+            let version = split_args.next();
+
+            let pkg = match pkg {
+                Ok(pkg) => pkg,
+                Err(e) => {
+                    bot.send_message(msg.chat.id, e.to_string()).await?;
+                    return Ok(());
+                }
+            };
+
             match wait_with_send_typing(
-                find_update_and_update_checksum(&package, &ARGS.abbs_path, &coauthor),
+                find_update_and_update_checksum(pkg, &ARGS.abbs_path, &coauthor, version),
                 &bot,
                 msg.chat.id.0,
             )
