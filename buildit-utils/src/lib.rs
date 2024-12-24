@@ -108,8 +108,10 @@ pub async fn find_update_and_update_checksum(
                         }
                     }
                 });
+
+                res
             })
-            .await?;
+            .await??;
         }
         None => {
             info!("Running aosc-findupdate ...");
