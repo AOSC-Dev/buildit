@@ -82,7 +82,8 @@ pub async fn find_update_and_update_checksum(
                 let mut res: anyhow::Result<()> = Ok(());
                 for_each_abbs(&abbs_path, |for_each_pkg, path| {
                     if *for_each_pkg == *pkg {
-                        let f = std::fs::read_to_string(path.join("spec"));
+                        let spec = path.join("spec");
+                        let f = std::fs::read_to_string(&spec);
                         let mut f = match f {
                             Ok(f) => f,
                             Err(e) => {
@@ -107,7 +108,7 @@ pub async fn find_update_and_update_checksum(
                             }
                         }
 
-                        if let Err(e) = std::fs::write(path, f) {
+                        if let Err(e) = std::fs::write(spec, f) {
                             res = Err(e.into());
                         }
                     }
