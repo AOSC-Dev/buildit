@@ -11,7 +11,7 @@ use std::{
     process::Command,
 };
 use tokio::{fs, task::spawn_blocking};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 pub mod github;
 
@@ -123,10 +123,6 @@ pub async fn find_update_and_update_checksum(
                                     }
                                 }
                             }
-                        }
-
-                        if let Err(e) = std::fs::write(spec, f) {
-                            res = Err(e.into());
                         }
                     }
                 });
