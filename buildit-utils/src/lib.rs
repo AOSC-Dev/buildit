@@ -1,7 +1,7 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
 use abbs_update_checksum_core::{get_new_spec, ParseErrors};
 use anyhow::{bail, Context};
-use github::get_spec;
+use github::{for_each_abbs, get_spec};
 use once_cell::sync::Lazy;
 use std::{
     io::{BufRead, BufReader},
@@ -9,7 +9,7 @@ use std::{
     process::Command,
 };
 use tokio::{fs, task::spawn_blocking};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub mod github;
 
@@ -39,11 +39,33 @@ pub struct FindUpdate {
     pub title: String,
 }
 
+fn update_version_manual(spec: &mut String, key: &str, ver: &str) -> Option<()> {
+    let start = spec.find(&key)?;
+    let mut tmp_ref = spec.as_str();
+    tmp_ref = &tmp_ref[start..];
+    let start_delimit = tmp_ref.find("\"")?;
+    tmp_ref = &tmp_ref[start_delimit + 1..];
+    let end_delimit = tmp_ref.find("\"")?;
+
+    debug!(
+        "replace range: {}",
+        &spec[start..start + start_delimit + end_delimit + 2]
+    );
+
+    spec.replace_range(
+        start..start + start_delimit + end_delimit + 2,
+        &format!("{key}=\"{}\"", ver),
+    );
+
+    Some(())
+}
+
 #[tracing::instrument(skip(abbs_path))]
 pub async fn find_update_and_update_checksum(
     pkg: &str,
     abbs_path: &Path,
     coauthor: &str,
+    manual_update: Option<&str>,
 ) -> anyhow::Result<FindUpdate> {
     let _lock = ABBS_REPO_LOCK.lock().await;
 
@@ -52,14 +74,55 @@ pub async fn find_update_and_update_checksum(
 
     info!("Running aosc-findupdate ...");
 
-    let output = Command::new("aosc-findupdate")
-        .arg("-i")
-        .arg(format!(".*/{pkg}$"))
-        .current_dir(&abbs_path)
-        .output()
-        .context("Running aosc-findupdate")?;
+    match manual_update {
+        Some(version) => {
+            let pkg: Box<str> = Box::from(pkg);
+            let version = Box::from(version);
+            let abbs_path: Box<Path> = Box::from(abbs_path);
+            tokio::task::spawn_blocking(move || {
+                let mut res: anyhow::Result<()> = Ok(());
+                for_each_abbs(&abbs_path, |for_each_pkg, path| {
+                    if *for_each_pkg == *pkg {
+                        let f = std::fs::read_to_string(path.join("spec"));
+                        let mut f = match f {
+                            Ok(f) => f,
+                            Err(e) => {
+                                res = Err(e.into());
+                                return;
+                            }
+                        };
+                        let lines: Vec<Box<str>> = f.lines().map(Box::from).collect::<Vec<_>>();
+                        let mut is_upstream_ver = false;
+                        for line in &lines {
+                            if line.starts_with("UPSTREAM_VER") {
+                                update_version_manual(&mut f, "UPSTREAM_VER", &version);
+                                is_upstream_ver = true;
+                            }
+                        }
 
-    print_stdout_and_stderr(&output);
+                        if !is_upstream_ver {
+                            for line in lines {
+                                if line.starts_with("VER") {
+                                    update_version_manual(&mut f, "VER", &version);
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .await?;
+        }
+        None => {
+            let output = Command::new("aosc-findupdate")
+                .arg("-i")
+                .arg(format!(".*/{pkg}$"))
+                .current_dir(&abbs_path)
+                .output()
+                .context("Running aosc-findupdate")?;
+
+            print_stdout_and_stderr(&output);
+        }
+    }
 
     let status = Command::new("git")
         .arg("status")
