@@ -106,6 +106,10 @@ pub async fn find_update_and_update_checksum(
                                 }
                             }
                         }
+
+                        if let Err(e) = std::fs::write(path, f) {
+                            res = Err(e.into());
+                        }
                     }
                 });
 
