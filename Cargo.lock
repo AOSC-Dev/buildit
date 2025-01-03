@@ -21,7 +21,7 @@ source = "git+https://github.com/AOSC-Dev/abbs-update-checksum?rev=9c4d07e384b0e
 dependencies = [
  "abbs-meta-apml",
  "eyre",
- "faster-hex",
+ "faster-hex 0.9.0",
  "futures",
  "log",
  "reqwest 0.12.12",
@@ -810,9 +810,10 @@ dependencies = [
 [[package]]
 name = "dickens"
 version = "0.1.0"
-source = "git+https://github.com/AOSC-Dev/dickens.git#07bd50c6802dec2730db533319821889b5d7d58b"
+source = "git+https://github.com/AOSC-Dev/dickens.git#7c8ccaf443383ea7dd31686f14312baddd957769"
 dependencies = [
  "anyhow",
+ "faster-hex 0.10.0",
  "libaosc",
  "log",
  "reqwest 0.12.12",
@@ -1022,6 +1023,16 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2a2b11eda1d40935b26cf18f6833c526845ae8c41e58d09af6adeb6f0269183"
 dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "faster-hex"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7223ae2d2f179b803433d9c830478527e92b8117eab39460edae7f1614d9fb73"
+dependencies = [
+ "heapless",
  "serde",
 ]
 
@@ -1448,7 +1459,7 @@ version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f93d7df7366121b5018f947a04d37f034717e113dcf9ccd85c34b58e57a74d5e"
 dependencies = [
- "faster-hex",
+ "faster-hex 0.9.0",
  "thiserror 1.0.69",
 ]
 
@@ -1788,6 +1799,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1808,6 +1828,16 @@ name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+
+[[package]]
+name = "heapless"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "heck"
