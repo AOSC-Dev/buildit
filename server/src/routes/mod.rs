@@ -60,7 +60,7 @@ pub struct AnyhowError(anyhow::Error);
 
 impl IntoResponse for AnyhowError {
     fn into_response(self) -> Response {
-        info!("Returing internal server error for {}", self.0);
+        info!("Returning internal server error for {}", self.0);
         (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
     }
 }

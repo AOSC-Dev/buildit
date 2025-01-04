@@ -164,7 +164,7 @@ pub async fn find_update_and_update_checksum(
             let absolute_abbs_path = std::fs::canonicalize(abbs_path)?;
             let pkg_shared = pkg.to_owned();
 
-            info!("Writting new checksum ...");
+            info!("Writing new checksum ...");
             let res = write_new_spec(absolute_abbs_path, pkg_shared).await;
 
             if let Err(e) = res {

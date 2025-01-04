@@ -87,7 +87,7 @@ async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Resu
                     pipeline_new_pr_impl(pool, num, archs).await?;
                 }
                 x => {
-                    warn!("Unsupport request: {x}")
+                    warn!("Unsupported request: {x}")
                 }
             }
             break;

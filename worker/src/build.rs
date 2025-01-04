@@ -172,7 +172,7 @@ async fn build(
     }
 
     // switch to git ref
-    let git_fetch_succeess = run_logged_with_retry(
+    let git_fetch_success = run_logged_with_retry(
         "git",
         &[
             "fetch",
@@ -187,7 +187,7 @@ async fn build(
 
     let mut pushpkg_success = false;
 
-    if git_fetch_succeess {
+    if git_fetch_success {
         // try to switch branch, but allow it to fail:
         // ensure branch exists
         get_output_logged(

@@ -270,8 +270,8 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
         .ancestors()
         .all()?;
 
-    let refrences = repo.references()?;
-    let stable_branch = refrences
+    let references = repo.references()?;
+    let stable_branch = references
         .local_branches()?
         .filter_map(Result::ok)
         .find(|x| x.name().shorten() == "stable")

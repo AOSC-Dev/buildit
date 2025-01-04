@@ -52,13 +52,13 @@ async fn main() -> anyhow::Result<()> {
                 .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
         // let tracing crate output to opentelemetry
-        let tracing_leyer = tracing_opentelemetry::layer().with_tracer(otlp_tracer);
+        let tracing_layer = tracing_opentelemetry::layer().with_tracer(otlp_tracer);
         let subscriber = Registry::default();
         // respect RUST_LOG
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
         subscriber
             .with(env_filter)
-            .with(tracing_leyer)
+            .with(tracing_layer)
             .with(tracing_subscriber::fmt::Layer::default())
             .init();
     } else {
