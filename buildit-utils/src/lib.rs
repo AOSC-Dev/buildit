@@ -159,94 +159,102 @@ pub async fn find_update_and_update_checksum(
     if let Some(status) = status {
         let split_status = status.trim().split_once(" ");
         if let Some((status, _)) = split_status {
-            if status != "M" {
-                bail!("{pkg} has no update");
-            }
-
-            let absolute_abbs_path = std::fs::canonicalize(abbs_path)?;
-            let pkg_shared = pkg.to_owned();
-
-            info!("Writing new checksum ...");
-            let res = write_new_spec(absolute_abbs_path, pkg_shared).await;
-
-            if let Err(e) = res {
-                // cleanup repo
+            if let Err(e) = git_push(status, pkg, abbs_path, coauthor).await {
                 git_reset(abbs_path).await?;
-                bail!("Failed to run acbs-build to update checksum: {}", e);
+                return Err(e);
             }
-
-            let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
-                .into_iter()
-                .next();
-
-            let mut ver = ver
-                .context(format!("Failed to find pkg version: {}", pkg))?
-                .1;
-
-            // skip epoch
-            if let Some((_prefix, suffix)) = ver.split_once(':') {
-                ver = suffix.to_string();
-            }
-
-            let branch = format!("{pkg}-{ver}");
-            let title = format!("{pkg}: update to {ver}");
-
-            let repo = get_repo(abbs_path)?;
-            if repo.branch_names().iter().any(|x| *x == branch) {
-                bail!("Branch {} alread exists.", branch);
-            }
-
-            Command::new("git")
-                .arg("branch")
-                .arg("-f")
-                .arg(&branch)
-                .arg("stable")
-                .current_dir(&abbs_path)
-                .output()
-                .await
-                .context("Point new branch at stable")?;
-            Command::new("git")
-                .arg("checkout")
-                .arg(&branch)
-                .current_dir(&abbs_path)
-                .output()
-                .await
-                .context("Checking out to the new branch")?;
-            Command::new("git")
-                .arg("add")
-                .arg(".")
-                .current_dir(&abbs_path)
-                .output()
-                .await
-                .context("Staging modified files")?;
-            Command::new("git")
-                .arg("commit")
-                .arg("-m")
-                .arg(format!("{}\n\nCo-authored-by: {}", title, coauthor))
-                .current_dir(&abbs_path)
-                .output()
-                .await
-                .context("Creating git commit")?;
-            Command::new("git")
-                .arg("push")
-                .arg("--set-upstream")
-                .arg("origin")
-                .arg(&branch)
-                .arg("--force")
-                .current_dir(&abbs_path)
-                .output()
-                .await
-                .context("Pushing new commit to GitHub")?;
-
-            return Ok(FindUpdate {
-                package: pkg.to_string(),
-                branch,
-                title,
-            });
         }
     }
 
     bail!("{pkg} has no update")
+}
+
+async fn git_push(
+    status: &str,
+    pkg: &str,
+    abbs_path: &Path,
+    coauthor: &str,
+) -> Result<FindUpdate, anyhow::Error> {
+    if status != "M" {
+        bail!("{pkg} has no update");
+    }
+
+    let absolute_abbs_path = std::fs::canonicalize(abbs_path)?;
+    let pkg_shared = pkg.to_owned();
+
+    info!("Writing new checksum ...");
+    write_new_spec(absolute_abbs_path, pkg_shared)
+        .await
+        .context("Failed to run acbs-build to update checksum")?;
+
+    let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
+        .into_iter()
+        .next();
+
+    let mut ver = ver
+        .context(format!("Failed to find pkg version: {}", pkg))?
+        .1;
+
+    // skip epoch
+    if let Some((_prefix, suffix)) = ver.split_once(':') {
+        ver = suffix.to_string();
+    }
+
+    let branch = format!("{pkg}-{ver}");
+    let title = format!("{pkg}: update to {ver}");
+
+    let repo = get_repo(abbs_path)?;
+    if repo.branch_names().iter().any(|x| *x == branch) {
+        bail!("Branch {} alread exists.", branch);
+    }
+
+    Command::new("git")
+        .arg("branch")
+        .arg("-f")
+        .arg(&branch)
+        .arg("stable")
+        .current_dir(&abbs_path)
+        .output()
+        .await
+        .context("Point new branch at stable")?;
+    Command::new("git")
+        .arg("checkout")
+        .arg(&branch)
+        .current_dir(&abbs_path)
+        .output()
+        .await
+        .context("Checking out to the new branch")?;
+    Command::new("git")
+        .arg("add")
+        .arg(".")
+        .current_dir(&abbs_path)
+        .output()
+        .await
+        .context("Staging modified files")?;
+    Command::new("git")
+        .arg("commit")
+        .arg("-m")
+        .arg(format!("{}\n\nCo-authored-by: {}", title, coauthor))
+        .current_dir(&abbs_path)
+        .output()
+        .await
+        .context("Creating git commit")?;
+    Command::new("git")
+        .arg("push")
+        .arg("--set-upstream")
+        .arg("origin")
+        .arg(&branch)
+        .arg("--force")
+        .current_dir(&abbs_path)
+        .output()
+        .await
+        .context("Pushing new commit to GitHub")?;
+
+    Ok(FindUpdate {
+        package: pkg.to_string(),
+        branch,
+        title,
+    })
 }
 
 async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
