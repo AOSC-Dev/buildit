@@ -1,16 +1,21 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
 use abbs_update_checksum_core::{get_new_spec, ParseErrors};
 use anyhow::{bail, Context};
-use github::{for_each_abbs, get_repo, get_spec};
+use github::{for_each_abbs, get_spec};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{
     fs::OpenOptions,
-    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::Output,
 };
-use tokio::{fs, process::Command, task::spawn_blocking};
+use tokio::{
+    fs,
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+    task::spawn_blocking,
+};
 use tracing::{error, info, warn};
 
 pub mod github;
@@ -154,9 +159,9 @@ pub async fn find_update_and_update_checksum(
         .await
         .context("Finding modified files using git")?;
 
-    let status = BufReader::new(&*status.stdout).lines().flatten().next();
+    let status = BufReader::new(&*status.stdout).lines().next_line().await;
 
-    if let Some(status) = status {
+    if let Ok(Some(status)) = status {
         let split_status = status.trim().split_once(" ");
         if let Some((status, _)) = split_status {
             if let Err(e) = git_push(status, pkg, abbs_path, coauthor).await {
@@ -203,9 +208,13 @@ async fn git_push(
     let branch = format!("{pkg}-{ver}");
     let title = format!("{pkg}: update to {ver}");
 
-    let repo = get_repo(abbs_path)?;
-    if repo.branch_names().iter().any(|x| *x == branch) {
-        bail!("Branch {} alread exists.", branch);
+    let branches = Command::new("git").arg("branch").output().await?;
+    let mut branches_stdout = BufReader::new(&*branches.stdout).lines();
+
+    while let Ok(Some(line)) = branches_stdout.next_line().await {
+        if line.contains(&branch) {
+            bail!("Branch {} already exists.", branch);
+        }
     }
 
     Command::new("git")
