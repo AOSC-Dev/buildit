@@ -1,16 +1,16 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
 use abbs_update_checksum_core::{get_new_spec, ParseErrors};
 use anyhow::{bail, Context};
-use github::{for_each_abbs, get_spec};
+use github::{for_each_abbs, get_repo, get_spec};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{
     fs::OpenOptions,
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    process::Command,
+    process::Output,
 };
-use tokio::{fs, task::spawn_blocking};
+use tokio::{fs, process::Command, task::spawn_blocking};
 use tracing::{error, info, warn};
 
 pub mod github;
@@ -139,6 +139,7 @@ pub async fn find_update_and_update_checksum(
                 .arg(format!(".*/{pkg}$"))
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Running aosc-findupdate")?;
 
             print_stdout_and_stderr(&output);
@@ -150,6 +151,7 @@ pub async fn find_update_and_update_checksum(
         .arg("--porcelain")
         .current_dir(&abbs_path)
         .output()
+        .await
         .context("Finding modified files using git")?;
 
     let status = BufReader::new(&*status.stdout).lines().flatten().next();
@@ -169,14 +171,7 @@ pub async fn find_update_and_update_checksum(
 
             if let Err(e) = res {
                 // cleanup repo
-                Command::new("git")
-                    .arg("reset")
-                    .arg("HEAD")
-                    .arg("--hard")
-                    .current_dir(&abbs_path)
-                    .output()
-                    .context("Reset git repo status")?;
-
+                git_reset(abbs_path).await?;
                 bail!("Failed to run acbs-build to update checksum: {}", e);
             }
 
@@ -196,6 +191,11 @@ pub async fn find_update_and_update_checksum(
             let branch = format!("{pkg}-{ver}");
             let title = format!("{pkg}: update to {ver}");
 
+            let repo = get_repo(abbs_path)?;
+            if repo.branch_names().iter().any(|x| *x == branch) {
+                bail!("Branch {} alread exists.", branch);
+            }
+
             Command::new("git")
                 .arg("branch")
                 .arg("-f")
@@ -203,18 +203,21 @@ pub async fn find_update_and_update_checksum(
                 .arg("stable")
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Point new branch at stable")?;
             Command::new("git")
                 .arg("checkout")
                 .arg(&branch)
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Checking out to the new branch")?;
             Command::new("git")
                 .arg("add")
                 .arg(".")
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Staging modified files")?;
             Command::new("git")
                 .arg("commit")
@@ -222,6 +225,7 @@ pub async fn find_update_and_update_checksum(
                 .arg(format!("{}\n\nCo-authored-by: {}", title, coauthor))
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Creating git commit")?;
             Command::new("git")
                 .arg("push")
@@ -231,6 +235,7 @@ pub async fn find_update_and_update_checksum(
                 .arg("--force")
                 .current_dir(&abbs_path)
                 .output()
+                .await
                 .context("Pushing new commit to GitHub")?;
 
             return Ok(FindUpdate {
@@ -303,4 +308,15 @@ async fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Res
     }
 
     Ok(())
+}
+
+async fn git_reset(abbs_path: &Path) -> Result<Output, anyhow::Error> {
+    Ok(Command::new("git")
+        .arg("reset")
+        .arg("HEAD")
+        .arg("--hard")
+        .current_dir(abbs_path)
+        .output()
+        .await
+        .context("Reset git repo status")?)
 }
