@@ -164,9 +164,12 @@ pub async fn find_update_and_update_checksum(
     if let Ok(Some(status)) = status {
         let split_status = status.trim().split_once(" ");
         if let Some((status, _)) = split_status {
-            if let Err(e) = git_push(status, pkg, abbs_path, coauthor).await {
-                git_reset(abbs_path).await?;
-                return Err(e);
+            match git_push(status, pkg, abbs_path, coauthor).await {
+                Ok(res) => return Ok(res),
+                Err(e) => {
+                    git_reset(abbs_path).await?;
+                    return Err(e);
+                }
             }
         }
     }
