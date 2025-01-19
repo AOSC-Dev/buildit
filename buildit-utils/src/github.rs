@@ -235,13 +235,13 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
             break;
         }
 
-        s.push_str(&format!("- {}\n", c.msg.0.trim()));
+        s.push_str(&format!("- {}\n", escape(c.msg.0.trim())));
         if let Some(body) = &c.msg.1 {
             let body = body.split('\n');
             for line in body {
                 let line = line.trim();
                 if !line.is_empty() {
-                    s.push_str(&format!("    {line}\n"));
+                    s.push_str(&format!("    {}\n", escape(line.trim())));
                 }
             }
         }
@@ -252,6 +252,22 @@ fn handle_commits(commits: &[Commit]) -> anyhow::Result<String> {
     }
 
     Ok(s)
+}
+
+fn escape(text: &str) -> String {
+    // the escaped strings only live for a short time, and they are short
+    // so the waste of memeory are ignorable
+    let mut result = String::with_capacity(text.len() * 2);
+    for char in text.chars() {
+        if matches!(
+            char,
+            '*' | '~' | '`' | '[' | ']' | '(' | ')' | '_' | '-' | '\\'
+        ) {
+            result.push('\\');
+        }
+        result.push(char);
+    }
+    result
 }
 
 struct Commit {
