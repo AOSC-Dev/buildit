@@ -11,7 +11,7 @@ use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::Resource;
-use server::bot::{answer, Command};
+use server::bot::{answer, answer_callback, Command};
 use server::recycler::recycler_worker;
 use server::routes::{
     dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
@@ -75,10 +75,17 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Starting telegram bot");
         let bot = Bot::from_env();
 
-        let handler =
-            Update::filter_message().branch(dptree::entry().filter_command::<Command>().endpoint(
-                |bot: Bot, pool: DbPool, msg: Message, cmd: Command| async move {
-                    answer(bot, msg, cmd, pool).await
+        let handler = dptree::entry()
+            .branch(
+                Update::filter_message()
+                    .filter_command::<Command>()
+                    .endpoint(|bot: Bot, pool: DbPool, msg: Message, cmd: Command| async {
+                        answer(bot, msg, cmd, pool).await
+                    }),
+            )
+            .branch(Update::filter_callback_query().endpoint(
+                |bot: Bot, pool: DbPool, callback: CallbackQuery| async {
+                    answer_callback(bot, pool, callback).await
                 },
             ));
 
