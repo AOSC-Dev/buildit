@@ -25,7 +25,7 @@ use std::{
 };
 use teloxide::{
     prelude::*,
-    types::{ChatAction, ParseMode},
+    types::{ChatAction, InlineKeyboardMarkup, ParseMode},
     utils::command::BotCommands,
 };
 use tokio::time::sleep;
@@ -620,7 +620,12 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         Ok(report) => {
                             let report = if report.len() > 32 * 1024 {
                                 // paste to aosc.io pastebin first
-                                match paste_to_aosc_io(&format!("Dickens-topic report for PR {pr_number}"), &report).await {
+                                match paste_to_aosc_io(
+                                    &format!("Dickens-topic report for PR {pr_number}"),
+                                    &report,
+                                )
+                                .await
+                                {
                                     Ok(id) => {
                                         format!("Dickens-topic report has been uploaded to pastebin as [paste {id}](https://aosc.io/paste/detail?id={id}).")
                                     }
@@ -938,6 +943,47 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
         },
     };
 
+    Ok(())
+}
+
+#[tracing::instrument(skip(bot, pool, query))]
+pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> ResponseResult<()> {
+    // ignore inaccessible messages
+    if let Some(msg) = query.message {
+        if let Some(ref data) = query.data {
+            if data.starts_with("restart_") {
+                match str::parse::<i32>(&data[8..]) {
+                    Ok(job_id) => {
+                        match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat.id.0)
+                            .await
+                        {
+                            Ok(new_job) => {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    truncate(&format!("Restarted as job #{}", new_job.id)),
+                                )
+                                .await?;
+                                bot.edit_message_reply_markup(msg.chat.id, msg.id)
+                                    .reply_markup(InlineKeyboardMarkup::default())
+                                    .await?;
+                            }
+                            Err(err) => {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    truncate(&format!("Failed to restart job: {err:?}")),
+                                )
+                                .await?;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        bot.send_message(msg.chat.id, truncate(&format!("Bad job ID: {err:?}")))
+                            .await?;
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 

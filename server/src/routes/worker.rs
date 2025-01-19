@@ -27,7 +27,7 @@ use octocrab::params::checks::CheckRunOutput;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use teloxide::types::ChatId;
+use teloxide::types::{ChatId, InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, types::ParseMode};
 use tracing::{error, info, warn};
 
@@ -436,12 +436,20 @@ pub async fn handle_success_message(
                         success,
                     );
 
-                    if let Err(e) = bot
+                    let mut msg = bot
                         .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
                         .parse_mode(ParseMode::Html)
-                        .disable_web_page_preview(true)
-                        .await
-                    {
+                        .disable_web_page_preview(true);
+                    if !success {
+                        let restart_btn = InlineKeyboardButton::callback(
+                            "🔨 Restart",
+                            format!("restart_{}", job.id),
+                        );
+                        msg = msg.reply_markup(
+                            InlineKeyboardMarkup::default().append_row(vec![restart_btn]),
+                        );
+                    }
+                    if let Err(e) = msg.await {
                         error!("Failed to send build result to telegram: {}", e);
                         return update_retry(retry);
                     }
