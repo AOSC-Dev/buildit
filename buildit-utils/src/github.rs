@@ -261,7 +261,7 @@ fn escape(text: &str) -> String {
     for char in text.chars() {
         if matches!(
             char,
-            '*' | '~' | '`' | '[' | ']' | '(' | ')' | '_' | '-' | '\\'
+            '*' | '~' | '`' | '[' | ']' | '(' | ')' | '\\'
         ) {
             result.push('\\');
         }
