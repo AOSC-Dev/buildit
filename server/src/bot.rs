@@ -765,8 +765,12 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Ok(new_job) => {
                         bot.send_message(
                             msg.chat.id,
-                            truncate(&format!("Restarted as job #{}", new_job.id)),
+                            truncate(&format!(
+                                "Restarted as job <a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>",
+                                new_job.id, new_job.id
+                            )),
                         )
+                        .parse_mode(ParseMode::Html)
                         .await?;
                     }
                     Err(err) => {
@@ -960,7 +964,7 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                             Ok(new_job) => {
                                 bot.send_message(
                                     msg.chat.id,
-                                    truncate(&format!("Restarted as job #{}", new_job.id)),
+                                    truncate(&format!("Restarted as job <a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>", new_job.id, new_job.id)),
                                 )
                                 .await?;
                                 bot.edit_message_reply_markup(msg.chat.id, msg.id)
