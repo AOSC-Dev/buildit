@@ -966,6 +966,7 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                                     msg.chat.id,
                                     truncate(&format!("Restarted as job <a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>", new_job.id, new_job.id)),
                                 )
+                                .parse_mode(ParseMode::Html)
                                 .await?;
                                 bot.edit_message_reply_markup(msg.chat.id, msg.id)
                                     .reply_markup(InlineKeyboardMarkup::default())
