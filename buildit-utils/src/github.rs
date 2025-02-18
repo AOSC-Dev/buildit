@@ -259,10 +259,7 @@ fn escape(text: &str) -> String {
     // so the waste of memeory are ignorable
     let mut result = String::with_capacity(text.len() * 2);
     for char in text.chars() {
-        if matches!(
-            char,
-            '*' | '~' | '`' | '[' | ']' | '(' | ')' | '\\'
-        ) {
+        if matches!(char, '*' | '~' | '`' | '[' | ']' | '(' | ')' | '\\') {
             result.push('\\');
         }
         result.push(char);
@@ -779,8 +776,8 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'static str> {
 
             for i in fail_archs {
                 let r = i.unwrap();
-                for a in ALL_ARCH.iter().map(|x| x.to_owned()) {
-                    if !r.is_match(a).unwrap_or(false) && !res.contains(&a) {
+                for a in ALL_ARCH {
+                    if !r.is_match(a).unwrap_or(false) && !res.contains(a) {
                         res.push(a);
                     }
                 }
