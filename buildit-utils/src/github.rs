@@ -581,16 +581,6 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
 /// Add labels based on pull request title
 fn auto_add_label(title: &str) -> Vec<String> {
     let mut labels = vec![];
-    let title = title
-        .to_ascii_lowercase()
-        .split_ascii_whitespace()
-        .map(|x| {
-            x.chars()
-                .filter(|x| x.is_ascii_alphabetic() || x.is_ascii_alphanumeric())
-                .collect::<String>()
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
 
     let v = vec![
         ("fix", vec![String::from("has-fix")]),
@@ -630,7 +620,12 @@ fn auto_add_label(title: &str) -> Vec<String> {
     ];
 
     for (k, v) in v {
-        if title.contains(k) {
+        // assemble regex on the fly
+        // e.g. linux-kernel => r"(?i)\blinux-kernel\b"
+        // (?i) is enable case insensitive mode
+        // \b assert position at a word boundary
+        let re = Regex::new(format!(r"(?i)\b{}\b", k).as_str()).unwrap();
+        if re.is_match(title).unwrap() {
             labels.extend(v);
         }
     }
@@ -1024,6 +1019,37 @@ fn test_auto_add_label() {
             "has-fix".to_string(),
             "0day".to_string(),
             "security".to_string()
+        ]
+    );
+
+    let title = "linux-kernel-rpi-lts: update to 1234567890";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["upgrade".to_string(), "kernel".to_string()]);
+
+    let title = "update musescore and dropbox";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["upgrade".to_string()]);
+
+    let title = "drOp dropbox";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["drop-package".to_string()]);
+
+    let title = "drop drop drop drop";
+    let s = auto_add_label(title);
+    assert_eq!(s, vec!["drop-package".to_string()]);
+
+    let title =
+        "[PRE-RELEASE]linux-KeRnEl-invalid-version:downgrade?to^0.9~to#fix-0day@CVE-114514-1919810";
+    let s = auto_add_label(title);
+    assert_eq!(
+        s,
+        vec![
+            "has-fix".to_string(),
+            "downgrade".to_string(),
+            "security".to_string(),
+            "0day".to_string(),
+            "kernel".to_string(),
+            "pre-release".to_string()
         ]
     );
 }
