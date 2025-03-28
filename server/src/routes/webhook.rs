@@ -89,11 +89,7 @@ async fn handle_webhook_comment(
 
     match body.next() {
         Some("build") => {
-            let archs = if let Some(archs) = body.next() {
-                Some(archs)
-            } else {
-                None
-            };
+            let archs = body.next();
 
             pipeline_new_pr_impl(pool, pr_num, archs).await?;
         }

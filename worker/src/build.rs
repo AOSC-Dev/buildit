@@ -58,9 +58,9 @@ async fn get_output_logged(
                     Ok(0) => break,
                     Ok(_size) => {
                         // drop trailing \n or \r\n
-                        if buffer.ends_with(&[b'\n']) {
+                        if buffer.ends_with(b"\n") {
                             buffer.pop();
-                            if buffer.ends_with(&[b'\r']) {
+                            if buffer.ends_with(b"\r") {
                                 buffer.pop();
                             }
                         }
@@ -68,7 +68,7 @@ async fn get_output_logged(
                         // convert \r to \n
                         for line in String::from_utf8_lossy(&buffer).split("\r") {
                             tx.send_async(Message::Text(line.to_string())).await.ok();
-                            res += &line;
+                            res += line;
                             res += "\n";
                         }
                     }
@@ -296,7 +296,7 @@ async fn build(
                         "maintainers",
                         &job.git_branch,
                     ];
-                    if &args.pushpkg_options != "" {
+                    if !args.pushpkg_options.is_empty() {
                         pushpkg_args.insert(0, &args.pushpkg_options);
                     }
                     if &job.git_branch != "stable" {
@@ -335,11 +335,11 @@ async fn build(
             "scp",
             &[
                 "-i",
-                &upload_ssh_key,
+                upload_ssh_key,
                 &path,
                 &format!("maintainers@{}:/buildit/logs", args.rsync_host),
             ],
-            &tree_path,
+            tree_path,
             &mut scp_log,
             tx,
         )
@@ -368,7 +368,7 @@ async fn build(
         worker_secret: args.worker_secret.clone(),
         job_id: job.job_id,
         result: common::JobResult::Ok(JobOk {
-            build_success: build_success,
+            build_success,
             successful_packages,
             failed_package,
             skipped_packages,

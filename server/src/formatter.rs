@@ -75,32 +75,32 @@ pub fn to_html_build_result(
         if success { SUCCESS_TEXT } else { FAILED_TEXT },
         worker_hostname,
         worker_arch,
-        format!(
+        format_args!(
             "<a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>",
             job.id, job.id
         ),
-        format!(
+        format_args!(
             "<a href=\"https://buildit.aosc.io/pipelines/{}\">#{}</a>",
             pipeline.id, pipeline.id
         ),
-        format!("{}", job.creation_time),
-        format!("{}s", elapsed_secs),
-        format!(
+        job.creation_time,
+        format_args!("{}s", elapsed_secs),
+        format_args!(
             "<a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}\">{}</a>",
             pipeline.git_sha,
             &pipeline.git_sha[..8]
         ),
-        format!(
+        format_args!(
             "<a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/{}\">{}</a>",
             pipeline.git_branch, &pipeline.git_branch
         ),
         if let Some(pr) = pipeline.github_pr {
-            format!(
+            Cow::Owned(format!(
                 "<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>\n",
                 pr, pr
-            )
+            ))
         } else {
-            String::new()
+            Cow::Borrowed("")
         },
         job.arch,
         job.packages.replace(",", ", "),
@@ -138,12 +138,12 @@ pub fn to_markdown_build_result(
         if success { SUCCESS_TEXT } else { FAILED_TEXT },
         worker_hostname,
         worker_arch,
-        format!("[#{}](https://buildit.aosc.io/jobs/{})", job.id, job.id),
-        format!("[#{}](https://buildit.aosc.io/pipelines/{})", pipeline.id, pipeline.id),
+        format_args!("[#{}](https://buildit.aosc.io/jobs/{})", job.id, job.id),
+        format_args!("[#{}](https://buildit.aosc.io/pipelines/{})", pipeline.id, pipeline.id),
         teloxide::utils::markdown::escape(&job.creation_time.to_string()),
         elapsed_secs,
-        format!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &pipeline.git_sha[..8], pipeline.git_sha),
-        format!("**Git branch**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/tree/{})\n", &pipeline.git_branch, pipeline.git_branch),
+        format_args!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &pipeline.git_sha[..8], pipeline.git_sha),
+        format_args!("**Git branch**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/tree/{})\n", &pipeline.git_branch, pipeline.git_branch),
         job.arch,
         teloxide::utils::markdown::escape(&job.packages.replace(",", ", ")),
         teloxide::utils::markdown::escape(&successful_packages.join(", ")),

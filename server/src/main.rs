@@ -168,15 +168,15 @@ async fn main() -> anyhow::Result<()> {
         info!("Listening on unix socket {}", path.display());
         // remove old unix socket to avoid "Already already in use" error
         if path.exists() {
-            std::fs::remove_file(&path)?;
+            std::fs::remove_file(path)?;
         }
 
-        let listener = tokio::net::UnixListener::bind(&path)?;
+        let listener = tokio::net::UnixListener::bind(path)?;
 
         // chmod 777
-        let mut perms = std::fs::metadata(&path)?.permissions();
+        let mut perms = std::fs::metadata(path)?.permissions();
         perms.set_mode(0o777);
-        std::fs::set_permissions(&path, perms)?;
+        std::fs::set_permissions(path, perms)?;
 
         // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
         handles.push(tokio::spawn(async move {

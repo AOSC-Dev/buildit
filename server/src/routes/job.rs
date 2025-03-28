@@ -229,5 +229,5 @@ pub async fn job_restart(
     Json(payload): Json<JobRestartRequest>,
 ) -> Result<Json<JobRestartResponse>, AnyhowError> {
     let new_job = crate::api::job_restart(pool, payload.job_id).await?;
-    return Ok(Json(JobRestartResponse { job_id: new_job.id }));
+    Ok(Json(JobRestartResponse { job_id: new_job.id }))
 }

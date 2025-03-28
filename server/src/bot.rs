@@ -1,9 +1,13 @@
 use crate::{
-    api::{job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource}, formatter::to_html_new_pipeline_summary, github::{get_github_token, login_github}, models::{NewUser, User}, paste_to_aosc_io, DbPool, ALL_ARCH, ARGS
+    api::{job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
+    formatter::to_html_new_pipeline_summary,
+    github::{get_github_token, login_github},
+    models::{NewUser, User},
+    paste_to_aosc_io, DbPool, ALL_ARCH, ARGS,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
-use chrono::{Datelike, Days, Local};
+use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -928,7 +932,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 let mut s = String::new();
                 for i in pkgs {
                     s.push_str(&i.to_string());
-                    s.push_str("\n");
+                    s.push('\n');
                 }
 
                 bot.send_message(msg.chat.id, truncate(&s)).await?;
@@ -951,8 +955,8 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
     // ignore inaccessible messages
     if let Some(msg) = query.message {
         if let Some(ref data) = query.data {
-            if data.starts_with("restart_") {
-                match str::parse::<i32>(&data[8..]) {
+            if let Some(strip) = data.strip_prefix("restart_") {
+                match str::parse::<i32>(strip) {
                     Ok(job_id) => {
                         match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat.id.0)
                             .await
@@ -1029,7 +1033,7 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
     Ok(v)
 }
 
-fn truncate<'a>(text: &'a str) -> Cow<'a, str> {
+fn truncate(text: &str) -> Cow<'_, str> {
     let text = if text.chars().count() > 1000 {
         console::truncate_str(text, 1000, "...")
     } else {

@@ -112,7 +112,7 @@ pub async fn find_update_and_update_checksum(
                         for line in &lines {
                             if line.starts_with("UPSTREAM_VER") {
                                 if let Err(e) = update_version(&version, &spec, true) {
-                                    res = Err(e.into());
+                                    res = Err(e);
                                     return;
                                 }
                                 is_upstream_ver = true;
@@ -123,7 +123,7 @@ pub async fn find_update_and_update_checksum(
                             for line in lines {
                                 if line.starts_with("VER") {
                                     if let Err(e) = update_version(&version, &spec, false) {
-                                        res = Err(e.into());
+                                        res = Err(e);
                                         return;
                                     }
                                 }
@@ -142,7 +142,7 @@ pub async fn find_update_and_update_checksum(
             let output = Command::new("aosc-findupdate")
                 .arg("-i")
                 .arg(format!(".*/{pkg}$"))
-                .current_dir(&abbs_path)
+                .current_dir(abbs_path)
                 .output()
                 .await
                 .context("Running aosc-findupdate")?;
@@ -154,7 +154,7 @@ pub async fn find_update_and_update_checksum(
     let status = Command::new("git")
         .arg("status")
         .arg("--porcelain")
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Finding modified files using git")?;
@@ -195,7 +195,7 @@ async fn git_push(
         .await
         .context("Failed to run acbs-build to update checksum")?;
 
-    let ver = find_version_by_packages(&[pkg.to_string()], &abbs_path)
+    let ver = find_version_by_packages(&[pkg.to_string()], abbs_path)
         .into_iter()
         .next();
 
@@ -225,21 +225,21 @@ async fn git_push(
         .arg("-f")
         .arg(&branch)
         .arg("stable")
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Point new branch at stable")?;
     Command::new("git")
         .arg("checkout")
         .arg(&branch)
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Checking out to the new branch")?;
     Command::new("git")
         .arg("add")
         .arg(".")
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Staging modified files")?;
@@ -247,7 +247,7 @@ async fn git_push(
         .arg("commit")
         .arg("-m")
         .arg(format!("{}\n\nCo-authored-by: {}", title, coauthor))
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Creating git commit")?;
@@ -257,7 +257,7 @@ async fn git_push(
         .arg("origin")
         .arg(&branch)
         .arg("--force")
-        .current_dir(&abbs_path)
+        .current_dir(abbs_path)
         .output()
         .await
         .context("Pushing new commit to GitHub")?;
@@ -306,11 +306,11 @@ async fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Res
         .arg("-gw")
         .arg(pkg_shared)
         .arg("--log-dir")
-        .arg(&abbs_path_shared.join("acbs-log"))
+        .arg(abbs_path_shared.join("acbs-log"))
         .arg("--cache-dir")
-        .arg(&abbs_path_shared.join("acbs-cache"))
+        .arg(abbs_path_shared.join("acbs-cache"))
         .arg("--temp-dir")
-        .arg(&abbs_path_shared.join("acbs-temp"))
+        .arg(abbs_path_shared.join("acbs-temp"))
         .arg("--tree-dir")
         .arg(abbs_path_shared)
         .current_dir(abbs_path_shared)
@@ -331,12 +331,12 @@ async fn acbs_build_gw(pkg_shared: &str, abbs_path_shared: &Path) -> anyhow::Res
 }
 
 async fn git_reset(abbs_path: &Path) -> Result<Output, anyhow::Error> {
-    Ok(Command::new("git")
+    Command::new("git")
         .arg("reset")
         .arg("HEAD")
         .arg("--hard")
         .current_dir(abbs_path)
         .output()
         .await
-        .context("Reset git repo status")?)
+        .context("Reset git repo status")
 }

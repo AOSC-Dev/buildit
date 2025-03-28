@@ -105,7 +105,7 @@ impl connect_info::Connected<&UnixStream> for RemoteAddr {
     }
 }
 
-impl<'a> connect_info::Connected<IncomingStream<'a>> for RemoteAddr {
+impl connect_info::Connected<IncomingStream<'_>> for RemoteAddr {
     fn connect_info(target: IncomingStream) -> Self {
         Self::Inet(target.remote_addr())
     }

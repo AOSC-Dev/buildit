@@ -52,6 +52,7 @@ async fn create_check_run(crab: octocrab::Octocrab, arch: String, git_sha: Strin
 }
 
 #[tracing::instrument(skip(pool))]
+#[allow(clippy::too_many_arguments)]
 pub async fn pipeline_new(
     pool: DbPool,
     git_branch: &str,
@@ -167,8 +168,8 @@ pub async fn pipeline_new(
         creation_time: chrono::Utc::now(),
         source: source.to_string(),
         github_pr: github_pr.map(|pr| pr as i64),
-        telegram_user: telegram_user,
-        creator_user_id: creator_user_id,
+        telegram_user,
+        creator_user_id,
     };
     let pipeline = diesel::insert_into(pipelines::table)
         .values(&new_pipeline)
@@ -465,10 +466,10 @@ pub async fn job_restart(pool: DbPool, job_id: i32) -> anyhow::Result<Job> {
             match PoolTransactionManager::<AnsiTransactionManager>::rollback_transaction(&mut conn)
             {
                 Ok(()) => {
-                    return Err(err.into());
+                    return Err(err);
                 }
                 Err(rollback_err) => {
-                    return Err(err.context(rollback_err).into());
+                    return Err(err.context(rollback_err));
                 }
             }
         }

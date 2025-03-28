@@ -19,5 +19,4 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(websocket_worker(args.clone(), rx));
     tokio::spawn(heartbeat_worker(args.clone()));
     build_worker(args.clone(), tx).await;
-    Ok(())
 }

@@ -817,11 +817,11 @@ pub fn get_spec(path: &Path, pkgname: &str) -> anyhow::Result<(String, PathBuf)>
     for_each_abbs(path, |pkg, p| {
         if pkgname == pkg {
             let p = p.join("spec");
-            spec = fs::read_to_string(&p).ok().and_then(|x| Some((x, p)));
+            spec = fs::read_to_string(&p).ok().map(|x| (x, p));
         }
     });
 
-    Ok(spec.context(format!("{pkgname} does not exist"))?)
+    spec.context(format!("{pkgname} does not exist"))
 }
 
 pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {
