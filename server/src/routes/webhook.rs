@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use axum::{extract::State, Json};
 use hyper::HeaderMap;
 use reqwest::StatusCode;
@@ -14,13 +14,19 @@ use super::{AnyhowError, AppState};
 pub struct WebhookComment {
     action: String,
     comment: Comment,
+    issue: Issue,
 }
 
 #[derive(Debug, Deserialize)]
 struct Comment {
-    issue_url: String,
+    // issue_url: String,
     user: User,
     body: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Issue {
+    number: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,9 +48,14 @@ pub async fn webhook_handler(
 
             if webhook_comment.action == "created" {
                 tokio::spawn(async move {
-                    let res = handle_webhook_comment(&webhook_comment.comment, pool).await;
-                    if let Err(err) = res {
-                        warn!("Failed to handle webhook comment: {}", err);
+                    if let Err(e) = handle_webhook_comment(
+                        &webhook_comment.comment,
+                        webhook_comment.issue.number,
+                        pool,
+                    )
+                    .await
+                    {
+                        warn!("Failed to handle webhook comment: {}", e);
                     }
                 });
             }
@@ -57,44 +68,37 @@ pub async fn webhook_handler(
     Ok(())
 }
 
-async fn handle_webhook_comment(comment: &Comment, pool: DbPool) -> anyhow::Result<()> {
+async fn handle_webhook_comment(
+    comment: &Comment,
+    issue_num: u64,
+    pool: DbPool,
+) -> anyhow::Result<()> {
     let is_org_user = is_org_user(&comment.user.login).await?;
 
     if !is_org_user {
         return Ok(());
     }
 
-    let body = comment.body.split_whitespace().collect::<Vec<_>>();
+    let mut body = comment.body.split_whitespace();
 
-    let num = comment
-        .issue_url
-        .split('/')
-        .last()
-        .and_then(|x| x.parse::<u64>().ok())
-        .ok_or_else(|| anyhow!("Failed to get pr number"))?;
+    let request_bot = body.next().is_some_and(|s| s == "@aosc-buildit-bot");
 
-    let mut is_request = false;
+    if !request_bot {
+        return Ok(());
+    }
 
-    for (i, c) in body.iter().enumerate() {
-        if is_request {
-            match c.to_owned() {
-                "build" => {
-                    let mut archs = None;
-                    if let Some(v) = body.get(i + 1) {
-                        archs = Some(v.to_owned());
-                    }
+    match body.next() {
+        Some("build") => {
+            let archs = if let Some(archs) = body.next() {
+                Some(archs)
+            } else {
+                None
+            };
 
-                    pipeline_new_pr_impl(pool, num, archs).await?;
-                }
-                x => {
-                    warn!("Unsupported request: {x}")
-                }
-            }
-            break;
+            pipeline_new_pr_impl(pool, issue_num, archs).await?;
         }
-        if *c == "@aosc-buildit-bot" {
-            is_request = true;
-        }
+        Some(x) => warn!("Unsupported request: {x}"),
+        None => {}
     }
 
     Ok(())
