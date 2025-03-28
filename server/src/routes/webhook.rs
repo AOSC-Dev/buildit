@@ -104,7 +104,13 @@ async fn handle_webhook_comment(
                 dickens::topic::report(&pr.head.ref_field, ARGS.local_repo.clone()).await?;
 
             if report.len() > 32 * 1024 {
-                paste_to_aosc_io(&format!("Dickens-topic report for PR {pr_num}"), &report).await?;
+                let id =
+                    paste_to_aosc_io(&format!("Dickens-topic report for PR {pr_num}"), &report)
+                        .await?;
+
+                crab.issues("AOSC-Dev", "aosc-os-abbs")
+                    .create_comment(pr_num, format!("Dickens-topic report has been uploaded to pastebin as [paste {id}](https://aosc.io/paste/detail?id={id})."))
+                    .await?;
             } else {
                 crab.issues("AOSC-Dev", "aosc-os-abbs")
                     .create_comment(pr_num, report)
