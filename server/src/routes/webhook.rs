@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tracing::{info, warn};
 
-use crate::{api, formatter::to_html_new_pipeline_summary, DbPool, ARGS};
+use crate::{api, formatter::to_html_new_pipeline_summary, paste_to_aosc_io, DbPool, ARGS};
 
 use super::{AnyhowError, AppState};
 
@@ -70,7 +70,7 @@ pub async fn webhook_handler(
 
 async fn handle_webhook_comment(
     comment: &Comment,
-    issue_num: u64,
+    pr_num: u64,
     pool: DbPool,
 ) -> anyhow::Result<()> {
     let is_org_user = is_org_user(&comment.user.login).await?;
@@ -95,7 +95,25 @@ async fn handle_webhook_comment(
                 None
             };
 
-            pipeline_new_pr_impl(pool, issue_num, archs).await?;
+            pipeline_new_pr_impl(pool, pr_num, archs).await?;
+        }
+        Some("dickens") => {
+            let crab = octocrab::Octocrab::builder()
+                .user_access_token(ARGS.github_access_token.clone())
+                .build()?;
+
+            let pr = crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_num).await?;
+
+            let report =
+                dickens::topic::report(&pr.head.ref_field, ARGS.local_repo.clone()).await?;
+
+            if report.len() > 32 * 1024 {
+                paste_to_aosc_io(&format!("Dickens-topic report for PR {pr_num}"), &report).await?;
+            } else {
+                crab.issues("AOSC-Dev", "aosc-os-abbs")
+                    .create_comment(pr_num, report)
+                    .await?;
+            }
         }
         Some(x) => warn!("Unsupported request: {x}"),
         None => {}
