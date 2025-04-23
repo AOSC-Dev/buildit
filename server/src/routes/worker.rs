@@ -27,6 +27,7 @@ use octocrab::params::checks::CheckRunOutput;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use teloxide::sugar::request::RequestLinkPreviewExt;
 use teloxide::types::{ChatId, InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, types::ParseMode};
 use tracing::{error, info, warn};
@@ -439,7 +440,7 @@ pub async fn handle_success_message(
                     let mut msg = bot
                         .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
                         .parse_mode(ParseMode::Html)
-                        .disable_web_page_preview(true);
+                        .disable_link_preview(true);
                     if !success {
                         let restart_btn = InlineKeyboardButton::callback(
                             "🔨 Restart",

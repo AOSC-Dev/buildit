@@ -9,8 +9,7 @@ use anyhow::{bail, Context};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand::{rng, seq::IndexedRandom};
 use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -25,6 +24,7 @@ use std::{
 };
 use teloxide::{
     prelude::*,
+    sugar::request::RequestLinkPreviewExt,
     types::{ChatAction, InlineKeyboardMarkup, ParseMode},
     utils::command::BotCommands,
 };
@@ -192,7 +192,7 @@ async fn pipeline_new_and_report(
                 ),
             )
             .parse_mode(ParseMode::Html)
-            .disable_web_page_preview(true)
+            .disable_link_preview(true)
             .await?;
         }
         Err(err) => {
@@ -332,7 +332,7 @@ async fn create_pipeline_from_pr(
                 ),
             )
             .parse_mode(ParseMode::Html)
-            .disable_web_page_preview(true)
+            .disable_link_preview(true)
             .send()
             .instrument(tracing::info_span!("send_message"))
             .await?;
@@ -958,23 +958,23 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
             if let Some(strip) = data.strip_prefix("restart_") {
                 match str::parse::<i32>(strip) {
                     Ok(job_id) => {
-                        match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat.id.0)
+                        match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat().id.0)
                             .await
                         {
                             Ok(new_job) => {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    msg.chat().id,
                                     truncate(&format!("Restarted as job <a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>", new_job.id, new_job.id)),
                                 )
                                 .parse_mode(ParseMode::Html)
                                 .await?;
-                                bot.edit_message_reply_markup(msg.chat.id, msg.id)
+                                bot.edit_message_reply_markup(msg.chat().id, msg.id())
                                     .reply_markup(InlineKeyboardMarkup::default())
                                     .await?;
                             }
                             Err(err) => {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    msg.chat().id,
                                     truncate(&format!("Failed to restart job: {err:?}")),
                                 )
                                 .await?;
@@ -982,7 +982,7 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                         }
                     }
                     Err(err) => {
-                        bot.send_message(msg.chat.id, truncate(&format!("Bad job ID: {err:?}")))
+                        bot.send_message(msg.chat().id, truncate(&format!("Bad job ID: {err:?}")))
                             .await?;
                     }
                 }
@@ -1026,7 +1026,7 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
         return Ok(json);
     }
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     let v = json.choose_multiple(&mut rng, 10).cloned().collect();
 
