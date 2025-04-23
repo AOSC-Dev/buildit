@@ -1,10 +1,10 @@
 use super::{AppState, WSStateMap};
-use crate::{routes::Viewer, RemoteAddr};
+use crate::{RemoteAddr, routes::Viewer};
 use axum::{
-    extract::{ws::WebSocket, ConnectInfo, Path, State, WebSocketUpgrade},
+    extract::{ConnectInfo, Path, State, WebSocketUpgrade, ws::WebSocket},
     response::IntoResponse,
 };
-use futures::{channel::mpsc::unbounded, future, SinkExt, StreamExt, TryStreamExt};
+use futures::{SinkExt, StreamExt, TryStreamExt, channel::mpsc::unbounded, future};
 use std::sync::Arc;
 use tracing::info;
 

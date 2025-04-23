@@ -1,14 +1,14 @@
-use crate::routes::{AnyhowError, AppState};
 use crate::HEARTBEAT_TIMEOUT;
+use crate::routes::{AnyhowError, AppState};
 use crate::{
+    ARGS,
     api::{self},
-    formatter::{to_html_build_result, to_markdown_build_result, FAILED, SUCCESS},
+    formatter::{FAILED, SUCCESS, to_html_build_result, to_markdown_build_result},
     github::get_crab_github_installation,
     models::{Job, NewWorker, Pipeline, Worker},
-    ARGS,
 };
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::anyhow;
 use axum::extract::{Json, Query, State};
 use buildit_utils::{AMD64, ARM64, LOONGSON3, PPC64EL, RISCV64};
 use buildit_utils::{LOONGARCH64, NOARCH};

@@ -1,6 +1,6 @@
 use crate::ARGS;
 use octocrab::models::pulls::PullRequest;
-use octocrab::{models::InstallationId, Octocrab};
+use octocrab::{Octocrab, models::InstallationId};
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, Message};
 use tracing::info;

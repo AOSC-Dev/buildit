@@ -1,11 +1,12 @@
 use crate::{
-    api::{job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status, JobSource},
+    ALL_ARCH, ARGS, DbPool,
+    api::{JobSource, job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status},
     formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
     models::{NewUser, User},
-    paste_to_aosc_io, DbPool, ALL_ARCH, ARGS,
+    paste_to_aosc_io,
 };
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
@@ -17,8 +18,8 @@ use std::{
     fmt::Display,
     future::Future,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Duration,
 };
@@ -29,7 +30,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 use tokio::time::sleep;
-use tracing::{warn, Instrument};
+use tracing::{Instrument, warn};
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(
@@ -627,7 +628,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                 .await
                                 {
                                     Ok(id) => {
-                                        format!("Dickens-topic report has been uploaded to pastebin as [paste {id}](https://aosc.io/paste/detail?id={id}).")
+                                        format!(
+                                            "Dickens-topic report has been uploaded to pastebin as [paste {id}](https://aosc.io/paste/detail?id={id})."
+                                        )
                                     }
                                     Err(err) => {
                                         bot.send_message(
@@ -958,8 +961,12 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
             if let Some(strip) = data.strip_prefix("restart_") {
                 match str::parse::<i32>(strip) {
                     Ok(job_id) => {
-                        match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat().id.0)
-                            .await
+                        match wait_with_send_typing(
+                            job_restart(pool, job_id),
+                            &bot,
+                            msg.chat().id.0,
+                        )
+                        .await
                         {
                             Ok(new_job) => {
                                 bot.send_message(

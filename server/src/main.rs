@@ -1,24 +1,24 @@
 use axum::extract::MatchedPath;
 use axum::http::Method;
 use axum::routing::post;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::trace;
 use opentelemetry_sdk::Resource;
-use server::bot::{answer, answer_callback, Command};
+use opentelemetry_sdk::trace;
+use server::bot::{Command, answer, answer_callback};
 use server::recycler::recycler_worker;
 use server::routes::{
-    dashboard_status, job_info, job_list, job_restart, ping, pipeline_info, pipeline_list,
-    pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list, worker_poll,
-    ws_viewer_handler, ws_worker_handler, AppState, WSStateMap,
+    AppState, WSStateMap, dashboard_status, job_info, job_list, job_restart, ping, pipeline_info,
+    pipeline_list, pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list,
+    worker_poll, ws_viewer_handler, ws_worker_handler,
 };
 use server::routes::{pipeline_new, worker_heartbeat};
 use server::routes::{pipeline_status, worker_status};
-use server::{DbPool, RemoteAddr, ARGS};
+use server::{ARGS, DbPool, RemoteAddr};
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
@@ -26,9 +26,9 @@ use teloxide::prelude::*;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{info, info_span};
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -184,7 +184,12 @@ async fn main() -> anyhow::Result<()> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
         info!("Listening on 127.0.0.1:3000");
         handles.push(tokio::spawn(async {
-            axum::serve(listener, app.into_make_service_with_connect_info::<RemoteAddr>()).await.unwrap()
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<RemoteAddr>(),
+            )
+            .await
+            .unwrap()
         }));
     }
 

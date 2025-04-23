@@ -1,6 +1,6 @@
 use crate::{
-    models::{Job, Worker},
     DbPool, HEARTBEAT_TIMEOUT,
+    models::{Job, Worker},
 };
 use anyhow::Context;
 use chrono::Utc;

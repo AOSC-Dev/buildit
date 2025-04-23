@@ -1,12 +1,12 @@
 use anyhow::bail;
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use hyper::HeaderMap;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::{info, warn};
 
-use crate::{api, formatter::to_html_new_pipeline_summary, paste_to_aosc_io, DbPool, ARGS};
+use crate::{ARGS, DbPool, api, formatter::to_html_new_pipeline_summary, paste_to_aosc_io};
 
 use super::{AnyhowError, AppState};
 

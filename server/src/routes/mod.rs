@@ -1,4 +1,4 @@
-use crate::{DbPool, RemoteAddr, HEARTBEAT_TIMEOUT};
+use crate::{DbPool, HEARTBEAT_TIMEOUT, RemoteAddr};
 use anyhow::Context;
 use axum::{
     extract::{Json, State},

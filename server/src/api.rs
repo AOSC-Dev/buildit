@@ -1,21 +1,21 @@
 use crate::{
+    ALL_ARCH, ARGS, DbPool,
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
-    DbPool, ALL_ARCH, ARGS,
 };
 use anyhow::Context;
 use anyhow::{anyhow, bail};
 use buildit_utils::{
-    github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
     ABBS_REPO_LOCK,
+    github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
 };
 use diesel::r2d2::PoolTransactionManager;
 use diesel::{
-    connection::{AnsiTransactionManager, TransactionManager},
-    SelectableHelper,
+    ExpressionMethods, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, dsl::count,
 };
 use diesel::{
-    dsl::count, ExpressionMethods, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl,
+    SelectableHelper,
+    connection::{AnsiTransactionManager, TransactionManager},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

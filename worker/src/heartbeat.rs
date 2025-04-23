@@ -1,4 +1,4 @@
-use crate::{get_memory_bytes, Args};
+use crate::{Args, get_memory_bytes};
 use common::WorkerHeartbeatRequest;
 use log::{info, warn};
 use std::{
