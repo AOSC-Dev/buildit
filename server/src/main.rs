@@ -1,12 +1,10 @@
 use axum::extract::MatchedPath;
 use axum::http::Method;
 use axum::routing::post;
-use axum::{http::Request, routing::get, Router};
+use axum::{routing::get, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use hyper::body::Incoming;
-use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace;
@@ -25,7 +23,6 @@ use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
 use teloxide::prelude::*;
-use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{info, info_span};
@@ -35,7 +32,7 @@ use tracing_subscriber::Registry;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv()?;
+    dotenvy::dotenv()?;
     // setup opentelemetry
     if let Some(otlp_url) = &ARGS.otlp_url {
         // setup otlp
@@ -180,39 +177,14 @@ async fn main() -> anyhow::Result<()> {
 
         // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
         handles.push(tokio::spawn(async move {
-            let mut make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
-
-            // See https://github.com/tokio-rs/axum/blob/main/examples/serve-with-hyper/src/main.rs for
-            // more details about this setup
-            loop {
-                let (socket, _remote_addr) = listener.accept().await.unwrap();
-
-                let tower_service = make_service.call(&socket).await.unwrap();
-
-                tokio::spawn(async move {
-                    let socket = TokioIo::new(socket);
-
-                    let hyper_service =
-                        hyper::service::service_fn(move |request: Request<Incoming>| {
-                            tower_service.clone().call(request)
-                        });
-
-                    if let Err(err) =
-                        hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
-                            .serve_connection_with_upgrades(socket, hyper_service)
-                            .await
-                    {
-                        eprintln!("failed to serve connection: {err:#}");
-                    }
-                });
-            }
+            let make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
+            axum::serve(listener, make_service).await.unwrap();
         }));
     } else {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
         info!("Listening on 127.0.0.1:3000");
         handles.push(tokio::spawn(async {
-            let make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
-            axum::serve(listener, make_service).await.unwrap()
+            axum::serve(listener, app.into_make_service_with_connect_info::<RemoteAddr>()).await.unwrap()
         }));
     }
 

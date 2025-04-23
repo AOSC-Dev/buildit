@@ -67,7 +67,7 @@ async fn get_output_logged(
 
                         // convert \r to \n
                         for line in String::from_utf8_lossy(&buffer).split("\r") {
-                            tx.send_async(Message::Text(line.to_string())).await.ok();
+                            tx.send_async(Message::Text(line.into())).await.ok();
                             res += line;
                             res += "\n";
                         }

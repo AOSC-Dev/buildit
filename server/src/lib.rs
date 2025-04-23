@@ -9,7 +9,7 @@ use diesel::{
 use once_cell::sync::Lazy;
 use reqwest::ClientBuilder;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
-use tokio::net::{unix::UCred, UnixStream};
+use tokio::net::{unix::UCred, TcpListener, UnixListener};
 
 pub mod api;
 pub mod bot;
@@ -93,21 +93,22 @@ pub struct UdsSocketAddr {
     peer_cred: UCred,
 }
 
-impl connect_info::Connected<&UnixStream> for RemoteAddr {
-    fn connect_info(target: &UnixStream) -> Self {
-        let peer_addr = target.peer_addr().unwrap();
-        let peer_cred = target.peer_cred().unwrap();
+impl connect_info::Connected<IncomingStream<'_, UnixListener>> for RemoteAddr {
+    fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
+        let peer_addr = stream.io().peer_addr().unwrap();
+        let peer_cred = stream.io().peer_cred().unwrap();
 
-        Self::Uds(UdsSocketAddr {
+        RemoteAddr::Uds(UdsSocketAddr {
             peer_addr: Arc::new(peer_addr),
             peer_cred,
         })
     }
 }
 
-impl connect_info::Connected<IncomingStream<'_>> for RemoteAddr {
-    fn connect_info(target: IncomingStream) -> Self {
-        Self::Inet(target.remote_addr())
+impl connect_info::Connected<IncomingStream<'_, TcpListener>> for RemoteAddr {
+    fn connect_info(stream: IncomingStream<'_, TcpListener>) -> Self {
+        let peer_addr = stream.io().peer_addr().unwrap();
+        RemoteAddr::Inet(peer_addr)
     }
 }
 

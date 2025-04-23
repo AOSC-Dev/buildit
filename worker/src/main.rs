@@ -6,7 +6,7 @@ use worker::{build::build_worker, heartbeat::heartbeat_worker, websocket::websoc
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     env_logger::init();
     let args = Args::parse();
     info!("Starting AOSC BuildIt! worker");
