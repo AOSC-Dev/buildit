@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use fancy_regex::Regex;
 use gix::{
-    prelude::ObjectIdExt, sec, sec::trust::DefaultForLevel, Repository, ThreadSafeRepository,
+    Repository, ThreadSafeRepository, prelude::ObjectIdExt, sec, sec::trust::DefaultForLevel,
 };
 use jsonwebtoken::EncodingKey;
 use octocrab::{models::pulls::PullRequest, params};
@@ -14,7 +14,7 @@ use std::{
     process::Output,
 };
 use tokio::{process, task};
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, warn};
 use walkdir::WalkDir;
 
 use crate::{

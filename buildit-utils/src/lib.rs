@@ -1,6 +1,6 @@
 use crate::github::{find_version_by_packages, print_stdout_and_stderr, update_abbs};
-use abbs_update_checksum_core::{get_new_spec, ParseErrors};
-use anyhow::{bail, Context};
+use abbs_update_checksum_core::{ParseErrors, get_new_spec};
+use anyhow::{Context, bail};
 use github::{for_each_abbs, get_spec};
 use once_cell::sync::Lazy;
 use regex::Regex;
