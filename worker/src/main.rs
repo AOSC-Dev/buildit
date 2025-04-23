@@ -2,7 +2,7 @@ use clap::Parser;
 use flume::unbounded;
 use log::info;
 use sysinfo::System;
-use worker::{build::build_worker, heartbeat::heartbeat_worker, websocket::websocket_worker, Args};
+use worker::{Args, build::build_worker, heartbeat::heartbeat_worker, websocket::websocket_worker};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

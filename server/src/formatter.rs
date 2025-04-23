@@ -29,7 +29,10 @@ pub fn to_html_new_pipeline_summary(
         git_sha,
         &git_sha[..8],
         if let Some(pr) = github_pr {
-            format!("\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>", pr, pr)
+            format!(
+                "\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/{}\">#{}</a>",
+                pr, pr
+            )
         } else {
             String::new()
         },
@@ -110,7 +113,9 @@ pub fn to_html_build_result(
         if let Some(log) = log_url {
             Cow::Owned(format!("<a href=\"{}\">Build Log >></a>", log))
         } else {
-            Cow::Borrowed("Failed to push log! See <code>/buildroots/buildit/buildit/push_failed_logs</code> to see log.")
+            Cow::Borrowed(
+                "Failed to push log! See <code>/buildroots/buildit/buildit/push_failed_logs</code> to see log.",
+            )
         }
     )
 }
@@ -139,11 +144,21 @@ pub fn to_markdown_build_result(
         worker_hostname,
         worker_arch,
         format_args!("[#{}](https://buildit.aosc.io/jobs/{})", job.id, job.id),
-        format_args!("[#{}](https://buildit.aosc.io/pipelines/{})", pipeline.id, pipeline.id),
+        format_args!(
+            "[#{}](https://buildit.aosc.io/pipelines/{})",
+            pipeline.id, pipeline.id
+        ),
         teloxide::utils::markdown::escape(&job.creation_time.to_string()),
         elapsed_secs,
-        format_args!("**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n", &pipeline.git_sha[..8], pipeline.git_sha),
-        format_args!("**Git branch**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/tree/{})\n", &pipeline.git_branch, pipeline.git_branch),
+        format_args!(
+            "**Git commit**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/commit/{})\n",
+            &pipeline.git_sha[..8],
+            pipeline.git_sha
+        ),
+        format_args!(
+            "**Git branch**: [{}](https://github.com/AOSC-Dev/aosc-os-abbs/tree/{})\n",
+            &pipeline.git_branch, pipeline.git_branch
+        ),
         job.arch,
         teloxide::utils::markdown::escape(&job.packages.replace(",", ", ")),
         teloxide::utils::markdown::escape(&successful_packages.join(", ")),
@@ -152,7 +167,9 @@ pub fn to_markdown_build_result(
         if let Some(log) = log_url {
             Cow::Owned(format!("[Build Log \\>\\>]({})", log))
         } else {
-            Cow::Borrowed("Failed to push log! See `/buildroots/buildit/buildit/push_failed_logs` to see log.")
+            Cow::Borrowed(
+                "Failed to push log! See `/buildroots/buildit/buildit/push_failed_logs` to see log.",
+            )
         }
     )
 }
@@ -165,7 +182,10 @@ pub fn code_repr_string(s: &str) -> String {
 fn test_format_html_new_pipeline_summary() {
     let s =
         to_html_new_pipeline_summary(1, "fd-9.0.0", "123456789", Some(4992), &["amd64"], &["fd"]);
-    assert_eq!(s, "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd")
+    assert_eq!(
+        s,
+        "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd"
+    )
 }
 
 #[test]
@@ -227,5 +247,8 @@ fn test_format_html_build_result() {
 
     let s = to_html_build_result(&pipeline, &job, &job_ok, worker_hostname, worker_arch, true);
 
-    assert_eq!(s, "✅\u{fe0f} Job successfully completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd, fd2\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>")
+    assert_eq!(
+        s,
+        "✅\u{fe0f} Job successfully completed on Yerus (amd64)\n\n<b>Job</b>: <a href=\"https://buildit.aosc.io/jobs/1\">#1</a>\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Enqueue time</b>: 1970-01-01 00:01:01 UTC\n<b>Time elapsed</b>: 888s\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/34acef168fc5ec454d3825fc864964951b130b49\">34acef16</a>\n<b>Git branch</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/tree/fd-9.0.0\">fd-9.0.0</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture</b>: amd64\n<b>Package(s) to build</b>: fd, fd2\n<b>Package(s) successfully built</b>: fd\n<b>Package(s) failed to build</b>: None\n<b>Package(s) not built due to previous build failure</b>: \n\n<a href=\"https://pastebin.aosc.io/paste/c0rWzj4EsSC~CVXs2qXtFw\">Build Log >></a>"
+    )
 }

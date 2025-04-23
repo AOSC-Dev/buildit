@@ -1,15 +1,15 @@
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use axum::{extract::connect_info, serve::IncomingStream};
 use chrono::{Datelike, Days};
 use clap::Parser;
 use diesel::{
-    r2d2::{ConnectionManager, Pool},
     PgConnection,
+    r2d2::{ConnectionManager, Pool},
 };
 use once_cell::sync::Lazy;
 use reqwest::ClientBuilder;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
-use tokio::net::{unix::UCred, TcpListener, UnixListener};
+use tokio::net::{TcpListener, UnixListener, unix::UCred};
 
 pub mod api;
 pub mod bot;
