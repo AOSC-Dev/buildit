@@ -123,8 +123,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/worker/list", get(worker_list))
         .route("/api/worker/info", get(worker_info))
         .route("/api/dashboard/status", get(dashboard_status))
-        .route("/api/ws/viewer/:hostname", get(ws_viewer_handler))
-        .route("/api/ws/worker/:hostname", get(ws_worker_handler))
+        .route("/api/ws/viewer/{{:hostname}}", get(ws_viewer_handler))
+        .route("/api/ws/worker/{{:hostname}}", get(ws_worker_handler))
         .route("/api/webhook", post(webhook_handler))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
@@ -176,7 +176,7 @@ async fn main() -> anyhow::Result<()> {
         std::fs::set_permissions(path, perms)?;
 
         // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
-        handles.push(tokio::spawn(async move {
+        handles.push(tokio::spawn(async {
             let make_service = app.into_make_service_with_connect_info::<RemoteAddr>();
             axum::serve(listener, make_service).await.unwrap();
         }));
