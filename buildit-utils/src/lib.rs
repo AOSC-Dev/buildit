@@ -24,15 +24,17 @@ pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
 pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
+pub const LOONGARCH64_NOSIMD: &str = "LoongArch 64-bit (No SIMD) `loongarch64_nosimd`";
 pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
 pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
 pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
 pub const COMMITS_COUNT_LIMIT: usize = 10;
 
-pub(crate) const ALL_ARCH: &[&str] = &[
+pub const ALL_ARCH: &[&str] = &[
     "amd64",
     "arm64",
     "loongarch64",
+    "loongarch64_nosimd",
     "loongson3",
     "ppc64el",
     "riscv64",

@@ -120,6 +120,7 @@
         "amd64",
         "arm64",
         "loongarch64",
+        "loongarch64_nosimd",
         "loongson3",
         "ppc64el",
         "riscv64"

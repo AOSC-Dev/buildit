@@ -18,8 +18,8 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use walkdir::WalkDir;
 
 use crate::{
-    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGSON3, NOARCH,
-    PPC64EL, RISCV64,
+    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGARCH64_NOSIMD,
+    LOONGSON3, NOARCH, PPC64EL, RISCV64,
 };
 
 macro_rules! PR {
@@ -649,6 +649,7 @@ fn format_archs(archs: &[&str]) -> String {
     let mut map = HashMap::new();
     map.insert("amd64", AMD64);
     map.insert("arm64", ARM64);
+    map.insert("loongarch64_nosimd", LOONGARCH64_NOSIMD);
     map.insert("noarch", NOARCH);
     map.insert("loongarch64", LOONGARCH64);
     map.insert("loongson3", LOONGSON3);
@@ -661,13 +662,20 @@ fn format_archs(archs: &[&str]) -> String {
     if archs.contains(&"amd64")
         || archs.contains(&"arm64")
         || archs.contains(&"loongarch64")
+        || archs.contains(&"loongarch64_nosimd")
         || archs.contains(&"noarch")
     {
         s.push_str("**Primary Architectures**\n\n");
         newline = true;
     }
 
-    for i in ["amd64", "arm64", "loongarch64", "noarch"] {
+    for i in [
+        "amd64",
+        "arm64",
+        "loongarch64",
+        "noarch",
+        "loongarch64_nosimd",
+    ] {
         if archs.contains(&i) {
             s.push_str(&format!("- [ ] {}\n", map[i]));
         }
@@ -994,6 +1002,7 @@ fn test_get_archs() {
             "amd64",
             "arm64",
             "loongarch64",
+            "loongarch64_nosimd",
             "loongson3",
             "ppc64el",
             "riscv64",
