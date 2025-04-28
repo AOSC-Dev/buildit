@@ -1,12 +1,12 @@
 use crate::{
-    ALL_ARCH, ARGS, DbPool,
+    ARGS, DbPool,
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
 };
 use anyhow::Context;
 use anyhow::{anyhow, bail};
 use buildit_utils::{
-    ABBS_REPO_LOCK,
+    ABBS_REPO_LOCK, ALL_ARCH,
     github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
 };
 use diesel::r2d2::PoolTransactionManager;

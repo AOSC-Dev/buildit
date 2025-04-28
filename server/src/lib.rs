@@ -69,16 +69,6 @@ pub struct Args {
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 pub const HEARTBEAT_TIMEOUT: i64 = 600; // 10 minutes
 
-// follow https://github.com/AOSC-Dev/autobuild3/blob/master/sets/arch_groups/mainline
-pub(crate) const ALL_ARCH: &[&str] = &[
-    "amd64",
-    "arm64",
-    "loongarch64",
-    "loongson3",
-    "ppc64el",
-    "riscv64",
-];
-
 // https://github.com/tokio-rs/axum/blob/main/examples/unix-domain-socket/src/main.rs
 #[derive(Clone, Debug)]
 pub enum RemoteAddr {

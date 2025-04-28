@@ -296,6 +296,11 @@ async fn build(
                         "maintainers",
                         &job.git_branch,
                     ];
+
+                    if args.arch == "loongarch64_nosimd" {
+                        pushpkg_args.push("bsp-loongarch64-nosimd");
+                    }
+
                     if !args.pushpkg_options.is_empty() {
                         pushpkg_args.insert(0, &args.pushpkg_options);
                     }
