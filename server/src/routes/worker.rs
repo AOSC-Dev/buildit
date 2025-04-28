@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Context;
 use anyhow::anyhow;
 use axum::extract::{Json, Query, State};
-use buildit_utils::{AMD64, ARM64, LOONGSON3, PPC64EL, RISCV64};
+use buildit_utils::{AMD64, ARM64, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64};
 use buildit_utils::{LOONGARCH64, NOARCH};
 
 use chrono::{DateTime, Utc};
@@ -561,6 +561,7 @@ pub async fn handle_success_message(
                     "ppc64el" => PPC64EL,
                     "riscv64" => RISCV64,
                     "loongarch64" => LOONGARCH64,
+                    "loongarch64_nosimd" => LOONGARCH64_NOSIMD,
                     x => {
                         error!("Unknown architecture: {x}");
                         return HandleSuccessResult::DoNotRetry;
