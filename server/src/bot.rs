@@ -180,7 +180,7 @@ async fn pipeline_new_and_report(
     )
     .await
     {
-        Ok(pipeline) => {
+        Ok((pipeline, jobs)) => {
             bot.send_message(
                 msg.chat.id,
                 to_html_new_pipeline_summary(
@@ -188,7 +188,10 @@ async fn pipeline_new_and_report(
                     &pipeline.git_branch,
                     &pipeline.git_sha,
                     pipeline.github_pr.map(|n| n as u64),
-                    &pipeline.archs.split(',').collect::<Vec<_>>(),
+                    &jobs
+                        .iter()
+                        .map(|job| (job.arch.as_str(), job.id))
+                        .collect::<Vec<_>>(),
                     &pipeline.packages.split(',').collect::<Vec<_>>(),
                 ),
             )
@@ -320,7 +323,7 @@ async fn create_pipeline_from_pr(
     )
     .await
     {
-        Ok(pipeline) => {
+        Ok((pipeline, jobs)) => {
             bot.send_message(
                 msg.chat.id,
                 to_html_new_pipeline_summary(
@@ -328,7 +331,10 @@ async fn create_pipeline_from_pr(
                     &pipeline.git_branch,
                     &pipeline.git_sha,
                     pipeline.github_pr.map(|n| n as u64),
-                    &pipeline.archs.split(',').collect::<Vec<_>>(),
+                    &jobs
+                        .iter()
+                        .map(|job| (job.arch.as_str(), job.id))
+                        .collect::<Vec<_>>(),
                     &pipeline.packages.split(',').collect::<Vec<_>>(),
                 ),
             )

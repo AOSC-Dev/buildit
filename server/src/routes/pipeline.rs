@@ -29,7 +29,7 @@ pub async fn pipeline_new(
     State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<PipelineNewRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline = api::pipeline_new(
+    let (pipeline, _) = api::pipeline_new(
         pool,
         &payload.git_branch,
         None,
@@ -53,7 +53,7 @@ pub async fn pipeline_new_pr(
     State(AppState { pool, .. }): State<AppState>,
     Json(payload): Json<PipelineNewPRRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
-    let pipeline = api::pipeline_new_pr(
+    let (pipeline, _) = api::pipeline_new_pr(
         pool,
         payload.pr,
         payload.archs.as_deref(),

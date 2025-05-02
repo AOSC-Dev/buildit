@@ -12,7 +12,7 @@ pub fn to_html_new_pipeline_summary(
     git_branch: &str,
     git_sha: &str,
     github_pr: Option<u64>,
-    archs: &[&str],
+    jobs: &[(&str, i32)],
     packages: &[&str],
 ) -> String {
     format!(
@@ -36,7 +36,10 @@ pub fn to_html_new_pipeline_summary(
         } else {
             String::new()
         },
-        archs.join(", "),
+        jobs.iter()
+            .map(|(arch, id)| format!("<a href=\"https://buildit.aosc.io/jobs/{id}\">{arch}</a>"))
+            .collect::<Vec<_>>()
+            .join(", "),
         packages.join(", "),
     )
 }
@@ -180,11 +183,17 @@ pub fn code_repr_string(s: &str) -> String {
 
 #[test]
 fn test_format_html_new_pipeline_summary() {
-    let s =
-        to_html_new_pipeline_summary(1, "fd-9.0.0", "123456789", Some(4992), &["amd64"], &["fd"]);
+    let s = to_html_new_pipeline_summary(
+        1,
+        "fd-9.0.0",
+        "123456789",
+        Some(4992),
+        &[("amd64", 1)],
+        &["fd"],
+    );
     assert_eq!(
         s,
-        "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: amd64\n<b>Package(s)</b>: fd"
+        "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: <a href=\"https://buildit.aosc.io/jobs/1\">amd64</a>\n<b>Package(s)</b>: fd"
     )
 }
 
