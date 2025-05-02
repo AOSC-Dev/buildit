@@ -73,17 +73,17 @@ async fn handle_webhook_comment(
     pr_num: u64,
     pool: DbPool,
 ) -> anyhow::Result<()> {
-    let is_org_user = is_org_user(&comment.user.login).await?;
+    let mut body = comment.body.split_whitespace();
 
-    if !is_org_user {
+    // check bot mention first to reduce membership check requests
+    let request_bot = body.next().is_some_and(|s| s == "@aosc-buildit-bot");
+    if !request_bot {
         return Ok(());
     }
 
-    let mut body = comment.body.split_whitespace();
+    let is_org_user = is_org_user(&comment.user.login).await?;
 
-    let request_bot = body.next().is_some_and(|s| s == "@aosc-buildit-bot");
-
-    if !request_bot {
+    if !is_org_user {
         return Ok(());
     }
 
