@@ -1,7 +1,5 @@
-use anyhow::bail;
 use axum::{Json, extract::State};
 use hyper::HeaderMap;
-use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::{info, warn};
@@ -157,22 +155,8 @@ async fn pipeline_new_pr_impl(
 }
 
 async fn is_org_user(user: &str) -> anyhow::Result<bool> {
-    let client = reqwest::Client::builder().user_agent("buildit").build()?;
-
-    let resp = client
-        .get(format!(
-            "https://api.github.com/orgs/aosc-dev/public_members/{}",
-            user
-        ))
-        .send()
-        .await
-        .and_then(|x| x.error_for_status());
-
-    match resp {
-        Ok(_) => Ok(true),
-        Err(e) => match e.status() {
-            Some(StatusCode::NOT_FOUND) => Ok(false),
-            _ => bail!("Network is not reachable: {e}"),
-        },
-    }
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(ARGS.github_access_token.clone())
+        .build()?;
+    Ok(crab.orgs("AOSC-Dev").check_membership(user).await?)
 }
