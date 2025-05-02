@@ -62,7 +62,7 @@ pub async fn pipeline_new(
     archs: &str,
     source: JobSource,
     skip_git_fetch: bool,
-) -> anyhow::Result<Pipeline> {
+) -> anyhow::Result<(Pipeline, Vec<Job>)> {
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(',').collect();
     archs.sort();
@@ -211,6 +211,7 @@ pub async fn pipeline_new(
     };
 
     // for each arch, create a new job
+    let mut jobs = Vec::new();
     for (arch, check_run_id) in archs.iter().zip(github_check_run_ids.iter()) {
         // create a new job
         use crate::schema::jobs;
@@ -227,13 +228,16 @@ pub async fn pipeline_new(
             require_min_total_mem_per_core: env_req_current.min_total_mem_per_core,
             require_min_disk: env_req_current.min_disk,
         };
-        diesel::insert_into(jobs::table)
-            .values(&new_job)
-            .execute(&mut conn)
-            .context("Failed to create job")?;
+        jobs.push(
+            diesel::insert_into(jobs::table)
+                .values(&new_job)
+                .returning(Job::as_returning())
+                .get_result(&mut conn)
+                .context("Failed to create job")?,
+        );
     }
 
-    Ok(pipeline)
+    Ok((pipeline, jobs))
 }
 
 #[tracing::instrument(skip(pool))]
@@ -242,7 +246,7 @@ pub async fn pipeline_new_pr(
     pr: u64,
     archs: Option<&str>,
     source: JobSource,
-) -> anyhow::Result<Pipeline> {
+) -> anyhow::Result<(Pipeline, Vec<Job>)> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
         .get(pr)

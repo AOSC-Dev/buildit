@@ -136,13 +136,16 @@ async fn pipeline_new_pr_impl(
         .build()?;
 
     let msg = match res {
-        Ok(res) => to_html_new_pipeline_summary(
-            res.id,
-            &res.git_branch,
-            &res.git_sha,
-            res.github_pr.map(|n| n as u64),
-            &res.archs.split(',').collect::<Vec<_>>(),
-            &res.packages.split(',').collect::<Vec<_>>(),
+        Ok((pipeline, jobs)) => to_html_new_pipeline_summary(
+            pipeline.id,
+            &pipeline.git_branch,
+            &pipeline.git_sha,
+            pipeline.github_pr.map(|n| n as u64),
+            &jobs
+                .iter()
+                .map(|job| (job.arch.as_str(), job.id))
+                .collect::<Vec<_>>(),
+            &pipeline.packages.split(',').collect::<Vec<_>>(),
         ),
         Err(e) => {
             format!("Failed to create pipeline: {e}")
