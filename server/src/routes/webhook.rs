@@ -4,7 +4,9 @@ use serde::Deserialize;
 use serde_json::Value;
 use tracing::{info, warn};
 
-use crate::{ARGS, DbPool, api, formatter::to_html_new_pipeline_summary, paste_to_aosc_io};
+use crate::{
+    ARGS, DbPool, api, bot::GitHubUser, formatter::to_html_new_pipeline_summary, paste_to_aosc_io,
+};
 
 use super::{AnyhowError, AppState};
 
@@ -18,18 +20,13 @@ pub struct WebhookComment {
 #[derive(Debug, Deserialize)]
 struct Comment {
     // issue_url: String,
-    user: User,
+    user: GitHubUser,
     body: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct Issue {
     number: u64,
-}
-
-#[derive(Debug, Deserialize)]
-struct User {
-    login: String,
 }
 
 pub async fn webhook_handler(
@@ -89,7 +86,7 @@ async fn handle_webhook_comment(
         Some("build") => {
             let archs = body.next();
 
-            pipeline_new_pr_impl(pool, pr_num, archs).await?;
+            pipeline_new_pr_impl(pool, pr_num, comment.user.id, archs).await?;
         }
         Some("dickens") => {
             let crab = octocrab::Octocrab::builder()
@@ -124,10 +121,17 @@ async fn handle_webhook_comment(
 
 async fn pipeline_new_pr_impl(
     pool: DbPool,
-    num: u64,
+    pr: u64,
+    gh_user: i64,
     archs: Option<&str>,
 ) -> Result<(), anyhow::Error> {
-    let res = api::pipeline_new_pr(pool, num, archs, api::JobSource::Github(num)).await;
+    let res = api::pipeline_new_pr(
+        pool,
+        pr,
+        archs,
+        api::JobSource::GitHub { pr, user: gh_user },
+    )
+    .await;
 
     let crab = octocrab::Octocrab::builder()
         .user_access_token(ARGS.github_access_token.clone())
@@ -151,7 +155,7 @@ async fn pipeline_new_pr_impl(
     };
 
     crab.issues("aosc-dev", "aosc-os-abbs")
-        .create_comment(num, msg)
+        .create_comment(pr, msg)
         .await?;
 
     Ok(())
