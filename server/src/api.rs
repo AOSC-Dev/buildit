@@ -25,8 +25,8 @@ use tracing::warn;
 pub enum JobSource {
     /// Telegram user/group
     Telegram(i64),
-    /// GitHub PR number
-    Github(u64),
+    /// GitHub PR comment
+    GitHub { pr: u64, user: i64 },
     /// Manual
     Manual,
 }
@@ -157,7 +157,15 @@ pub async fn pipeline_new(
             let creator_user_id = user.map(|user| user.id);
             ("telegram", github_pr, Some(id), creator_user_id)
         }
-        JobSource::Github(id) => ("github", Some(id), None, None),
+        JobSource::GitHub { pr, user } => {
+            let user = crate::schema::users::dsl::users
+                .filter(crate::schema::users::dsl::github_id.eq(user))
+                .first::<User>(&mut conn)
+                .optional()?;
+            let telegram_user = user.as_ref().and_then(|user| user.telegram_chat_id);
+            let creator_user_id = user.map(|user| user.id);
+            ("github", Some(pr), telegram_user, creator_user_id)
+        }
         JobSource::Manual => ("manual", github_pr, None, None),
     };
     let new_pipeline = NewPipeline {

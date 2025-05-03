@@ -425,38 +425,39 @@ pub async fn handle_success_message(
 
             let success = *build_success && *pushpkg_success;
 
-            if pipeline.source == "telegram" {
+            if let Some(telegram_user) = pipeline.telegram_user {
                 if let Some(bot) = bot {
-                    info!("Sending result to telegram");
-                    let s = to_html_build_result(
-                        pipeline,
-                        job,
-                        job_ok,
-                        &req.hostname,
-                        &req.arch,
-                        success,
-                    );
+                    if pipeline.source != "github" || !success {
+                        info!("Sending result to telegram");
+                        let s = to_html_build_result(
+                            pipeline,
+                            job,
+                            job_ok,
+                            &req.hostname,
+                            &req.arch,
+                            success,
+                        );
 
-                    let mut msg = bot
-                        .send_message(ChatId(pipeline.telegram_user.unwrap()), &s)
-                        .parse_mode(ParseMode::Html)
-                        .disable_link_preview(true);
-                    if !success {
-                        let restart_btn = InlineKeyboardButton::callback(
-                            "🔨 Restart",
-                            format!("restart_{}", job.id),
-                        );
-                        msg = msg.reply_markup(
-                            InlineKeyboardMarkup::default().append_row(vec![restart_btn]),
-                        );
-                    }
-                    if let Err(e) = msg.await {
-                        error!("Failed to send build result to telegram: {}", e);
-                        return update_retry(retry);
+                        let mut msg = bot
+                            .send_message(ChatId(telegram_user), &s)
+                            .parse_mode(ParseMode::Html)
+                            .disable_link_preview(true);
+                        if !success {
+                            let restart_btn = InlineKeyboardButton::callback(
+                                "🔨 Restart",
+                                format!("restart_{}", job.id),
+                            );
+                            msg = msg.reply_markup(
+                                InlineKeyboardMarkup::default().append_row(vec![restart_btn]),
+                            );
+                        }
+                        if let Err(e) = msg.await {
+                            error!("Failed to send build result to telegram: {}", e);
+                            return update_retry(retry);
+                        }
                     }
                 } else {
                     error!("Telegram bot not configured");
-                    return HandleSuccessResult::DoNotRetry;
                 }
             }
 
