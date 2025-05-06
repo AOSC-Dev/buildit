@@ -276,12 +276,15 @@ async fn write_new_spec(abbs_path: PathBuf, pkg: String) -> anyhow::Result<()> {
 
     for i in 1..=5 {
         match get_new_spec(&mut spec, |_, _, _, _| {}, 4).await {
-            Ok(()) => {
+            Ok(true) => {
                 if i > 1 {
                     warn!("({i}/5) Retrying to get new spec...");
                 }
 
                 fs::write(p, spec).await?;
+                return Ok(());
+            }
+            Ok(false) => {
                 return Ok(());
             }
             Err(e) => {
