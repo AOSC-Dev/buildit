@@ -214,7 +214,7 @@ pub struct GitHubUser {
     pub id: i64,
     pub email: Option<String>,
     pub avatar_url: String,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[tracing::instrument(skip(pool, access_token))]
@@ -253,7 +253,7 @@ async fn sync_github_info_inner(
                 let new_user = NewUser {
                     github_login: Some(author.login),
                     github_id: Some(author.id),
-                    github_name: Some(author.name),
+                    github_name: author.name,
                     github_avatar_url: Some(author.avatar_url.to_string()),
                     github_email: author.email,
                     telegram_chat_id: Some(telegram_chat.0),
