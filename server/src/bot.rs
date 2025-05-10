@@ -26,7 +26,7 @@ use std::{
 use teloxide::{
     prelude::*,
     sugar::request::RequestLinkPreviewExt,
-    types::{ChatAction, InlineKeyboardMarkup, ParseMode},
+    types::{ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
     utils::command::BotCommands,
 };
 use tokio::time::sleep;
@@ -313,19 +313,19 @@ async fn create_pipeline_from_pr(
     pool: DbPool,
     pr_number: u64,
     archs: Option<&str>,
-    msg: &Message,
+    chat: ChatId,
     bot: &Bot,
 ) -> ResponseResult<()> {
     match wait_with_send_typing(
-        pipeline_new_pr(pool, pr_number, archs, JobSource::Telegram(msg.chat.id.0)),
+        pipeline_new_pr(pool, pr_number, archs, JobSource::Telegram(chat.0)),
         bot,
-        msg.chat.id.0,
+        chat.0,
     )
     .await
     {
         Ok((pipeline, jobs)) => {
             bot.send_message(
-                msg.chat.id,
+                chat,
                 to_html_new_pipeline_summary(
                     pipeline.id,
                     &pipeline.git_branch,
@@ -346,7 +346,7 @@ async fn create_pipeline_from_pr(
         }
         Err(err) => {
             bot.send_message(
-                msg.chat.id,
+                chat,
                 truncate(&format!("Failed to create pipeline from pr: {err:?}")),
             )
             .await?;
@@ -404,7 +404,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Some(parts[1])
                 };
                 for pr_number in pr_numbers {
-                    create_pipeline_from_pr(pool.clone(), pr_number, archs, &msg, &bot).await?;
+                    create_pipeline_from_pr(pool.clone(), pr_number, archs, msg.chat.id, &bot)
+                        .await?;
                 }
             }
         }
@@ -546,8 +547,14 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 )
                 .await
                 {
-                    Ok((_id, url)) => {
+                    Ok((pr_num, url)) => {
                         bot.send_message(msg.chat.id, format!("Successfully opened PR: {url}"))
+                            .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
+                                InlineKeyboardButton::callback(
+                                    "🪄 Build",
+                                    format!("buildpr_{}", pr_num),
+                                ),
+                            ]))
                             .await?;
                         return Ok(());
                     }
@@ -915,8 +922,14 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                             )
                             .await?;
 
-                            create_pipeline_from_pr(pool.clone(), pr_number, None, &msg, &bot)
-                                .await?;
+                            create_pipeline_from_pr(
+                                pool.clone(),
+                                pr_number,
+                                None,
+                                msg.chat.id,
+                                &bot,
+                            )
+                            .await?;
                         }
                         Err(e) => {
                             bot.send_message(
@@ -997,6 +1010,39 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                     Err(err) => {
                         bot.send_message(msg.chat().id, truncate(&format!("Bad job ID: {err:?}")))
                             .await?;
+                    }
+                }
+            } else if let Some(strip) = data.strip_prefix("buildpr_") {
+                match str::parse::<u64>(strip) {
+                    Ok(pr_num) => {
+                        let pipeline = create_pipeline_from_pr(
+                            pool.clone(),
+                            pr_num,
+                            None,
+                            msg.chat().id,
+                            &bot,
+                        );
+                        match wait_with_send_typing(pipeline, &bot, msg.chat().id.0).await {
+                            Ok(()) => {
+                                bot.edit_message_reply_markup(msg.chat().id, msg.id())
+                                    .reply_markup(InlineKeyboardMarkup::default())
+                                    .await?;
+                            }
+                            Err(err) => {
+                                bot.send_message(
+                                    msg.chat().id,
+                                    truncate(&format!("Failed to create pipeline for PR: {err:?}")),
+                                )
+                                .await?;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        bot.send_message(
+                            msg.chat().id,
+                            truncate(&format!("Bad PR number: {err:?}")),
+                        )
+                        .await?;
                     }
                 }
             }
