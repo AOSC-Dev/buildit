@@ -1,5 +1,5 @@
 use crate::{
-    ALL_ARCH, ARGS, DbPool,
+    ARGS, DbPool,
     api::{JobSource, job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status},
     formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
@@ -7,7 +7,7 @@ use crate::{
     paste_to_aosc_io,
 };
 use anyhow::{Context, bail};
-use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
+use buildit_utils::{ALL_ARCH, find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use rand::{rng, seq::IndexedRandom};
