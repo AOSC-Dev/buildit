@@ -1098,12 +1098,11 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
 }
 
 fn truncate(text: &str) -> Cow<'_, str> {
-    let text = if text.chars().count() > 1000 {
+    if text.chars().count() > 1000 {
         console::truncate_str(text, 1000, "...")
     } else {
         Cow::Borrowed(text)
-    };
-    text
+    }
 }
 
 fn split_open_pr_message(arguments: &str) -> (Option<&str>, Vec<&str>) {
