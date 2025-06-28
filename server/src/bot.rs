@@ -58,7 +58,7 @@ pub enum Command {
     Login,
     #[command(description = "Start bot")]
     Start(String),
-    #[command(description = "Let dickens generate report for GitHub PR: /dickens pr-number")]
+    #[command(description = "Let dickens generate report for GitHub PR: /dickens pr1,pr2,pr3")]
     Dickens(String),
     #[command(
         description = "Build lagging/missing packages for quality assurance: /qa arch lagging/missing"
@@ -378,13 +378,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
 
             let mut pr_numbers = vec![];
-            let mut parse_success = true;
             for part in parts[0].split(',') {
                 if let Ok(pr_number) = str::parse::<u64>(part) {
                     pr_numbers.push(pr_number);
                 } else {
-                    parse_success = false;
-
                     bot.send_message(
                         msg.chat.id,
                         format!(
@@ -393,20 +390,19 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                         ),
                     )
                     .await?;
-                    break;
+
+                    return Ok(());
                 }
             }
 
-            if parse_success {
-                let archs = if parts.len() == 1 {
-                    None
-                } else {
-                    Some(parts[1])
-                };
-                for pr_number in pr_numbers {
-                    create_pipeline_from_pr(pool.clone(), pr_number, archs, msg.chat.id, &bot)
-                        .await?;
-                }
+            let archs = if parts.len() == 1 {
+                None
+            } else {
+                Some(parts[1])
+            };
+
+            for pr_number in pr_numbers {
+                create_pipeline_from_pr(pool.clone(), pr_number, archs, msg.chat.id, &bot).await?;
             }
         }
         Command::Build(arguments) => {
@@ -599,24 +595,37 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 };
             }
         }
-        Command::Dickens(arguments) => match str::parse::<u64>(&arguments) {
-            Ok(pr_number) => {
-                // create octocrab instance
-                let crab = match octocrab::Octocrab::builder()
-                    .user_access_token(ARGS.github_access_token.clone())
-                    .build()
-                {
-                    Ok(v) => v,
+        Command::Dickens(arguments) => {
+            let mut pr_numbers = vec![];
+            for part in arguments.split(',') {
+                match str::parse::<u64>(part) {
+                    Ok(pr_number) => pr_numbers.push(pr_number),
                     Err(err) => {
-                        bot.send_message(
-                            msg.chat.id,
-                            truncate(&format!("Cannot create octocrab instance: {err:?}")),
-                        )
-                        .await?;
+                        bot.send_message(msg.chat.id, truncate(&format!("Bad PR number: {err:?}")))
+                            .await?;
+
                         return Ok(());
                     }
-                };
+                }
+            }
 
+            // create octocrab instance
+            let crab = match octocrab::Octocrab::builder()
+                .user_access_token(ARGS.github_access_token.clone())
+                .build()
+            {
+                Ok(v) => v,
+                Err(err) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Cannot create octocrab instance: {err:?}")),
+                    )
+                    .await?;
+                    return Ok(());
+                }
+            };
+
+            for pr_number in pr_numbers {
                 // get topic of pr
                 match wait_with_send_typing(
                     crab.pulls("AOSC-Dev", "aosc-os-abbs").get(pr_number),
@@ -706,11 +715,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     }
                 }
             }
-            Err(err) => {
-                bot.send_message(msg.chat.id, truncate(&format!("Bad PR number: {err:?}")))
-                    .await?;
-            }
-        },
+        }
         Command::QA(arguments) => {
             let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 2
