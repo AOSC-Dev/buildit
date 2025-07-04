@@ -121,6 +121,7 @@ pub struct User {
     pub github_avatar_url: Option<String>,
     pub github_email: Option<String>,
     pub telegram_chat_id: Option<i64>,
+    pub token: String,
 }
 
 #[derive(Insertable, AsChangeset)]
