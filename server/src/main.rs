@@ -5,10 +5,8 @@ use axum::{Router, routing::get};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use opentelemetry::KeyValue;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::Resource;
-use opentelemetry_sdk::trace;
 use server::bot::{Command, answer, answer_callback};
 use server::recycler::recycler_worker;
 use server::routes::{
@@ -36,20 +34,17 @@ async fn main() -> anyhow::Result<()> {
     // setup opentelemetry
     if let Some(otlp_url) = &ARGS.otlp_url {
         // setup otlp
-        let exporter = opentelemetry_otlp::new_exporter()
-            .http()
-            .with_endpoint(otlp_url);
-        let otlp_tracer =
-            opentelemetry_otlp::new_pipeline()
-                .tracing()
-                .with_trace_config(trace::config().with_resource(Resource::new(vec![
-                    KeyValue::new("service.name", "buildit"),
-                ])))
-                .with_exporter(exporter)
-                .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_http()
+            .with_endpoint(otlp_url)
+            .build()?;
+        let otlp_tracer = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
 
         // let tracing crate output to opentelemetry
-        let tracing_layer = tracing_opentelemetry::layer().with_tracer(otlp_tracer);
+        let tracing_layer =
+            tracing_opentelemetry::layer().with_tracer(otlp_tracer.tracer("buildit"));
         let subscriber = Registry::default();
         // respect RUST_LOG
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
