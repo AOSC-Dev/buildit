@@ -124,6 +124,16 @@ pub struct User {
     pub token: String,
 }
 
+impl User {
+    pub fn get_api_token(&self) -> Option<String> {
+        if self.token.is_empty() {
+            None
+        } else {
+            Some(format!("aoscbldit1_{}_{}", self.id, self.token))
+        }
+    }
+}
+
 #[derive(Insertable, AsChangeset)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
