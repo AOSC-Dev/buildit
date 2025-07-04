@@ -23,16 +23,18 @@ where
         if ret.len() + package.len() + 2 > 900 {
             let remaining = len - idx;
             match format {
-                TargetFormat::FormatHTML =>
+                TargetFormat::FormatHTML => {
                     ret += &format!(
                         ", <a href=\"https://buildit.aosc.io/jobs/{}\">and {} more</a>",
                         job_id, remaining
-                    ),
-                TargetFormat::FormatMarkdown =>
+                    )
+                }
+                TargetFormat::FormatMarkdown => {
                     ret += &format!(
                         ", [and {} more](https://buildit.aosc.io/jobs/{})",
                         remaining, job_id
                     )
+                }
             }
             break;
         }
@@ -106,19 +108,19 @@ pub fn to_html_build_result(
         job.id,
         successful_packages,
         successful_packages.len(),
-        TargetFormat::FormatHTML
+        TargetFormat::FormatHTML,
     );
     let rendered_skipped_pkgs = format_package_list(
         job.id,
         skipped_packages,
         skipped_packages.len(),
-        TargetFormat::FormatHTML
+        TargetFormat::FormatHTML,
     );
     let rendered_all_pkgs = format_package_list(
         job.id,
         job.packages.split(','),
         job.packages.chars().filter(|c| *c == ',').count() + 1,
-        TargetFormat::FormatHTML
+        TargetFormat::FormatHTML,
     );
 
     format!(
@@ -204,19 +206,19 @@ pub fn to_markdown_build_result(
         job.id,
         successful_packages,
         successful_packages.len(),
-        TargetFormat::FormatMarkdown
+        TargetFormat::FormatMarkdown,
     );
     let rendered_skipped_pkgs = format_package_list(
         job.id,
         skipped_packages,
         skipped_packages.len(),
-        TargetFormat::FormatMarkdown
+        TargetFormat::FormatMarkdown,
     );
     let rendered_all_pkgs = format_package_list(
         job.id,
         job.packages.split(','),
         job.packages.chars().filter(|c| *c == ',').count() + 1,
-        TargetFormat::FormatMarkdown
+        TargetFormat::FormatMarkdown,
     );
 
     format!(
@@ -279,7 +281,9 @@ fn test_format_html_new_pipeline_summary() {
 
 #[test]
 fn test_format_extra_long_list() {
-    let packages = (1..=1024).map(|n| format!("package-name-{:04}", n)).collect::<Vec<_>>();
+    let packages = (1..=1024)
+        .map(|n| format!("package-name-{:04}", n))
+        .collect::<Vec<_>>();
     assert_eq!(
         format_package_list(1234, &packages, packages.len(), TargetFormat::FormatHTML),
         "package-name-0001, package-name-0002, package-name-0003, package-name-0004, package-name-0005, package-name-0006, package-name-0007, package-name-0008, package-name-0009, package-name-0010, package-name-0011, package-name-0012, package-name-0013, package-name-0014, package-name-0015, package-name-0016, package-name-0017, package-name-0018, package-name-0019, package-name-0020, package-name-0021, package-name-0022, package-name-0023, package-name-0024, package-name-0025, package-name-0026, package-name-0027, package-name-0028, package-name-0029, package-name-0030, package-name-0031, package-name-0032, package-name-0033, package-name-0034, package-name-0035, package-name-0036, package-name-0037, package-name-0038, package-name-0039, package-name-0040, package-name-0041, package-name-0042, package-name-0043, package-name-0044, package-name-0045, package-name-0046, package-name-0047, <a href=\"https://buildit.aosc.io/jobs/1234\">and 977 more</a>"

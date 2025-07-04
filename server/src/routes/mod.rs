@@ -280,25 +280,19 @@ impl FromRequestParts<AppState> for ApiAuth {
                         .map_err(|err| AnyhowError(err.into()).into_response())?
                     {
                         if user.token != hash {
-                            return Err((StatusCode::UNAUTHORIZED, "invalid authorization token")
-                                .into_response());
+                            Err((StatusCode::UNAUTHORIZED, "invalid authorization token")
+                                .into_response())
                         } else {
-                            return Ok(Self(user));
+                            Ok(Self(user))
                         }
                     } else {
-                        return Err(
-                            (StatusCode::UNAUTHORIZED, "auth user not found").into_response()
-                        );
+                        Err((StatusCode::UNAUTHORIZED, "auth user not found").into_response())
                     }
                 } else {
-                    return Err(
-                        (StatusCode::UNAUTHORIZED, "malformed authorization token").into_response()
-                    );
+                    Err((StatusCode::UNAUTHORIZED, "malformed authorization token").into_response())
                 }
             } else {
-                return Err(
-                    (StatusCode::UNAUTHORIZED, "token authorization is required").into_response(),
-                );
+                Err((StatusCode::UNAUTHORIZED, "token authorization is required").into_response())
             }
         }
     }
