@@ -28,7 +28,7 @@ pub enum JobSource {
     /// GitHub PR comment
     GitHub { pr: u64, user: i64 },
     /// Manual
-    Manual,
+    Manual(Option<i32>),
 }
 
 // create github check run for the specified git commit
@@ -166,7 +166,7 @@ pub async fn pipeline_new(
             let creator_user_id = user.map(|user| user.id);
             ("github", Some(pr), telegram_user, creator_user_id)
         }
-        JobSource::Manual => ("manual", github_pr, None, None),
+        JobSource::Manual(user_id) => ("manual", github_pr, None, user_id),
     };
     let new_pipeline = NewPipeline {
         packages: packages.to_string(),

@@ -1,5 +1,5 @@
 use crate::models::User;
-use crate::routes::{AnyhowError, AppState};
+use crate::routes::{AnyhowError, ApiAuth, AppState};
 use crate::{
     api::{self, JobSource, PipelineStatus},
     models::{Job, Pipeline},
@@ -27,6 +27,7 @@ pub struct PipelineNewResponse {
 
 pub async fn pipeline_new(
     State(AppState { pool, .. }): State<AppState>,
+    ApiAuth(user): ApiAuth,
     Json(payload): Json<PipelineNewRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
     let (pipeline, _) = api::pipeline_new(
@@ -36,7 +37,7 @@ pub async fn pipeline_new(
         None,
         &payload.packages,
         &payload.archs,
-        JobSource::Manual,
+        JobSource::Manual(Some(user.id)),
         false,
     )
     .await?;
@@ -51,13 +52,14 @@ pub struct PipelineNewPRRequest {
 
 pub async fn pipeline_new_pr(
     State(AppState { pool, .. }): State<AppState>,
+    ApiAuth(user): ApiAuth,
     Json(payload): Json<PipelineNewPRRequest>,
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
     let (pipeline, _) = api::pipeline_new_pr(
         pool,
         payload.pr,
         payload.archs.as_deref(),
-        JobSource::Manual,
+        JobSource::Manual(Some(user.id)),
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
