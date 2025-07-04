@@ -23,12 +23,14 @@ use tracing::info;
 
 pub mod job;
 pub mod pipeline;
+pub mod user;
 pub mod webhook;
 pub mod websocket;
 pub mod worker;
 
 pub use job::*;
 pub use pipeline::*;
+pub use user::*;
 pub use webhook::*;
 pub use websocket::*;
 pub use worker::*;

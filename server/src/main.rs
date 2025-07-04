@@ -9,13 +9,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
 use server::bot::{Command, answer, answer_callback};
 use server::recycler::recycler_worker;
-use server::routes::{
-    AppState, WSStateMap, dashboard_status, job_info, job_list, job_restart, ping, pipeline_info,
-    pipeline_list, pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list,
-    worker_poll, ws_viewer_handler, ws_worker_handler,
-};
-use server::routes::{pipeline_new, worker_heartbeat};
-use server::routes::{pipeline_status, worker_status};
+use server::routes::*;
 use server::{ARGS, DbPool, RemoteAddr};
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
@@ -121,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/ws/viewer/{hostname}", get(ws_viewer_handler))
         .route("/api/ws/worker/{hostname}", get(ws_worker_handler))
         .route("/api/webhook", post(webhook_handler))
+        .route("/api/user/self", get(user_self))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
         .fallback_service(ServeFile::new("frontend/dist/index.html"))
