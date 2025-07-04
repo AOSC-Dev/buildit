@@ -6,11 +6,11 @@ use crate::{
     models::{NewUser, User},
     paste_to_aosc_io,
 };
-use anyhow::{Context, bail};
+use anyhow::{Context, anyhow, bail};
 use buildit_utils::{find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
-use rand::{rng, seq::IndexedRandom};
+use rand::{distr::SampleString, rng, seq::IndexedRandom};
 use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,7 +30,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 use tokio::time::sleep;
-use tracing::{Instrument, warn};
+use tracing::{Instrument, info, warn};
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(
@@ -70,6 +70,10 @@ pub enum Command {
     Bump(String),
     #[command(description = "Roll anicca 10 packages")]
     Roll,
+    #[command(description = "Show your API token")]
+    Token,
+    #[command(rename = "resettoken", description = "Reset your API token")]
+    ResetToken,
 }
 
 async fn wait_with_send_typing<T, F: Future<Output = T>, B: Borrow<Bot>>(
@@ -307,6 +311,42 @@ async fn get_user(pool: DbPool, chat_id: ChatId, access_token: String) -> anyhow
     }
 
     bail!("Failed to get user info")
+}
+
+#[tracing::instrument(skip(pool))]
+async fn get_api_token(pool: DbPool, chat_id: ChatId, force_reset: bool) -> anyhow::Result<String> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    use crate::schema::users::dsl::*;
+    if let Some(mut user) = users
+        .filter(telegram_chat_id.eq(&chat_id.0))
+        .first::<User>(&mut conn)
+        .optional()?
+    {
+        let api_token = if force_reset {
+            None
+        } else {
+            user.get_api_token()
+        };
+        match api_token {
+            Some(api_token) => Ok(api_token),
+            None => {
+                info!("Resetting API token for {}", user.id);
+                let new_token = rand::distr::Alphanumeric.sample_string(&mut rand::rng(), 64);
+                diesel::update(users.find(user.id))
+                    .set((token.eq(&new_token),))
+                    .execute(&mut conn)?;
+                user.token = new_token;
+                Ok(user
+                    .get_api_token()
+                    .ok_or_else(|| anyhow!("user token unavailable after reset"))?)
+            }
+        }
+    } else {
+        bail!("Failed to get user info")
+    }
 }
 
 async fn create_pipeline_from_pr(
@@ -972,6 +1012,47 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 .await?;
             }
         },
+        Command::Token => match wait_with_send_typing(
+            get_api_token(pool, msg.chat.id, false),
+            &bot,
+            msg.chat.id.0,
+        )
+        .await
+        {
+            Ok(token) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Your current API token is: `{}`", token),
+                )
+                .parse_mode(ParseMode::MarkdownV2)
+                .await?;
+            }
+            Err(e) => {
+                bot.send_message(
+                    msg.chat.id,
+                    truncate(&format!("Failed to get API token: {}", e)),
+                )
+                .await?;
+            }
+        },
+        Command::ResetToken => {
+            match wait_with_send_typing(get_api_token(pool, msg.chat.id, true), &bot, msg.chat.id.0)
+                .await
+            {
+                Ok(token) => {
+                    bot.send_message(msg.chat.id, format!("Your new API token is: `{}`", token))
+                        .parse_mode(ParseMode::MarkdownV2)
+                        .await?;
+                }
+                Err(e) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Failed to reset API token: {}", e)),
+                    )
+                    .await?;
+                }
+            }
+        }
     };
 
     Ok(())

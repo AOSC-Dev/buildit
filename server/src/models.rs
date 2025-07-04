@@ -121,6 +121,17 @@ pub struct User {
     pub github_avatar_url: Option<String>,
     pub github_email: Option<String>,
     pub telegram_chat_id: Option<i64>,
+    pub token: String,
+}
+
+impl User {
+    pub fn get_api_token(&self) -> Option<String> {
+        if self.token.is_empty() {
+            None
+        } else {
+            Some(format!("aoscbldit1_{}_{}", self.id, self.token))
+        }
+    }
 }
 
 #[derive(Insertable, AsChangeset)]

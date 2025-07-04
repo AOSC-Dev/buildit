@@ -1,13 +1,16 @@
-use crate::{DbPool, HEARTBEAT_TIMEOUT, RemoteAddr};
+use crate::{DbPool, HEARTBEAT_TIMEOUT, RemoteAddr, models::User};
 use anyhow::Context;
 use axum::{
-    extract::{Json, State},
-    http::StatusCode,
+    extract::{FromRequestParts, Json, State},
+    http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
-use diesel::dsl::{count, sum};
 use diesel::{Connection, ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{
+    OptionalExtension,
+    dsl::{count, sum},
+};
 use futures::channel::mpsc::UnboundedSender;
 use serde::Serialize;
 use std::{
@@ -20,12 +23,14 @@ use tracing::info;
 
 pub mod job;
 pub mod pipeline;
+pub mod user;
 pub mod webhook;
 pub mod websocket;
 pub mod worker;
 
 pub use job::*;
 pub use pipeline::*;
+pub use user::*;
 pub use webhook::*;
 pub use websocket::*;
 pub use worker::*;
@@ -244,4 +249,61 @@ pub async fn dashboard_status(
             })
         })?,
     ))
+}
+
+pub struct ApiAuth(User);
+
+impl FromRequestParts<AppState> for ApiAuth {
+    type Rejection = Response;
+
+    fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
+        async {
+            if let Some(auth) = parts.headers.get("authorization")
+                && let Ok(auth) = auth.to_str()
+                && let Some(auth) = auth.trim().strip_prefix("Bearer ")
+            {
+                if let Some((uid, hash)) = parse_api_token(auth) {
+                    let mut conn = state
+                        .pool
+                        .get()
+                        .context("Failed to get db connection from pool")
+                        .map_err(|err| AnyhowError(err).into_response())?;
+
+                    use crate::schema::users::dsl::*;
+                    if let Some(user) = users
+                        .filter(id.eq(uid))
+                        .first::<User>(&mut conn)
+                        .optional()
+                        .map_err(|err| AnyhowError(err.into()).into_response())?
+                    {
+                        if user.token != hash {
+                            Err((StatusCode::UNAUTHORIZED, "invalid authorization token")
+                                .into_response())
+                        } else {
+                            Ok(Self(user))
+                        }
+                    } else {
+                        Err((StatusCode::UNAUTHORIZED, "auth user not found").into_response())
+                    }
+                } else {
+                    Err((StatusCode::UNAUTHORIZED, "malformed authorization token").into_response())
+                }
+            } else {
+                Err((StatusCode::UNAUTHORIZED, "token authorization is required").into_response())
+            }
+        }
+    }
+}
+
+pub fn parse_api_token(token: &str) -> Option<(i32, &str)> {
+    if let Some(part) = token.strip_prefix("aoscbldit1_")
+        && let Some((uid, hash)) = part.split_once('_')
+        && let Some(uid) = uid.parse::<i32>().ok()
+    {
+        return Some((uid, hash));
+    }
+    None
 }
