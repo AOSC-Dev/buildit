@@ -7,22 +7,22 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.80"
-chrono = "0.4.34"
-clap = { version = "4.5.1", features = ["derive", "env"] }
+anyhow = "1.0.98"
+chrono = "0.4.41"
+clap = { version = "4.5.40", features = ["derive", "env"] }
 common = { path = "../common" }
-dotenvy = "0.15.0"
-env_logger = "0.11.2"
+dotenvy = "0.15.7"
+env_logger = "0.11.8"
 fs2 = "0.4.3"
 gethostname = "1"
-log = "0.4.20"
-num_cpus = "1.16.0"
+log = "0.4.27"
+num_cpus = "1.17.0"
 reqwest = { version = "0.12", features = ["json"] }
 sysinfo = "0.35"
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "process", "sync", "fs"] }
+tokio = { version = "1.46.0", features = ["macros", "rt-multi-thread", "process", "sync", "fs"] }
 tokio-tungstenite = { version = "0.27.0", features = ["rustls", "rustls-tls-native-roots"] }
-futures-util = "0.3.30"
-flume = "0.11.0"
+futures-util = "0.3.31"
+flume = "0.11.1"
 tungstenite = { version = "0.27.0", features = ["rustls"] }
 
 [build-dependencies]
