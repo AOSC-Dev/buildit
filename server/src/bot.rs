@@ -167,7 +167,7 @@ async fn pipeline_new_and_report(
     match wait_with_send_typing(
         pipeline_new(
             pool,
-            git_branch,
+            Some(git_branch),
             None,
             None,
             packages,

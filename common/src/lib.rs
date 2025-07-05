@@ -13,7 +13,13 @@ pub struct WorkerPollRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WorkerPollResponse {
     pub job_id: i32,
-    pub git_branch: String,
+    /// PR HEAD branch (for non-fork PRs only) or 'stable'.
+    /// 
+    /// Either github_pr or git_branch must be present.
+    #[serde(default)]
+    pub git_branch: Option<String>,
+    #[serde(default)]
+    pub github_pr: Option<u64>,
     pub git_sha: String,
     pub packages: String,
 }
