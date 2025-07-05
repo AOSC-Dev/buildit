@@ -1048,6 +1048,9 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
     if let Some(msg) = query.message {
         if let Some(ref data) = query.data {
             if let Some(strip) = data.strip_prefix("restart_") {
+                if !check_maintainership(&bot, &pool, msg.chat().id).await? {
+                    return Ok(());
+                }
                 match str::parse::<i32>(strip) {
                     Ok(job_id) => {
                         match wait_with_send_typing(
@@ -1083,6 +1086,9 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                     }
                 }
             } else if let Some(strip) = data.strip_prefix("buildpr_") {
+                if !check_maintainership(&bot, &pool, msg.chat().id).await? {
+                    return Ok(());
+                }
                 match str::parse::<u64>(strip) {
                     Ok(pr_num) => {
                         let pipeline = create_pipeline_from_pr(
