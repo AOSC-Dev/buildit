@@ -5,7 +5,7 @@ use serde_json::Value;
 use tracing::{info, warn};
 
 use crate::{
-    ARGS, DbPool, api, bot::GitHubUser, formatter::to_html_new_pipeline_summary, paste_to_aosc_io,
+    api, bot::GitHubUser, formatter::to_html_new_pipeline_summary, is_maintainer, paste_to_aosc_io, DbPool, ARGS
 };
 
 use super::{AnyhowError, AppState};
@@ -76,7 +76,7 @@ async fn handle_webhook_comment(
         return Ok(());
     }
 
-    let is_org_user = is_org_user(&comment.user.login).await?;
+    let is_org_user = is_maintainer(&comment.user.login).await?;
 
     if !is_org_user {
         return Ok(());
@@ -159,11 +159,4 @@ async fn pipeline_new_pr_impl(
         .await?;
 
     Ok(())
-}
-
-async fn is_org_user(user: &str) -> anyhow::Result<bool> {
-    let crab = octocrab::Octocrab::builder()
-        .user_access_token(ARGS.github_access_token.clone())
-        .build()?;
-    Ok(crab.orgs("AOSC-Dev").check_membership(user).await?)
 }

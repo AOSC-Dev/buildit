@@ -3,6 +3,7 @@ use crate::{
     api::{JobSource, job_restart, pipeline_new, pipeline_new_pr, pipeline_status, worker_status},
     formatter::to_html_new_pipeline_summary,
     github::{get_github_token, login_github},
+    is_maintainer,
     models::{NewUser, User},
     paste_to_aosc_io,
 };
@@ -309,6 +310,42 @@ async fn get_user(pool: DbPool, chat_id: ChatId, access_token: String) -> anyhow
     bail!("Failed to get user info")
 }
 
+async fn check_maintainership(bot: &Bot, pool: &DbPool, chat_id: ChatId) -> ResponseResult<bool> {
+    match check_maintainership_inner(pool, chat_id).await {
+        Ok(_) => Ok(true),
+        Err(error) => {
+            bot.send_message(chat_id, format!("Failed maintainership check: {error:?}"))
+                .await?;
+            Ok(false)
+        }
+    }
+}
+
+async fn check_maintainership_inner(pool: &DbPool, chat_id: ChatId) -> anyhow::Result<()> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    use crate::schema::users::dsl::*;
+    if let Some(user) = users
+        .filter(telegram_chat_id.eq(&chat_id.0))
+        .first::<User>(&mut conn)
+        .optional()?
+    {
+        if let Some(gh_login) = user.github_login {
+            if is_maintainer(&gh_login).await? {
+                Ok(())
+            } else {
+                bail!("You are not a member of AOSC-Dev yet")
+            }
+        } else {
+            bail!("GitHub account is not connected")
+        }
+    } else {
+        bail!("user not found")
+    }
+}
+
 async fn create_pipeline_from_pr(
     pool: DbPool,
     pr_number: u64,
@@ -364,6 +401,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 .await?;
         }
         Command::PR(arguments) => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
             let parts = arguments.split_ascii_whitespace().collect::<Vec<_>>();
             if !(1..=2).contains(&parts.len()) {
                 bot.send_message(
@@ -406,6 +446,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
         }
         Command::Build(arguments) => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
             let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 3 {
                 let git_branch = parts[0];
@@ -596,6 +639,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
         }
         Command::Dickens(arguments) => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
             let mut pr_numbers = vec![];
             for part in arguments.split(',') {
                 match str::parse::<u64>(part) {
@@ -721,6 +767,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
         }
         Command::QA(arguments) => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
             let parts: Vec<&str> = arguments.split(' ').collect();
             if parts.len() == 2
                 && ALL_ARCH.contains(&parts[0])
@@ -786,6 +835,9 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
         }
         Command::Restart(arguments) => match str::parse::<i32>(&arguments) {
             Ok(job_id) => {
+                if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                    return Ok(());
+                }
                 match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat.id.0).await {
                     Ok(new_job) => {
                         bot.send_message(
@@ -813,6 +865,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
             }
         },
         Command::Bump(package_and_version) => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
+
             let app_private_key = match ARGS.github_app_key.as_ref() {
                 Some(p) => p,
                 None => {
@@ -958,24 +1014,29 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 }
             };
         }
-        Command::Roll => match wait_with_send_typing(roll(), &bot, msg.chat.id.0).await {
-            Ok(pkgs) => {
-                let mut s = String::new();
-                for i in pkgs {
-                    s.push_str(&i.to_string());
-                    s.push('\n');
-                }
+        Command::Roll => {
+            if !check_maintainership(&bot, &pool, msg.chat.id).await? {
+                return Ok(());
+            }
+            match wait_with_send_typing(roll(), &bot, msg.chat.id.0).await {
+                Ok(pkgs) => {
+                    let mut s = String::new();
+                    for i in pkgs {
+                        s.push_str(&i.to_string());
+                        s.push('\n');
+                    }
 
-                bot.send_message(msg.chat.id, truncate(&s)).await?;
+                    bot.send_message(msg.chat.id, truncate(&s)).await?;
+                }
+                Err(e) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        truncate(&format!("Failed to roll packages: {}", e)),
+                    )
+                    .await?;
+                }
             }
-            Err(e) => {
-                bot.send_message(
-                    msg.chat.id,
-                    truncate(&format!("Failed to roll packages: {}", e)),
-                )
-                .await?;
-            }
-        },
+        }
     };
 
     Ok(())
