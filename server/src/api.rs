@@ -18,7 +18,7 @@ use diesel::{
     connection::{AnsiTransactionManager, TransactionManager},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 use tracing::warn;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -55,7 +55,7 @@ async fn create_check_run(crab: octocrab::Octocrab, arch: String, git_sha: Strin
 #[allow(clippy::too_many_arguments)]
 pub async fn pipeline_new(
     pool: DbPool,
-    git_branch: &str,
+    git_branch: Option<&str>,
     git_sha: Option<&str>,
     github_pr: Option<u64>,
     packages: &str,
@@ -97,15 +97,27 @@ pub async fn pipeline_new(
     }
 
     // sanitize git_branch arg
-    if !git_branch
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '+' || ch == '_')
+    if let Some(git_branch) = git_branch
+        && !git_branch.chars().all(|ch| {
+            ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '+' || ch == '_'
+        })
     {
         return Err(anyhow!("Invalid branch: {git_branch}"));
     }
 
+    let (git_ref, local_branch) = if let Some(git_branch) = git_branch {
+        (Cow::Borrowed(git_branch), Cow::Borrowed(git_branch))
+    } else if let Some(pr_number) = github_pr {
+        (
+            Cow::Owned(format!("refs/pull/{}/head", pr_number)),
+            Cow::Owned(format!("pr{}", pr_number)),
+        )
+    } else {
+        bail!("Either git_branch or github_pr must be set when creating new pipeline")
+    };
+
     let lock = ABBS_REPO_LOCK.lock().await;
-    update_abbs(git_branch, &ARGS.abbs_path, skip_git_fetch)
+    update_abbs(&local_branch, &ARGS.abbs_path, &git_ref, skip_git_fetch)
         .await
         .context("Failed to update ABBS tree")?;
 
@@ -171,7 +183,7 @@ pub async fn pipeline_new(
     let new_pipeline = NewPipeline {
         packages: packages.to_string(),
         archs: archs.join(","),
-        git_branch: git_branch.to_string(),
+        git_branch: local_branch.into_owned(),
         git_sha: git_sha.clone(),
         creation_time: chrono::Utc::now(),
         source: source.to_string(),
@@ -274,9 +286,7 @@ pub async fn pipeline_new_pr(
                 (pr.head.ref_field.as_str(), &pr.head.sha)
             };
 
-            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
-                return Err(anyhow!("Failed to create job: Pull request is a fork"));
-            }
+            let fork = pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false);
 
             // find lines starting with #buildit
             let packages = get_packages_from_pr(&pr);
@@ -286,9 +296,17 @@ pub async fn pipeline_new_pr(
                     archs.to_string()
                 } else {
                     let path = &ARGS.abbs_path;
+                    let (git_ref, local_branch) = if fork {
+                        (
+                            Cow::Owned(format!("refs/pull/{}/head", pr.number)),
+                            Cow::Owned(format!("pr{}", pr.number)),
+                        )
+                    } else {
+                        (Cow::Borrowed(git_branch), Cow::Borrowed(git_branch))
+                    };
 
                     let _lock = ABBS_REPO_LOCK.lock().await;
-                    update_abbs(git_branch, &ARGS.abbs_path, false)
+                    update_abbs(&git_ref, &ARGS.abbs_path, &local_branch, false)
                         .await
                         .context("Failed to update ABBS tree")?;
                     // skip next git fetch in pipeline_new
@@ -302,7 +320,7 @@ pub async fn pipeline_new_pr(
 
                 pipeline_new(
                     pool,
-                    git_branch,
+                    if fork { None } else { Some(git_branch) },
                     Some(git_sha),
                     Some(pr.number),
                     &packages.join(","),

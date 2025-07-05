@@ -31,7 +31,7 @@ pub async fn pipeline_new(
 ) -> Result<Json<PipelineNewResponse>, AnyhowError> {
     let (pipeline, _) = api::pipeline_new(
         pool,
-        &payload.git_branch,
+        Some(&payload.git_branch),
         None,
         None,
         &payload.packages,

@@ -301,10 +301,21 @@ pub async fn worker_poll(
                 });
             }
 
+            // detect pipelines from fork repositories
+            let gh_pr = pipeline.github_pr.map(|pr| pr as u64);
+            let git_branch = if let Some(gh_pr) = gh_pr
+                && pipeline.git_branch == format!("pr{gh_pr}")
+            {
+                None
+            } else {
+                Some(pipeline.git_branch)
+            };
+
             // job allocated
             Ok(Json(Some(WorkerPollResponse {
                 job_id: job.id,
-                git_branch: pipeline.git_branch,
+                git_branch,
+                github_pr: gh_pr,
                 git_sha: pipeline.git_sha,
                 packages: job.packages,
             })))

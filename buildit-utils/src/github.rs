@@ -89,7 +89,7 @@ pub async fn open_pr(
 
     let _lock = ABBS_REPO_LOCK.lock().await;
 
-    update_abbs(&git_ref, &abbs_path, false).await?;
+    update_abbs(&git_ref, &abbs_path, &git_ref, false).await?;
 
     let abbs_path_clone = abbs_path.clone();
     let commits = task::spawn_blocking(move || get_commits(&abbs_path_clone))
@@ -332,6 +332,7 @@ fn get_commits(path: &Path) -> anyhow::Result<Vec<Commit>> {
 pub async fn update_abbs<P: AsRef<Path>>(
     git_ref: &str,
     abbs_path: P,
+    local_branch: &str,
     skip_git_fetch: bool,
 ) -> anyhow::Result<()> {
     info!("Running git checkout -b stable ...");
@@ -361,6 +362,48 @@ pub async fn update_abbs<P: AsRef<Path>>(
 
     print_stdout_and_stderr(&output);
 
+    info!("Running git reset origin/stable --hard ...");
+
+    let output = process::Command::new("git")
+        .arg("reset")
+        .arg("origin/stable")
+        .arg("--hard")
+        .current_dir(abbs_path)
+        .output()
+        .instrument(info_span!("git_reset_origin_stable"))
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    info!("Running git checkout -b {local_branch} ...");
+
+    let output = process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg(local_branch)
+        .current_dir(abbs_path)
+        .output()
+        .instrument(info_span!("git_checkout_branch"))
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    info!("Running git checkout {local_branch} ...");
+
+    let output = process::Command::new("git")
+        .arg("checkout")
+        .arg(local_branch)
+        .current_dir(abbs_path)
+        .output()
+        .instrument(info_span!("git_checkout_branch"))
+        .await?;
+
+    print_stdout_and_stderr(&output);
+
+    if !output.status.success() {
+        bail!("Failed to checkout {local_branch}");
+    }
+
     if skip_git_fetch {
         info!("Skippping git fetch ...")
     } else {
@@ -380,48 +423,6 @@ pub async fn update_abbs<P: AsRef<Path>>(
         if !output.status.success() {
             bail!("Failed to fetch origin git-ref: {git_ref}");
         }
-    }
-
-    info!("Running git reset origin/stable --hard ...");
-
-    let output = process::Command::new("git")
-        .arg("reset")
-        .arg("origin/stable")
-        .arg("--hard")
-        .current_dir(abbs_path)
-        .output()
-        .instrument(info_span!("git_reset_origin_stable"))
-        .await?;
-
-    print_stdout_and_stderr(&output);
-
-    info!("Running git checkout -b {git_ref} ...");
-
-    let output = process::Command::new("git")
-        .arg("checkout")
-        .arg("-b")
-        .arg(git_ref)
-        .current_dir(abbs_path)
-        .output()
-        .instrument(info_span!("git_checkout_branch"))
-        .await?;
-
-    print_stdout_and_stderr(&output);
-
-    info!("Running git checkout {git_ref} ...");
-
-    let output = process::Command::new("git")
-        .arg("checkout")
-        .arg(git_ref)
-        .current_dir(abbs_path)
-        .output()
-        .instrument(info_span!("git_checkout_branch"))
-        .await?;
-
-    print_stdout_and_stderr(&output);
-
-    if !output.status.success() {
-        bail!("Failed to checkout {git_ref}");
     }
 
     info!("Running git reset FETCH_HEAD --hard ...");

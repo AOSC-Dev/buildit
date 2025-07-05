@@ -165,3 +165,10 @@ async fn test_paste_to_aosc_io() {
     .unwrap();
     dbg!(id);
 }
+
+async fn is_maintainer(user: &str) -> anyhow::Result<bool> {
+    let crab = octocrab::Octocrab::builder()
+        .user_access_token(ARGS.github_access_token.clone())
+        .build()?;
+    Ok(crab.orgs("AOSC-Dev").check_membership(user).await?)
+}
