@@ -635,11 +635,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                 .await
                 {
                     Ok(pr) => match dickens::topic::report(
-                        &if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
-                            Cow::Owned(format!("pr{pr_number}"))
-                        } else {
-                            Cow::Borrowed(pr.head.ref_field.as_str())
-                        },
+                        pr.head.ref_field.as_str(),
                         ARGS.local_repo.clone(),
                     )
                     .await
