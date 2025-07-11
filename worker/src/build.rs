@@ -1,12 +1,10 @@
 use crate::{Args, get_memory_bytes};
-use anyhow::bail;
 use chrono::Local;
 use common::{JobOk, WorkerJobUpdateRequest, WorkerPollRequest, WorkerPollResponse};
 use flume::Sender;
 use futures_util::future::try_join3;
 use log::{error, info, warn};
 use std::{
-    borrow::Cow,
     path::Path,
     process::{Output, Stdio},
     time::{Duration, Instant},
@@ -165,22 +163,8 @@ async fn build(
     let mut build_success = false;
     let mut logs = vec![];
 
-    let (git_ref, local_branch) = if let Some(branch) = &job.git_branch {
-        (
-            Cow::Borrowed(branch.as_str()),
-            Cow::Borrowed(branch.as_str()),
-        )
-    } else if let Some(pr_num) = job.github_pr {
-        (
-            Cow::Owned(format!("refs/pull/{}/head", pr_num)),
-            Cow::Owned(format!("pr{}", pr_num)),
-        )
-    } else {
-        bail!("Job without either git_branch and github_pr")
-    };
-
     let mut output_path = args.ciel_path.clone();
-    output_path.push(format!("OUTPUT-{}", local_branch));
+    output_path.push(format!("OUTPUT-{}", job.git_branch));
 
     // clear output directory
     if output_path.exists() {
@@ -193,7 +177,7 @@ async fn build(
         &[
             "fetch",
             "https://github.com/AOSC-Dev/aosc-os-abbs.git",
-            &git_ref,
+            &job.git_branch,
         ],
         tree_path,
         &mut logs,
@@ -208,7 +192,7 @@ async fn build(
         // ensure branch exists
         get_output_logged(
             "git",
-            &["checkout", "-b", &local_branch],
+            &["checkout", "-b", &job.git_branch],
             tree_path,
             &mut logs,
             tx.clone(),
@@ -217,7 +201,7 @@ async fn build(
         // checkout to branch
         get_output_logged(
             "git",
-            &["checkout", &local_branch],
+            &["checkout", &job.git_branch],
             tree_path,
             &mut logs,
             tx.clone(),
@@ -310,12 +294,12 @@ async fn build(
                         "-i",
                         upload_ssh_key,
                         "maintainers",
-                        &local_branch,
+                        &job.git_branch,
                     ];
                     if !args.pushpkg_options.is_empty() {
                         pushpkg_args.insert(0, &args.pushpkg_options);
                     }
-                    if local_branch != "stable" {
+                    if &job.git_branch != "stable" {
                         // allow force push if noarch and non stable
                         pushpkg_args.insert(0, "--force-push-noarch-package");
                     }
@@ -335,7 +319,7 @@ async fn build(
     let file_name = format!(
         "{}-{}-{}-{}-{}.txt",
         job.job_id,
-        local_branch,
+        job.git_branch,
         args.arch,
         gethostname::gethostname().to_string_lossy(),
         Local::now().format("%Y-%m-%d-%H:%M:%S")

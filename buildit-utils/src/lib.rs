@@ -86,7 +86,7 @@ pub async fn find_update_and_update_checksum(
     let _lock = ABBS_REPO_LOCK.lock().await;
 
     // switch to stable branch
-    update_abbs("stable", &abbs_path, "stable", false).await?;
+    update_abbs("stable", &abbs_path, false).await?;
 
     match manual_update {
         Some(version) => {
