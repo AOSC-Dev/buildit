@@ -58,6 +58,7 @@ pub async fn pipeline_new_pr(
         payload.pr,
         payload.archs.as_deref(),
         JobSource::Manual,
+        true,
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
