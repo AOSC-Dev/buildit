@@ -52,6 +52,7 @@ diesel::table! {
         github_avatar_url -> Nullable<Text>,
         github_email -> Nullable<Text>,
         telegram_chat_id -> Nullable<Int8>,
+        token -> Text,
     }
 }
 

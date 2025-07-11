@@ -1,8 +1,10 @@
 use std::error::Error;
-use vergen::EmitBuilder;
+use vergen_gitcl::{Emitter, GitclBuilder};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Emit the instructions
-    EmitBuilder::builder().all_git().emit()?;
+    Emitter::default()
+        .add_instructions(&GitclBuilder::all_git()?)?
+        .emit()?;
     Ok(())
 }

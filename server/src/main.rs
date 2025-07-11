@@ -5,19 +5,11 @@ use axum::{Router, routing::get};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use opentelemetry::KeyValue;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::Resource;
-use opentelemetry_sdk::trace;
 use server::bot::{Command, answer, answer_callback};
 use server::recycler::recycler_worker;
-use server::routes::{
-    AppState, WSStateMap, dashboard_status, job_info, job_list, job_restart, ping, pipeline_info,
-    pipeline_list, pipeline_new_pr, webhook_handler, worker_info, worker_job_update, worker_list,
-    worker_poll, ws_viewer_handler, ws_worker_handler,
-};
-use server::routes::{pipeline_new, worker_heartbeat};
-use server::routes::{pipeline_status, worker_status};
+use server::routes::*;
 use server::{ARGS, DbPool, RemoteAddr};
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
@@ -36,20 +28,17 @@ async fn main() -> anyhow::Result<()> {
     // setup opentelemetry
     if let Some(otlp_url) = &ARGS.otlp_url {
         // setup otlp
-        let exporter = opentelemetry_otlp::new_exporter()
-            .http()
-            .with_endpoint(otlp_url);
-        let otlp_tracer =
-            opentelemetry_otlp::new_pipeline()
-                .tracing()
-                .with_trace_config(trace::config().with_resource(Resource::new(vec![
-                    KeyValue::new("service.name", "buildit"),
-                ])))
-                .with_exporter(exporter)
-                .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_http()
+            .with_endpoint(otlp_url)
+            .build()?;
+        let otlp_tracer = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
 
         // let tracing crate output to opentelemetry
-        let tracing_layer = tracing_opentelemetry::layer().with_tracer(otlp_tracer);
+        let tracing_layer =
+            tracing_opentelemetry::layer().with_tracer(otlp_tracer.tracer("buildit"));
         let subscriber = Registry::default();
         // respect RUST_LOG
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
@@ -126,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/ws/viewer/{hostname}", get(ws_viewer_handler))
         .route("/api/ws/worker/{hostname}", get(ws_worker_handler))
         .route("/api/webhook", post(webhook_handler))
+        .route("/api/user/self", get(user_self))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
         .fallback_service(ServeFile::new("frontend/dist/index.html"))
