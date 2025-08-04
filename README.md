@@ -17,7 +17,3 @@ Steps (as root):
 8. `chmod 600 /buildroots/buildit/buildit/.env`
 9. Generate a new SSH key at the location of `BUILDIT_SSH_KEY`, and setup `authorized_keys` on repo.aosc.io (contact infra team)
 10. Add SSH known hosts from repo.aosc.io and github.com: `ssh-keyscan repo.aosc.io >> ~/.ssh/known_hosts && ssh-keyscan github.com >> ~/.ssh/known_hosts`
-
-Arch-specific notes:
-
-- Add `RUSTFLAGS="-C link-arg=-fuse-ld=gold"` environment for loongson3
