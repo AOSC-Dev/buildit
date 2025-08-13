@@ -14,7 +14,7 @@ use rand::{rng, seq::IndexedRandom};
 use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     fmt::Display,
     future::Future,
     sync::{
@@ -29,6 +29,7 @@ use teloxide::{
     types::{ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
     utils::command::BotCommands,
 };
+use text_splitter::TextSplitter;
 use tokio::time::sleep;
 use tracing::{Instrument, warn};
 
@@ -1097,11 +1098,13 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
     Ok(v)
 }
 
-fn truncate(text: &str) -> Cow<'_, str> {
-    if text.chars().count() > 1000 {
-        console::truncate_str(text, 1000, "...")
+fn truncate(text: &str) -> &str {
+    const MAX_WIDTH: usize = 1000;
+
+    if text.chars().count() > MAX_WIDTH {
+        TextSplitter::new(MAX_WIDTH).chunks(text).next().unwrap()
     } else {
-        Cow::Borrowed(text)
+        text
     }
 }
 
