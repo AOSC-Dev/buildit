@@ -128,6 +128,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/webhook", post(webhook_handler))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
+        .route_service("/robots.txt", ServeFile::new("frontend/dist/robots.txt"))
         .fallback_service(ServeFile::new("frontend/dist/index.html"))
         .with_state(state)
         .layer(
