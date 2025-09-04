@@ -62,6 +62,7 @@ pub async fn pipeline_new(
     archs: &str,
     source: JobSource,
     skip_git_fetch: bool,
+    options: Option<&str>,
 ) -> anyhow::Result<(Pipeline, Vec<Job>)> {
     // sanitize archs arg
     let mut archs: Vec<&str> = archs.split(',').collect();
@@ -178,6 +179,7 @@ pub async fn pipeline_new(
         github_pr: github_pr.map(|pr| pr as i64),
         telegram_user,
         creator_user_id,
+        options: options.map(|s| s.to_string()),
     };
     let pipeline = diesel::insert_into(pipelines::table)
         .values(&new_pipeline)
@@ -235,6 +237,7 @@ pub async fn pipeline_new(
             require_min_total_mem: env_req_current.min_total_mem,
             require_min_total_mem_per_core: env_req_current.min_total_mem_per_core,
             require_min_disk: env_req_current.min_disk,
+            options: options.map(|s| s.to_string()),
         };
         jobs.push(
             diesel::insert_into(jobs::table)
@@ -309,6 +312,7 @@ pub async fn pipeline_new_pr(
                     &archs,
                     source,
                     skip_git_fetch,
+                    None,
                 )
                 .await
             } else {
@@ -423,6 +427,7 @@ async fn job_restart_in_transaction(job_id: i32, conn: &mut PgConnection) -> any
         require_min_total_mem: job.require_min_total_mem,
         require_min_total_mem_per_core: job.require_min_total_mem_per_core,
         require_min_disk: job.require_min_disk,
+        options: job.options,
     };
 
     // create new github check run if the restarted job has one

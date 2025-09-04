@@ -14,6 +14,7 @@ pub fn to_html_new_pipeline_summary(
     github_pr: Option<u64>,
     jobs: &[(&str, i32)],
     packages: &[&str],
+    options: Option<&str>,
 ) -> String {
     format!(
         r#"<b><u>New Pipeline Summary</u></b>
@@ -22,7 +23,8 @@ pub fn to_html_new_pipeline_summary(
 <b>Git branch</b>: {}
 <b>Git commit</b>: <a href="https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}">{}</a>{}
 <b>Architecture(s)</b>: {}
-<b>Package(s)</b>: {}"#,
+<b>Package(s)</b>: {}
+<b>Options: {}"#,
         pipeline_id,
         pipeline_id,
         git_branch,
@@ -41,6 +43,7 @@ pub fn to_html_new_pipeline_summary(
             .collect::<Vec<_>>()
             .join(", "),
         packages.join(", "),
+        options.unwrap_or("None"),
     )
 }
 
@@ -190,6 +193,7 @@ fn test_format_html_new_pipeline_summary() {
         Some(4992),
         &[("amd64", 1)],
         &["fd"],
+        None,
     );
     assert_eq!(
         s,
@@ -213,6 +217,7 @@ fn test_format_html_build_result() {
         github_pr: Some(4992),
         telegram_user: None,
         creator_user_id: None,
+        options: None,
     };
 
     let job = Job {
@@ -239,6 +244,7 @@ fn test_format_html_build_result() {
         require_min_disk: None,
         require_min_total_mem: None,
         require_min_total_mem_per_core: None,
+        options: None,
     };
 
     let job_ok = JobOk {

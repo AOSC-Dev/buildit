@@ -18,6 +18,7 @@ pub struct PipelineNewRequest {
     git_branch: String,
     packages: String,
     archs: String,
+    options: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -38,6 +39,7 @@ pub async fn pipeline_new(
         &payload.archs,
         JobSource::Manual,
         false,
+        payload.options.as_deref(),
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))

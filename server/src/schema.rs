@@ -25,6 +25,7 @@ diesel::table! {
         require_min_total_mem_per_core -> Nullable<Float4>,
         require_min_disk -> Nullable<Int8>,
         assign_time -> Nullable<Timestamptz>,
+        options -> Nullable<Text>,
     }
 }
 
@@ -40,6 +41,7 @@ diesel::table! {
         github_pr -> Nullable<Int8>,
         telegram_user -> Nullable<Int8>,
         creator_user_id -> Nullable<Int4>,
+        options -> Nullable<Text>,
     }
 }
 
@@ -74,4 +76,9 @@ diesel::table! {
 diesel::joinable!(jobs -> pipelines (pipeline_id));
 diesel::joinable!(pipelines -> users (creator_user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);
+diesel::allow_tables_to_appear_in_same_query!(
+    jobs,
+    pipelines,
+    users,
+    workers,
+);

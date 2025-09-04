@@ -15,6 +15,7 @@ pub struct Pipeline {
     pub github_pr: Option<i64>,
     pub telegram_user: Option<i64>,
     pub creator_user_id: Option<i32>,
+    pub options: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -30,6 +31,7 @@ pub struct NewPipeline {
     pub github_pr: Option<i64>,
     pub telegram_user: Option<i64>,
     pub creator_user_id: Option<i32>,
+    pub options: Option<String>,
 }
 
 #[derive(Queryable, Selectable, Associations, Identifiable, Debug)]
@@ -60,6 +62,7 @@ pub struct Job {
     pub require_min_total_mem_per_core: Option<f32>,
     pub require_min_disk: Option<i64>,
     pub assign_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub options: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -76,6 +79,7 @@ pub struct NewJob {
     pub require_min_total_mem: Option<i64>,
     pub require_min_total_mem_per_core: Option<f32>,
     pub require_min_disk: Option<i64>,
+    pub options: Option<String>,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug)]

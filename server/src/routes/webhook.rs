@@ -148,6 +148,7 @@ async fn pipeline_new_pr_impl(
                 .map(|job| (job.arch.as_str(), job.id))
                 .collect::<Vec<_>>(),
             &pipeline.packages.split(',').collect::<Vec<_>>(),
+            None,
         ),
         Err(e) => {
             format!("Failed to create pipeline: {e}")
