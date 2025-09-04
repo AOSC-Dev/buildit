@@ -42,13 +42,14 @@ pub enum Command {
     #[command(description = "Display usage: /help")]
     Help,
     #[command(
-        description = "Start a build job: /build branch packages archs (e.g., /build stable bash,fish amd64,arm64)"
+        description = "Start a build job: /build branch packages archs (use `mainline' for all) [options (with_topics), comma separated] (e.g., /build new-topic new-package1,new-package2 amd64,arm64 with_topics)"
     )]
     Build(String),
     #[command(
         description = "Start one or more build jobs from GitHub PR: /pr pr-numbers [archs] (e.g., /pr 12,34 amd64,arm64)"
     )]
     PR(String),
+
     #[command(description = "Show queue and server status: /status")]
     Status,
     #[command(
@@ -164,6 +165,7 @@ async fn pipeline_new_and_report(
     packages: &str,
     archs: &str,
     msg: &Message,
+    options: Option<&str>,
 ) -> ResponseResult<()> {
     match wait_with_send_typing(
         pipeline_new(
@@ -175,6 +177,7 @@ async fn pipeline_new_and_report(
             archs,
             JobSource::Telegram(msg.chat.id.0),
             false,
+            options,
         ),
         bot,
         msg.chat.id.0,
@@ -194,6 +197,7 @@ async fn pipeline_new_and_report(
                         .map(|job| (job.arch.as_str(), job.id))
                         .collect::<Vec<_>>(),
                     &pipeline.packages.split(',').collect::<Vec<_>>(),
+                    options,
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -337,6 +341,7 @@ async fn create_pipeline_from_pr(
                         .map(|job| (job.arch.as_str(), job.id))
                         .collect::<Vec<_>>(),
                     &pipeline.packages.split(',').collect::<Vec<_>>(),
+                    None,
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -408,12 +413,28 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
         }
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(' ').collect();
-            if parts.len() == 3 {
+            if !(3..=4).contains(&parts.len()) {
                 let git_branch = parts[0];
                 let packages = parts[1];
                 let archs = parts[2];
 
-                pipeline_new_and_report(&bot, pool, git_branch, packages, archs, &msg).await?;
+                let raw_options = parts.get(3);
+                let mut options = String::new();
+                match raw_options {
+                    Some(raw_options) => {
+                        let raw_options_list: Vec<_> = raw_options.split(',').collect();
+                        for option_item in raw_options_list {
+                            if option_item == "with_topics" && git_branch != "stable" {
+                                options.push_str(option_item)
+                            }
+                        }
+                    },
+                    None => (),
+                };
+
+                let options = if options.is_empty() { None } else { Some(options.as_str()) };
+
+                pipeline_new_and_report(&bot, pool, git_branch, packages, archs, &msg, options).await?;
 
                 return Ok(());
             }
@@ -749,6 +770,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                                     &pkg.name,
                                     arch,
                                     &msg,
+                                    None,
                                 )
                                 .await?;
                             }

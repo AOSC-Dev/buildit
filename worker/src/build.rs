@@ -233,6 +233,11 @@ async fn build(
             // build packages
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.split(','));
+            if let Some(options) = &job.options.as_ref() {
+                if options.contains("with_topics") {
+                    ciel_args.extend_from_slice(&["--with_topics", &job.git_branch]);
+                }
+            }
             let output =
                 get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs, tx.clone())
                     .await?;

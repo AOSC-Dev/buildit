@@ -307,6 +307,7 @@ pub async fn worker_poll(
                 git_branch: pipeline.git_branch,
                 git_sha: pipeline.git_sha,
                 packages: job.packages,
+                options: job.options,
             })))
         }
         None => Ok(Json(None)),

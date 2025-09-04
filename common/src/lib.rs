@@ -16,6 +16,7 @@ pub struct WorkerPollResponse {
     pub git_branch: String,
     pub git_sha: String,
     pub packages: String,
+    pub options: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
