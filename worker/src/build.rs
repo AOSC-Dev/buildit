@@ -234,8 +234,8 @@ async fn build(
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.split(','));
             if let Some(options) = &job.options.as_ref() {
-                if options.contains("with_topics") {
-                    ciel_args.extend_from_slice(&["--with_topics", &job.git_branch]);
+                if options.contains("with-topics") {
+                    ciel_args.extend_from_slice(&["--with-topics", &job.git_branch]);
                 }
             }
             let output =

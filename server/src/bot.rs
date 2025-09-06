@@ -42,7 +42,7 @@ pub enum Command {
     #[command(description = "Display usage: /help")]
     Help,
     #[command(
-        description = "Start a build job: /build branch packages archs (use `mainline' for all) [options (with_topics), comma separated] (e.g., /build new-topic new-package1,new-package2 amd64,arm64 with_topics)"
+        description = "Start a build job: /build branch packages archs (use `mainline' for all) [options (with-topics), comma separated] (e.g., /build new-topic new-package1,new-package2 amd64,arm64 with-topics)"
     )]
     Build(String),
     #[command(
@@ -424,7 +424,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     Some(raw_options) => {
                         let raw_options_list: Vec<_> = raw_options.split(',').collect();
                         for option_item in raw_options_list {
-                            if option_item == "with_topics" && git_branch != "stable" {
+                            if option_item == "with-topics" && git_branch != "stable" {
                                 options.push_str(option_item)
                             }
                         }
