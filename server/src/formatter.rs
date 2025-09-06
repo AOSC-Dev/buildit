@@ -24,7 +24,7 @@ pub fn to_html_new_pipeline_summary(
 <b>Git commit</b>: <a href="https://github.com/AOSC-Dev/aosc-os-abbs/commit/{}">{}</a>{}
 <b>Architecture(s)</b>: {}
 <b>Package(s)</b>: {}
-<b>Options: {}"#,
+<b>Options</b>: {}"#,
         pipeline_id,
         pipeline_id,
         git_branch,

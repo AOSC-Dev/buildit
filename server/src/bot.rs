@@ -413,7 +413,7 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
         }
         Command::Build(arguments) => {
             let parts: Vec<&str> = arguments.split(' ').collect();
-            if !(3..=4).contains(&parts.len()) {
+            if (3..=4).contains(&parts.len()) {
                 let git_branch = parts[0];
                 let packages = parts[1];
                 let archs = parts[2];
