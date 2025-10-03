@@ -1,6 +1,6 @@
 use anyhow::{Context, bail};
 use axum::{extract::connect_info, serve::IncomingStream};
-use chrono::{Datelike, Days};
+use chrono::{Days};
 use clap::Parser;
 use diesel::{
     PgConnection,
@@ -104,26 +104,16 @@ impl connect_info::Connected<IncomingStream<'_, TcpListener>> for RemoteAddr {
 
 pub async fn paste_to_aosc_io(title: &str, text: &str) -> anyhow::Result<String> {
     if text.len() > 10485760 {
-        bail!("text is too large to be pasted to https://aosc.io/paste")
+        bail!("text is too large to be pasted to https://paste.aosc.io/")
     }
     let client = ClientBuilder::new().user_agent("buildit").build()?;
-    let exp_date = chrono::Utc::now()
-        .checked_add_days(Days::new(7))
-        .context("failed to generate expDate")?;
-    let exp_date = format!(
-        "{:04}-{:02}-{:02}",
-        exp_date.year(),
-        exp_date.month(),
-        exp_date.day()
-    );
+    let form = reqwest::multipart::Form::new()
+        .text("title", title.to_string())
+        .text("language", "diff")
+        .text("content", text.to_string());
     let resp = client
-        .post("https://aosc.io/pasteApi/paste")
-        .form(&[
-            ("title", title),
-            ("language", "plaintext"),
-            ("content", text),
-            ("expDate", &exp_date),
-        ])
+        .post("https://paste.aosc.io/")
+        .multipart(form)
         .send()
         .await?
         .error_for_status()?
@@ -134,13 +124,13 @@ pub async fn paste_to_aosc_io(title: &str, text: &str) -> anyhow::Result<String>
             .get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("(no message field)");
-        bail!("aosc.io/paste error: {}", msg)
+        bail!("paste.aosc.io error: {}", msg)
     } else {
         let id = resp
-            .get("data")
+            .get("msg")
             .and_then(|v| v.get("id"))
             .and_then(|v| v.as_str())
-            .context("$.data.id not found from paste response")?;
+            .context("$.msg.id not found from paste response")?;
         Ok(id.to_string())
     }
 }
