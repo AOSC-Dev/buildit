@@ -7,6 +7,30 @@ pub const FAILED: &str = "❌";
 pub const SUCCESS_TEXT: &str = "successfully";
 pub const FAILED_TEXT: &str = "unsuccessfully";
 
+pub fn format_package_list<I, S>(job_id: i32, list: I, len: usize) -> String
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut ret = String::with_capacity(1024);
+    for (idx, package) in list.into_iter().enumerate() {
+        let package = package.as_ref();
+        if ret.len() + package.len() + 2 > 900 {
+            let remaining = len - idx;
+            ret += &format!(
+                ", <a href=\"https://buildit.aosc.io/jobs/{}\">and {} more</a>",
+                job_id, remaining
+            );
+            break;
+        }
+        if !ret.is_empty() {
+            ret += ", "
+        }
+        ret += package
+    }
+    ret
+}
+
 pub fn to_html_new_pipeline_summary(
     pipeline_id: i32,
     git_branch: &str,
@@ -64,6 +88,17 @@ pub fn to_html_build_result(
         ..
     } = job_ok;
 
+    // Hard limit - Telegram allows 4,096 chacacters maximum
+    let rendered_succeeded_pkgs =
+        format_package_list(job.id, successful_packages, successful_packages.len());
+    let rendered_skipped_pkgs =
+        format_package_list(job.id, skipped_packages, skipped_packages.len());
+    let rendered_all_pkgs = format_package_list(
+        job.id,
+        job.packages.split(','),
+        job.packages.chars().filter(|c| *c == ',').count() + 1,
+    );
+
     format!(
         r#"{} Job {} completed on {} ({})
 
@@ -112,10 +147,10 @@ pub fn to_html_build_result(
             Cow::Borrowed("")
         },
         job.arch,
-        job.packages.replace(",", ", "),
-        &successful_packages.join(", "),
+        rendered_all_pkgs,
+        rendered_succeeded_pkgs,
         &failed_package.clone().unwrap_or(String::from("None")),
-        &skipped_packages.join(", "),
+        rendered_skipped_pkgs,
         if let Some(log) = log_url {
             Cow::Owned(format!("<a href=\"{}\">Build Log >></a>", log))
         } else {
@@ -143,6 +178,16 @@ pub fn to_markdown_build_result(
         ..
     } = job_ok;
 
+    let rendered_succeeded_pkgs =
+        format_package_list(job.id, successful_packages, successful_packages.len());
+    let rendered_skipped_pkgs =
+        format_package_list(job.id, skipped_packages, skipped_packages.len());
+    let rendered_all_pkgs = format_package_list(
+        job.id,
+        job.packages.split(','),
+        job.packages.split(',').count(),
+    );
+
     format!(
         "{} Job {} completed on {} \\({}\\)\n\n**Job**: {}\n**Pipeline**: {}\n**Enqueue time**: {}\n**Time elapsed**: {}s\n{}{}**Architecture**: {}\n**Package\\(s\\) to build**: {}\n**Package\\(s\\) successfully built**: {}\n**Package\\(s\\) failed to build**: {}\n**Package\\(s\\) not built due to previous build failure**: {}\n\n{}\n",
         if success { SUCCESS } else { FAILED },
@@ -166,10 +211,10 @@ pub fn to_markdown_build_result(
             &pipeline.git_branch, pipeline.git_branch
         ),
         job.arch,
-        teloxide::utils::markdown::escape(&job.packages.replace(",", ", ")),
-        teloxide::utils::markdown::escape(&successful_packages.join(", ")),
+        teloxide::utils::markdown::escape(&rendered_all_pkgs),
+        teloxide::utils::markdown::escape(&rendered_succeeded_pkgs),
         teloxide::utils::markdown::escape(&failed_package.clone().unwrap_or(String::from("None"))),
-        teloxide::utils::markdown::escape(&skipped_packages.join(", ")),
+        teloxide::utils::markdown::escape(&rendered_skipped_pkgs),
         if let Some(log) = log_url {
             Cow::Owned(format!("[Build Log \\>\\>]({})", log))
         } else {
@@ -198,6 +243,15 @@ fn test_format_html_new_pipeline_summary() {
     assert_eq!(
         s,
         "<b><u>New Pipeline Summary</u></b>\n\n<b>Pipeline</b>: <a href=\"https://buildit.aosc.io/pipelines/1\">#1</a>\n<b>Git branch</b>: fd-9.0.0\n<b>Git commit</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/commit/123456789\">12345678</a>\n<b>GitHub PR</b>: <a href=\"https://github.com/AOSC-Dev/aosc-os-abbs/pull/4992\">#4992</a>\n<b>Architecture(s)</b>: <a href=\"https://buildit.aosc.io/jobs/1\">amd64</a>\n<b>Package(s)</b>: fd"
+    )
+}
+
+#[test]
+fn test_format_extra_long_list() {
+    let packages = (1..=1024).map(|n| format!("package-name-{:04}", n)).collect::<Vec<_>>();
+    assert_eq!(
+        format_package_list(1234, &packages, packages.len()),
+        "package-name-0001, package-name-0002, package-name-0003, package-name-0004, package-name-0005, package-name-0006, package-name-0007, package-name-0008, package-name-0009, package-name-0010, package-name-0011, package-name-0012, package-name-0013, package-name-0014, package-name-0015, package-name-0016, package-name-0017, package-name-0018, package-name-0019, package-name-0020, package-name-0021, package-name-0022, package-name-0023, package-name-0024, package-name-0025, package-name-0026, package-name-0027, package-name-0028, package-name-0029, package-name-0030, package-name-0031, package-name-0032, package-name-0033, package-name-0034, package-name-0035, package-name-0036, package-name-0037, package-name-0038, package-name-0039, package-name-0040, package-name-0041, package-name-0042, package-name-0043, package-name-0044, package-name-0045, package-name-0046, package-name-0047, <a href=\"https://buildit.aosc.io/jobs/1234\">and 977 more</a>"
     )
 }
 
