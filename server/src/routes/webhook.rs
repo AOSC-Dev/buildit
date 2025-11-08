@@ -130,6 +130,7 @@ async fn pipeline_new_pr_impl(
         pr,
         archs,
         api::JobSource::GitHub { pr, user: gh_user },
+        false,
     )
     .await;
 
