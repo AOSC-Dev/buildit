@@ -883,11 +883,14 @@ pub fn fail_arch_regex(expr: &str) -> anyhow::Result<Regex> {
                 regex += "?!";
             }
         }
+        if c == &b'|' || c == &b')' {
+            regex += "$"
+        }
         regex += std::str::from_utf8(&[*c])?;
     }
 
     if sup_bracket {
-        regex += ")";
+        regex += "$)";
     }
 
     Ok(Regex::new(&regex)?)
