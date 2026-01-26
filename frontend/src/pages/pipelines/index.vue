@@ -162,30 +162,8 @@
           </template>
           <template #item.jobs="{ item }">
             <div class="d-inline-flex">
-              <div v-for="job in (item as Pipeline).jobs" :link="job.job_id">
-                <!-- https://stackoverflow.com/questions/44808474/vue-router-how-to-remove-underline-from-router-link -->
-                <router-link
-                  style="text-decoration: none; color: inherit;"
-                  :to="{ path: `/jobs/${(job as Job).job_id}` }">
-                  <v-icon v-if="(job as Job).status === 'success'" color="green" size="large">
-                    mdi:mdi-check-circle-outline
-                  </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'failed'" color="red" size="large">
-                    mdi:mdi-close-circle-outline
-                  </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'running'" color="blue" size="large">
-                    mdi:mdi-circle-slice-5
-                  </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'error'" color="red" size="large">
-                    mdi:mdi-alert-circle-outline
-                  </v-icon>
-                  <v-icon v-else-if="(job as Job).status === 'created'" color="grey" size="large">
-                    mdi:mdi-circle-slice-8
-                  </v-icon>
-                  <v-tooltip activator="parent" location="bottom">
-                    Job #{{ (job as Job).job_id }} for {{ (job as Job).arch }}: {{ (job as Job).status }}
-                  </v-tooltip>
-                </router-link>
+              <div v-for="job in (item as Pipeline).jobs" :link="job.job_id" :key="job.job_id">
+                <JobStatusIconLink :job-id="job.job_id" :status="job.status" :arch="job.arch" />
               </div>
             </div>
           </template>
@@ -202,6 +180,7 @@
 <script lang="ts">
   import axios from 'axios';
   import { hostname } from '@/common';
+  import JobStatusIconLink from '@/components/JobStatusIconLink.vue';
   import TimeAgo from 'javascript-time-ago'
   import en from 'javascript-time-ago/locale/en'
 

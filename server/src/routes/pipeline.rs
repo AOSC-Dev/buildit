@@ -74,6 +74,7 @@ pub struct PipelineInfoRequest {
 pub struct PipelineInfoResponseJob {
     job_id: i32,
     arch: String,
+    status: String,
 }
 
 #[derive(Serialize)]
@@ -113,6 +114,7 @@ pub async fn pipeline_info(
                 .map(|job| PipelineInfoResponseJob {
                     job_id: job.id,
                     arch: job.arch,
+                    status: job.status,
                 })
                 .collect();
 
