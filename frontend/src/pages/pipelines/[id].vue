@@ -22,15 +22,21 @@
         <div v-if="pipeline.github_pr !== null && pipeline.github_pr !== undefined">
           GitHub PR: <a :href="`https://github.com/AOSC-Dev/aosc-os-abbs/pull/${pipeline.github_pr}`">
             {{ pipeline.github_pr }}
-          </a> 
+          </a>
           <br/>
         </div>
-        Jobs: <div v-for="job in pipeline.jobs" :key="job.job_id">
-          Job
-          <router-link :to="{ path: `/jobs/${job.job_id}` }">
-            #{{ job.job_id }}
-          </router-link>
-          for {{ job.arch }}
+        Jobs:
+        <div v-for="job in pipeline.jobs" :key="job.job_id">
+          <div class="d-inline-flex align-center ga-2">
+            <JobStatusIconLink :job-id="job.job_id" :status="job.status" :arch="job.arch" />
+            <span>
+              Job
+              <router-link :to="{ path: `/jobs/${job.job_id}` }">
+                #{{ job.job_id }}
+              </router-link>
+              for {{ job.arch }}
+            </span>
+          </div>
         </div>
       </v-card-text>
     </v-card>
@@ -44,10 +50,12 @@
 <script lang="ts">
   import axios from 'axios';
   import { hostname } from '@/common';
+  import JobStatusIconLink from '@/components/JobStatusIconLink.vue';
 
   interface PipelineInfoResponseJob {
     job_id: number;
     arch: string;
+    status: string;
   }
 
   interface PipelineInfoResponse {
