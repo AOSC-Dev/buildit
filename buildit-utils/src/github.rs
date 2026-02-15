@@ -24,7 +24,7 @@ use crate::{
 
 macro_rules! PR {
     () => {
-        "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
+        "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\n{}\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
     };
 }
 
@@ -502,6 +502,15 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         archs,
     } = pr;
 
+    // pr tags
+    let tags = if let Some(tags) = tags {
+        Cow::Borrowed(tags)
+    } else {
+        Cow::Owned(auto_add_label(title))
+    };
+
+    let is_security = tags.iter().any(|t| t == "0day" || t == "security");
+
     let crab = octocrab::Octocrab::builder()
         .app(id.into(), key)
         .user_access_token(access_token)
@@ -512,16 +521,10 @@ async fn open_pr_inner(pr: OpenPR<'_>) -> Result<PullRequest, octocrab::Error> {
         PR!(),
         desc,
         pkg_affected.join("\n"),
+        if is_security { "Yes" } else { "No" },
         format!("#buildit {}", packages.replace(',', " ")),
         format_archs(archs)
     );
-
-    // pr tags
-    let tags = if let Some(tags) = tags {
-        Cow::Borrowed(tags)
-    } else {
-        Cow::Owned(auto_add_label(title))
-    };
 
     // check if there are existing open pr
 
