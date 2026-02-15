@@ -24,7 +24,7 @@ use crate::{
 
 macro_rules! PR {
     () => {
-        "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\nNo\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
+        include_str!("template.md")
     };
 }
 
