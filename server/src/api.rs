@@ -277,8 +277,11 @@ pub async fn pipeline_new_pr(
                 (pr.head.ref_field.as_str(), &pr.head.sha)
             };
 
-            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) {
-                return Err(anyhow!("Failed to create job: Pull request is a fork"));
+            if pr.head.repo.as_ref().and_then(|x| x.fork).unwrap_or(false) && pr.merged_at.is_none()
+            {
+                return Err(anyhow!(
+                    "Failed to create job: Pull request from a forked repository"
+                ));
             }
 
             // find lines starting with #buildit
