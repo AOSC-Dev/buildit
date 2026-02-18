@@ -322,7 +322,7 @@ async fn create_pipeline_from_pr(
     bot: &Bot,
 ) -> ResponseResult<()> {
     match wait_with_send_typing(
-        pipeline_new_pr(pool, pr_number, archs, JobSource::Telegram(chat.0)),
+        pipeline_new_pr(pool, pr_number, archs, JobSource::Telegram(chat.0), false),
         bot,
         chat.0,
     )

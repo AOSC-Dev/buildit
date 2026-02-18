@@ -257,6 +257,7 @@ pub async fn pipeline_new_pr(
     pr: u64,
     archs: Option<&str>,
     source: JobSource,
+    no_fork: bool,
 ) -> anyhow::Result<(Pipeline, Vec<Job>)> {
     match octocrab::instance()
         .pulls("AOSC-Dev", "aosc-os-abbs")
@@ -282,6 +283,10 @@ pub async fn pipeline_new_pr(
                 return Err(anyhow!(
                     "Failed to create job: Pull request from a forked repository"
                 ));
+            }
+
+            if fork && no_fork {
+                bail!("Only maintainers can start build pipelines")
             }
 
             // find lines starting with #buildit
