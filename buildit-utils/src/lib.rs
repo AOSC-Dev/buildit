@@ -213,12 +213,12 @@ async fn git_push(
     let branch = format!("{pkg}-{ver}");
     let title = format!("{pkg}: update to {ver}");
 
-    let branches = Command::new("git").arg("branch").output().await?;
+    let branches = Command::new("git").arg("branch").arg("-a").output().await?;
     let mut branches_stdout = BufReader::new(&*branches.stdout).lines();
 
     while let Ok(Some(line)) = branches_stdout.next_line().await {
         if line.contains(&branch) {
-            bail!("Branch {} already exists.", branch);
+            bail!("Branch {branch} already exists, for line: {line}");
         }
     }
 
