@@ -1115,7 +1115,7 @@ async fn roll() -> anyhow::Result<Vec<UpdatePkg>> {
 
     let mut rng = rng();
 
-    let v = json.choose_multiple(&mut rng, 10).cloned().collect();
+    let v = json.sample(&mut rng, 10).cloned().collect();
 
     Ok(v)
 }
