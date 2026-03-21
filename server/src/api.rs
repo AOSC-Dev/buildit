@@ -201,7 +201,7 @@ pub async fn pipeline_new(
     };
 
     // for eatch arch, create github check run in parallel
-    let github_check_run_ids: Vec<Option<u64>> = if let Some(crab) = &crab {
+    let github_check_run_ids: Vec<Option<u64>> = if let Some(crab) = crab {
         let mut handles = vec![];
         for arch in &archs {
             handles.push(tokio::spawn(create_check_run(
