@@ -38,7 +38,7 @@ pub async fn pipeline_new(
         None,
         &payload.packages,
         &payload.archs,
-        JobSource::Manual(Some(user.id)),
+        JobSource::Manual(user.map(|u| u.id)),
         false,
         payload.options.as_deref(),
     )
@@ -61,7 +61,7 @@ pub async fn pipeline_new_pr(
         pool,
         payload.pr,
         payload.archs.as_deref(),
-        JobSource::Manual(Some(user.id)),
+        JobSource::Manual(user.map(|u| u.id)),
     )
     .await?;
     Ok(Json(PipelineNewResponse { id: pipeline.id }))
