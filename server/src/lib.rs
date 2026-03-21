@@ -63,6 +63,14 @@ pub struct Args {
     /// Listen to unix socket if set
     #[arg(env = "BUILDIT_LISTEN_SOCKET_PATH")]
     pub unix_socket: Option<PathBuf>,
+
+    /// Static authentication tokens
+    #[arg(
+        env = "BUILDIT_STATIC_TOKENS",
+        default_value = "",
+        value_delimiter = ','
+    )]
+    pub static_tokens: Vec<String>,
 }
 
 pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);

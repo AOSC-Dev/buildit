@@ -1,4 +1,4 @@
-use crate::{DbPool, HEARTBEAT_TIMEOUT, RemoteAddr, models::User};
+use crate::{ARGS, DbPool, HEARTBEAT_TIMEOUT, RemoteAddr, models::User};
 use anyhow::Context;
 use axum::{
     extract::{FromRequestParts, Json, State},
@@ -251,7 +251,7 @@ pub async fn dashboard_status(
     ))
 }
 
-pub struct ApiAuth(User);
+pub struct ApiAuth(Option<User>);
 
 impl FromRequestParts<AppState> for ApiAuth {
     type Rejection = Response;
@@ -283,11 +283,17 @@ impl FromRequestParts<AppState> for ApiAuth {
                             Err((StatusCode::UNAUTHORIZED, "invalid authorization token")
                                 .into_response())
                         } else {
-                            Ok(Self(user))
+                            Ok(Self(Some(user)))
                         }
                     } else {
                         Err((StatusCode::UNAUTHORIZED, "auth user not found").into_response())
                     }
+                } else if ARGS
+                    .static_tokens
+                    .iter()
+                    .any(|s| s.eq_ignore_ascii_case(auth))
+                {
+                    Ok(Self(None))
                 } else {
                     Err((StatusCode::UNAUTHORIZED, "malformed authorization token").into_response())
                 }

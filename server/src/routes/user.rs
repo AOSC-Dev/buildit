@@ -1,4 +1,5 @@
 use axum::{Json, response::IntoResponse};
+use hyper::StatusCode;
 use serde::Serialize;
 
 use crate::routes::ApiAuth;
@@ -15,16 +16,25 @@ pub struct SelfResponse {
 }
 
 pub async fn user_self(ApiAuth(user): ApiAuth) -> impl IntoResponse {
-    (
-        [("Cache-Control", "private, no-store")],
-        Json(SelfResponse {
-            id: user.id,
-            github_login: user.github_login,
-            github_id: user.github_id,
-            github_name: user.github_name,
-            github_avatar_url: user.github_avatar_url,
-            github_email: user.github_email,
-            telegram_chat_id: user.telegram_chat_id,
-        }),
-    )
+    if let Some(user) = user {
+        (
+            [("Cache-Control", "private, no-store")],
+            Json(SelfResponse {
+                id: user.id,
+                github_login: user.github_login,
+                github_id: user.github_id,
+                github_name: user.github_name,
+                github_avatar_url: user.github_avatar_url,
+                github_email: user.github_email,
+                telegram_chat_id: user.telegram_chat_id,
+            }),
+        )
+            .into_response()
+    } else {
+        (
+            [("Cache-Control", "private, no-store")],
+            StatusCode::UNAUTHORIZED,
+        )
+            .into_response()
+    }
 }
