@@ -54,7 +54,8 @@ diesel::table! {
         github_avatar_url -> Nullable<Text>,
         github_email -> Nullable<Text>,
         telegram_chat_id -> Nullable<Int8>,
-        token -> Text,
+        #[max_length = 64]
+        token -> Varchar,
     }
 }
 
@@ -77,4 +78,9 @@ diesel::table! {
 diesel::joinable!(jobs -> pipelines (pipeline_id));
 diesel::joinable!(pipelines -> users (creator_user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(jobs, pipelines, users, workers,);
+diesel::allow_tables_to_appear_in_same_query!(
+    jobs,
+    pipelines,
+    users,
+    workers,
+);
