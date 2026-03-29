@@ -460,16 +460,13 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
 
                 let raw_options = parts.get(3);
                 let mut options = String::new();
-                match raw_options {
-                    Some(raw_options) => {
-                        let raw_options_list: Vec<_> = raw_options.split(',').collect();
-                        for option_item in raw_options_list {
-                            if option_item == "with-topics" && git_branch != "stable" {
-                                options.push_str(option_item)
-                            }
+                if let Some(raw_options) = raw_options {
+                    let raw_options_list: Vec<_> = raw_options.split(',').collect();
+                    for option_item in raw_options_list {
+                        if option_item == "with-topics" && git_branch != "stable" {
+                            options.push_str(option_item)
                         }
                     }
-                    None => (),
                 };
 
                 let options = if options.is_empty() {
@@ -1089,8 +1086,8 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
 #[tracing::instrument(skip(bot, pool, query))]
 pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> ResponseResult<()> {
     // ignore inaccessible messages
-    if let Some(msg) = query.message {
-        if let Some(ref data) = query.data {
+    if let Some(msg) = query.message
+        && let Some(ref data) = query.data {
             if let Some(strip) = data.strip_prefix("restart_") {
                 match str::parse::<i32>(strip) {
                     Ok(job_id) => {
@@ -1161,7 +1158,6 @@ pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> Re
                 }
             }
         }
-    }
     Ok(())
 }
 

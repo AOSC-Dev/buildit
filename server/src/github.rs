@@ -104,8 +104,7 @@ pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> 
         .github_app_id
         .as_ref()
         .and_then(|x| x.parse::<u64>().ok())
-    {
-        if let Some(app_private_key) = ARGS.github_app_key.as_ref() {
+        && let Some(app_private_key) = ARGS.github_app_key.as_ref() {
             let key = tokio::fs::read(app_private_key).await?;
             let key =
                 tokio::task::spawn_blocking(move || jsonwebtoken::EncodingKey::from_rsa_pem(&key))
@@ -120,6 +119,5 @@ pub async fn get_crab_github_installation() -> anyhow::Result<Option<Octocrab>> 
                     .0,
             ));
         }
-    }
     Ok(None)
 }

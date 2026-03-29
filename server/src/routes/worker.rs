@@ -506,8 +506,8 @@ pub async fn handle_success_message(
 
                         for line in body.split('\n') {
                             let arch = line.strip_prefix("Architecture:").map(|x| x.trim());
-                            if arch.map(|x| x == job.arch).unwrap_or(false) {
-                                if let Err(e) = crab
+                            if arch.map(|x| x == job.arch).unwrap_or(false)
+                                && let Err(e) = crab
                                     .issues("AOSC-Dev", "aosc-os-abbs")
                                     .delete_comment(c.id)
                                     .await
@@ -515,7 +515,6 @@ pub async fn handle_success_message(
                                     error!("Failed to delete comment from pr: {e}");
                                     return update_retry(retry);
                                 }
-                            }
                         }
                     }
                 }
