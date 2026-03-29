@@ -124,10 +124,11 @@ pub async fn find_update_and_update_checksum(
                         if !is_upstream_ver {
                             for line in lines {
                                 if line.starts_with("VER")
-                                    && let Err(e) = update_version(&version, &spec, false) {
-                                        res = Err(e);
-                                        return;
-                                    }
+                                    && let Err(e) = update_version(&version, &spec, false)
+                                {
+                                    res = Err(e);
+                                    return;
+                                }
                             }
                         }
                     }
