@@ -644,8 +644,21 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
                     .await?;
                 return Ok(());
             } else {
-                let resp =
-                    wait_with_send_typing(login_github(&msg, arguments), &bot, msg.chat.id.0).await;
+                let resp: Result<(), anyhow::Error> = wait_with_send_typing(
+                    async {
+                        login_github(&msg, arguments).await?;
+
+                        if let Some(secret) = ARGS.github_secret.as_ref() {
+                            let token = get_github_token(&msg.chat.id, secret).await?;
+                            sync_github_info(pool, msg.chat.id, token.access_token).await;
+                        }
+
+                        Ok(())
+                    },
+                    &bot,
+                    msg.chat.id.0,
+                )
+                .await;
 
                 match resp {
                     Ok(_) => bot.send_message(msg.chat.id, "Login successful!").await?,
