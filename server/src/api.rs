@@ -155,10 +155,11 @@ pub async fn pipeline_new(
                 .filter(crate::schema::users::dsl::telegram_chat_id.eq(id))
                 .first::<User>(&mut conn)
                 .optional()?;
-            let creator_user_id = user.map(|user| user.id);
-            ("telegram", github_pr, Some(id), creator_user_id)
+            let creator_user_id = user.ok_or_else(|| anyhow!("requires login"))?.id;
+            ("telegram", github_pr, Some(id), Some(creator_user_id))
         }
         JobSource::GitHub { pr, user } => {
+            // creator membership is checked in webhook handler
             let user = crate::schema::users::dsl::users
                 .filter(crate::schema::users::dsl::github_id.eq(user))
                 .first::<User>(&mut conn)
