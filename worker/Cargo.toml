@@ -24,7 +24,6 @@ tokio-tungstenite = { version = "0.29.0", features = ["rustls", "rustls-tls-nati
 futures-util = "0.3.32"
 flume = "0.12.0"
 tungstenite = { version = "0.29.0", features = ["rustls"] }
-rustls = { version = "0.23.37", default-features = false, features = ["brotli", "logging", "prefer-post-quantum", "ring", "std", "tls12"] }
 
 [build-dependencies]
 vergen-gitcl = { version = "9.1.0", features = ["build", "cargo", "rustc", "si"] }
