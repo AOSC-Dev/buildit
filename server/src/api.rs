@@ -3,6 +3,7 @@ use crate::{
     feed::{EventContent, deliver_feed_event},
     github::{get_crab_github_installation, get_packages_from_pr},
     models::{Job, NewJob, NewPipeline, Pipeline, User, Worker},
+    routes::{PipelineInfoRequest, query_pipeline_info},
 };
 use anyhow::Context;
 use anyhow::{anyhow, bail};
@@ -248,6 +249,20 @@ pub async fn pipeline_new(
                 .get_result(&mut conn)
                 .context("Failed to create job")?,
         );
+    }
+
+    drop(conn);
+    // deliver feed event
+    {
+        let pipeline_info = query_pipeline_info(
+            PipelineInfoRequest {
+                pipeline_id: pipeline.id,
+            },
+            &pool,
+        )
+        .await
+        .context("Failed to load pipeline info")?;
+        deliver_feed_event(EventContent::PipelineCreated(Box::new(pipeline_info)));
     }
 
     Ok((pipeline, jobs))
