@@ -199,6 +199,8 @@ pub async fn worker_poll(
         .get()
         .context("Failed to get db connection from pool")?;
 
+    let mut feed_events: Vec<EventContent> = Vec::new();
+
     match conn.transaction::<Option<(Pipeline, Job)>, diesel::result::Error, _>(|conn| {
         use crate::schema::jobs::dsl::*;
 
@@ -209,9 +211,19 @@ pub async fn worker_poll(
             .first::<Worker>(conn)?;
 
         // remove if any job is already allocated to the worker
-        diesel::update(jobs.filter(assigned_worker_id.eq(worker.id)))
+        let unassigned_jobs = diesel::update(jobs.filter(assigned_worker_id.eq(worker.id)))
             .set((status.eq("created"), assigned_worker_id.eq(None::<i32>)))
-            .execute(conn)?;
+            .get_results::<Job>(conn)?;
+        for unassigned_job in unassigned_jobs {
+            feed_events.push(EventContent::JobUnassigned(Box::new(JobAssignmentUpdate {
+                pipeline_id: unassigned_job.pipeline_id,
+                job_id: unassigned_job.id,
+                arch: unassigned_job.arch,
+                worker_id: worker.id,
+                worker_name: worker.hostname.clone(),
+                worker_arch: worker.arch.clone(),
+            })));
+        }
 
         // prioritize jobs on stable branch
         let mut sql = jobs
@@ -270,12 +282,23 @@ pub async fn worker_poll(
                     ))
                     .execute(conn)?;
 
+                feed_events.push(EventContent::JobAssigned(Box::new(JobAssignmentUpdate {
+                    pipeline_id: pipeline.id,
+                    job_id: job.id,
+                    arch: job.arch.clone(),
+                    worker_id: worker.id,
+                    worker_name: worker.hostname,
+                    worker_arch: worker.arch,
+                })));
+
                 Ok(Some((pipeline, job)))
             }
             None => Ok(None),
         }
     })? {
         Some((pipeline, job)) => {
+            deliver_feed_events(feed_events);
+
             // update github check run status to in-progress
             if let Some(github_check_run_id) = job.github_check_run_id {
                 tokio::spawn(async move {
