@@ -173,7 +173,7 @@ pub fn to_html_build_result(
         job.arch,
         rendered_all_pkgs,
         rendered_succeeded_pkgs,
-        &failed_package.clone().unwrap_or(String::from("None")),
+        failed_package.clone().unwrap_or(String::from("None")),
         rendered_skipped_pkgs,
         if let Some(log) = log_url {
             Cow::Owned(format!("<a href=\"{}\">Build Log >></a>", log))
