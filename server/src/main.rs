@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use axum::extract::MatchedPath;
 use axum::http::Method;
 use axum::routing::post;
@@ -8,6 +9,7 @@ use diesel::r2d2::Pool;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
 use server::bot::{Command, answer, answer_callback};
+use server::feed::FEED_TX;
 use server::recycler::recycler_worker;
 use server::routes::*;
 use server::{ARGS, DbPool, RemoteAddr};
@@ -15,6 +17,7 @@ use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
 use teloxide::prelude::*;
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{info, info_span};
@@ -86,6 +89,11 @@ async fn main() -> anyhow::Result<()> {
     } else {
         None
     };
+
+    let (feed_tx, _) = broadcast::channel(128);
+    FEED_TX
+        .set(feed_tx)
+        .map_err(|_| anyhow!("feed tx init conflict"))?;
 
     tracing::info!("Starting http server");
     // build our application with a route
