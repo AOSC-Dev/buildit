@@ -124,6 +124,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/ws/worker/{hostname}", get(ws_worker_handler))
         .route("/api/webhook", post(webhook_handler))
         .route("/api/user/self", get(user_self))
+        .route("/api/feed", get(sse_global_feed_handler))
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .route_service("/favicon.ico", ServeFile::new("frontend/dist/favicon.ico"))
         .route_service("/robots.txt", ServeFile::new("frontend/dist/robots.txt"))
