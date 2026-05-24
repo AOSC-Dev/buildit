@@ -1,5 +1,6 @@
 use crate::HEARTBEAT_TIMEOUT;
-use crate::routes::{AnyhowError, AppState};
+use crate::feed::{EventContent, JobAssignmentUpdate, deliver_feed_event, deliver_feed_events};
+use crate::routes::{AnyhowError, AppState, JobInfoRequest, query_job_info};
 use crate::{
     ARGS,
     api::{self},
@@ -362,7 +363,7 @@ pub async fn worker_job_update(
     }
 
     use crate::schema::jobs::dsl::*;
-    match payload.result {
+    match &payload.result {
         JobResult::Ok(res) => {
             diesel::update(jobs.filter(id.eq(payload.job_id)))
                 .set((
@@ -374,9 +375,9 @@ pub async fn worker_job_update(
                     build_success.eq(res.build_success),
                     pushpkg_success.eq(res.pushpkg_success),
                     successful_packages.eq(res.successful_packages.join(",")),
-                    failed_package.eq(res.failed_package),
+                    failed_package.eq(&res.failed_package),
                     skipped_packages.eq(res.skipped_packages.join(",")),
-                    log_url.eq(res.log_url),
+                    log_url.eq(&res.log_url),
                     finish_time.eq(chrono::Utc::now()),
                     elapsed_secs.eq(res.elapsed_secs),
                     assigned_worker_id.eq(None::<i32>),
@@ -394,6 +395,21 @@ pub async fn worker_job_update(
                 .execute(&mut conn)?;
         }
     }
+
+    drop(conn);
+    // deliver feed event
+    {
+        let job_info = query_job_info(
+            JobInfoRequest {
+                job_id: payload.job_id,
+            },
+            &pool,
+        )
+        .await
+        .context("Failed to load job info")?;
+        deliver_feed_event(EventContent::JobCompleted(Box::new(job_info)));
+    }
+
     Ok(())
 }
 
