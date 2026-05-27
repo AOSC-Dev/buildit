@@ -1100,77 +1100,66 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, pool: DbPool) -> Respo
 pub async fn answer_callback(bot: Bot, pool: DbPool, query: CallbackQuery) -> ResponseResult<()> {
     // ignore inaccessible messages
     if let Some(msg) = query.message
-        && let Some(ref data) = query.data {
-            if let Some(strip) = data.strip_prefix("restart_") {
-                match str::parse::<i32>(strip) {
-                    Ok(job_id) => {
-                        match wait_with_send_typing(
-                            job_restart(pool, job_id),
-                            &bot,
-                            msg.chat().id.0,
-                        )
+        && let Some(ref data) = query.data
+    {
+        if let Some(strip) = data.strip_prefix("restart_") {
+            match str::parse::<i32>(strip) {
+                Ok(job_id) => {
+                    match wait_with_send_typing(job_restart(pool, job_id), &bot, msg.chat().id.0)
                         .await
-                        {
-                            Ok(new_job) => {
-                                bot.send_message(
+                    {
+                        Ok(new_job) => {
+                            bot.send_message(
                                     msg.chat().id,
                                     truncate(&format!("Restarted as job <a href=\"https://buildit.aosc.io/jobs/{}\">#{}</a>", new_job.id, new_job.id)),
                                 )
                                 .parse_mode(ParseMode::Html)
                                 .await?;
-                                bot.edit_message_reply_markup(msg.chat().id, msg.id())
-                                    .reply_markup(InlineKeyboardMarkup::default())
-                                    .await?;
-                            }
-                            Err(err) => {
-                                bot.send_message(
-                                    msg.chat().id,
-                                    truncate(&format!("Failed to restart job: {err:?}")),
-                                )
+                            bot.edit_message_reply_markup(msg.chat().id, msg.id())
+                                .reply_markup(InlineKeyboardMarkup::default())
                                 .await?;
-                            }
                         }
-                    }
-                    Err(err) => {
-                        bot.send_message(msg.chat().id, truncate(&format!("Bad job ID: {err:?}")))
+                        Err(err) => {
+                            bot.send_message(
+                                msg.chat().id,
+                                truncate(&format!("Failed to restart job: {err:?}")),
+                            )
                             .await?;
+                        }
                     }
                 }
-            } else if let Some(strip) = data.strip_prefix("buildpr_") {
-                match str::parse::<u64>(strip) {
-                    Ok(pr_num) => {
-                        let pipeline = create_pipeline_from_pr(
-                            pool.clone(),
-                            pr_num,
-                            None,
-                            msg.chat().id,
-                            &bot,
-                        );
-                        match wait_with_send_typing(pipeline, &bot, msg.chat().id.0).await {
-                            Ok(()) => {
-                                bot.edit_message_reply_markup(msg.chat().id, msg.id())
-                                    .reply_markup(InlineKeyboardMarkup::default())
-                                    .await?;
-                            }
-                            Err(err) => {
-                                bot.send_message(
-                                    msg.chat().id,
-                                    truncate(&format!("Failed to create pipeline for PR: {err:?}")),
-                                )
+                Err(err) => {
+                    bot.send_message(msg.chat().id, truncate(&format!("Bad job ID: {err:?}")))
+                        .await?;
+                }
+            }
+        } else if let Some(strip) = data.strip_prefix("buildpr_") {
+            match str::parse::<u64>(strip) {
+                Ok(pr_num) => {
+                    let pipeline =
+                        create_pipeline_from_pr(pool.clone(), pr_num, None, msg.chat().id, &bot);
+                    match wait_with_send_typing(pipeline, &bot, msg.chat().id.0).await {
+                        Ok(()) => {
+                            bot.edit_message_reply_markup(msg.chat().id, msg.id())
+                                .reply_markup(InlineKeyboardMarkup::default())
                                 .await?;
-                            }
+                        }
+                        Err(err) => {
+                            bot.send_message(
+                                msg.chat().id,
+                                truncate(&format!("Failed to create pipeline for PR: {err:?}")),
+                            )
+                            .await?;
                         }
                     }
-                    Err(err) => {
-                        bot.send_message(
-                            msg.chat().id,
-                            truncate(&format!("Bad PR number: {err:?}")),
-                        )
+                }
+                Err(err) => {
+                    bot.send_message(msg.chat().id, truncate(&format!("Bad PR number: {err:?}")))
                         .await?;
-                    }
                 }
             }
         }
+    }
     Ok(())
 }
 

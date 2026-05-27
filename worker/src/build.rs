@@ -234,9 +234,10 @@ async fn build(
             let mut ciel_args = vec!["build", "-i", &args.ciel_instance];
             ciel_args.extend(job.packages.split(','));
             if let Some(options) = &job.options.as_ref()
-                && options.contains("with-topics") {
-                    ciel_args.extend_from_slice(&["--with-topics", &job.git_branch]);
-                }
+                && options.contains("with-topics")
+            {
+                ciel_args.extend_from_slice(&["--with-topics", &job.git_branch]);
+            }
             let output =
                 get_output_logged("ciel", &ciel_args, &args.ciel_path, &mut logs, tx.clone())
                     .await?;
@@ -290,37 +291,36 @@ async fn build(
                 }
             }
 
-            if build_success
-                && let Some(upload_ssh_key) = &args.upload_ssh_key {
-                    let mut pushpkg_args = vec![
-                        "--host",
-                        &args.rsync_host,
-                        "-i",
-                        upload_ssh_key,
-                        "maintainers",
-                        &job.git_branch,
-                    ];
+            if build_success && let Some(upload_ssh_key) = &args.upload_ssh_key {
+                let mut pushpkg_args = vec![
+                    "--host",
+                    &args.rsync_host,
+                    "-i",
+                    upload_ssh_key,
+                    "maintainers",
+                    &job.git_branch,
+                ];
 
-                    if args.arch == "loongarch64_nosimd" {
-                        pushpkg_args.push("bsp-loongarch64-nosimd");
-                    }
-
-                    if !args.pushpkg_options.is_empty() {
-                        pushpkg_args.insert(0, &args.pushpkg_options);
-                    }
-                    if &job.git_branch != "stable" {
-                        // allow force push if noarch and non stable
-                        pushpkg_args.insert(0, "--force-push-noarch-package");
-                    }
-                    pushpkg_success = run_logged_with_retry(
-                        "pushpkg",
-                        &pushpkg_args,
-                        &output_path,
-                        &mut logs,
-                        tx.clone(),
-                    )
-                    .await?;
+                if args.arch == "loongarch64_nosimd" {
+                    pushpkg_args.push("bsp-loongarch64-nosimd");
                 }
+
+                if !args.pushpkg_options.is_empty() {
+                    pushpkg_args.insert(0, &args.pushpkg_options);
+                }
+                if &job.git_branch != "stable" {
+                    // allow force push if noarch and non stable
+                    pushpkg_args.insert(0, "--force-push-noarch-package");
+                }
+                pushpkg_success = run_logged_with_retry(
+                    "pushpkg",
+                    &pushpkg_args,
+                    &output_path,
+                    &mut logs,
+                    tx.clone(),
+                )
+                .await?;
+            }
         }
     }
 

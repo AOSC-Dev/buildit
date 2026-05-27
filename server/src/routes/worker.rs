@@ -511,10 +511,10 @@ pub async fn handle_success_message(
                                     .issues("AOSC-Dev", "aosc-os-abbs")
                                     .delete_comment(c.id)
                                     .await
-                                {
-                                    error!("Failed to delete comment from pr: {e}");
-                                    return update_retry(retry);
-                                }
+                            {
+                                error!("Failed to delete comment from pr: {e}");
+                                return update_retry(retry);
+                            }
                         }
                     }
                 }
