@@ -304,7 +304,7 @@ pub async fn pipeline_new_pr(
                     let resolved_packages =
                         resolve_packages(&packages, path).context("Failed to resolve packages")?;
 
-                    get_archs(path, &resolved_packages).join(",")
+                    get_archs(path, &resolved_packages)?.join(",")
                 };
 
                 pipeline_new(
