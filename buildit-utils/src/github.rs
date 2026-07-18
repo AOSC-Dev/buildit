@@ -8,7 +8,7 @@ use octocrab::{models::pulls::PullRequest, params};
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
-    fs,
+    fs::{self, read_to_string},
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::Output,
@@ -18,14 +18,23 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use walkdir::WalkDir;
 
 use crate::{
-    ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64, LOONGARCH64_NOSIMD,
-    LOONGSON3, NOARCH, PPC64EL, RISCV64,
+    ABArchGroupMap, ABBS_REPO_LOCK, ALL_ARCH, AMD64, ARM64, COMMITS_COUNT_LIMIT, LOONGARCH64,
+    LOONGARCH64_NOSIMD, LOONGSON3, NOARCH, PPC64EL, RISCV64,
 };
+
+const ARCHGROUP_DATA: &str = "/usr/lib/autobuild4/sets/arch_groups.json";
 
 macro_rules! PR {
     () => {
         "Topic Description\n-----------------\n\n{}\n\nPackage(s) Affected\n-------------------\n\n{}\n\nSecurity Update?\n----------------\n\n{}\n\nBuild Order\n-----------\n\n```\n{}\n```\n\nTest Build(s) Done\n------------------\n\n{}"
     };
+}
+
+pub enum FailArchExpr {
+    /// @(amd64|arm64)
+    Include(Vec<String>),
+    /// !(amd64|arm64)
+    Exclude(Vec<String>),
 }
 
 struct OpenPR<'a> {
@@ -124,7 +133,7 @@ pub async fn open_pr(
             let abbs_path_clone = abbs_path.clone();
             task::spawn_blocking(move || get_archs(&abbs_path_clone, &resolved_pkgs_clone))
                 .instrument(info_span!("get_archs"))
-                .await?
+                .await??
         }
     };
 
@@ -735,11 +744,17 @@ pub fn locate_defines(path: &Path) -> Vec<PathBuf> {
     }
 }
 
+#[inline]
+fn get_archgroups() -> anyhow::Result<ABArchGroupMap> {
+    let content = read_to_string(ARCHGROUP_DATA)?;
+    Ok(serde_json::from_str(&content)?)
+}
+
 /// `packages` should have no groups nor modifiers
 #[tracing::instrument(skip(p))]
-pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'static str> {
+pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> anyhow::Result<Vec<&'static str>> {
     let mut is_noarch = vec![];
-    let mut fail_archs = vec![];
+    let mut failarch_expr = String::new();
 
     for_each_abbs(p, |pkg, path| {
         if !packages.contains(&pkg.to_string()) {
@@ -762,37 +777,28 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> Vec<&'static str> {
                 );
 
                 if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                    fail_archs.push(fail_arch_regex(fail_arch).ok())
-                } else {
-                    fail_archs.push(None);
+                    failarch_expr = fail_arch.clone();
                 };
             }
         }
     });
 
     if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
-        if fail_archs.is_empty() {
-            return ALL_ARCH.iter().map(|x| x.to_owned()).collect();
+        if failarch_expr.is_empty() {
+            return Ok(ALL_ARCH.iter().map(|x| x.to_owned()).collect());
         }
-
-        if fail_archs.iter().any(|x| x.is_none()) {
-            ALL_ARCH.iter().map(|x| x.to_owned()).collect()
-        } else {
-            let mut res = vec![];
-
-            for i in fail_archs {
-                let r = i.unwrap();
-                for a in ALL_ARCH {
-                    if !r.is_match(a).unwrap_or(false) && !res.contains(a) {
-                        res.push(a);
-                    }
-                }
+        // FAIL_ARCH is defined. Check if any of ALL_ARCH is buildable.
+        let archgroup_map = get_archgroups()?;
+        let mut allowed = vec![];
+        let parsed_expr = parse_fail_arch(&failarch_expr)?;
+        for a in ALL_ARCH {
+            if buildable(a, &parsed_expr, &archgroup_map) {
+                allowed.push(a.to_owned());
             }
-
-            res
         }
+        Ok(allowed)
     } else {
-        vec!["noarch"]
+        Ok(vec!["noarch"])
     }
 }
 
@@ -856,6 +862,62 @@ pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {
         let pkg = pkg.unwrap();
 
         f(pkg, i.path());
+    }
+}
+
+pub fn parse_fail_arch(expr: &str) -> anyhow::Result<FailArchExpr> {
+    let mut vec = Vec::new();
+    // Valid architecture name.
+    let re_valid_arch = Regex::new("^[0-9a-z_]+$")?;
+    if !expr.starts_with(['@', '!']) {
+        if expr.contains(['(', '|', ')']) {
+            bail!("Invalid FAIL_ARCH expression '{}'", expr);
+        }
+        // Only includes one single match
+        return Ok(FailArchExpr::Include(vec![expr.to_owned()]));
+    }
+    let entries = expr[1..].trim_matches(['(', ')']).split('|');
+    for entry in entries {
+        if !re_valid_arch.is_match(entry)? {
+            bail!(
+                "Invalid architecture name '{}' in the FAIL_ARCH expression '{}'",
+                entry,
+                expr
+            );
+        }
+        vec.push(entry.into());
+    }
+    let ret = match expr.chars().next().unwrap() {
+        '@' => FailArchExpr::Include(vec),
+        '!' => FailArchExpr::Exclude(vec),
+        _ => bail!("Invalid FAIL_ARCH expression '{}'", expr),
+    };
+    Ok(ret)
+}
+
+pub fn buildable(arch: &str, cond: &FailArchExpr, archgroup_map: &ABArchGroupMap) -> bool {
+    let archgroups = archgroup_map.keys().collect::<Vec<_>>();
+    let entries = match cond {
+        FailArchExpr::Exclude(v) => v,
+        FailArchExpr::Include(v) => v,
+    };
+    let mut matches = false;
+    for entry in entries {
+        if archgroups.contains(&entry) {
+            let arches_in_group = archgroup_map.get(entry).unwrap();
+            if arches_in_group.contains(&arch.into()) {
+                matches = true;
+                break;
+            }
+        }
+        if entry == arch {
+            matches = true;
+            break;
+        }
+    }
+    match cond {
+        FailArchExpr::Exclude(_) => matches,
+        FailArchExpr::Include(_) => !matches,
     }
 }
 
@@ -1000,7 +1062,7 @@ pub fn get_environment_requirement(
 #[test]
 fn test_get_archs() {
     let binding = ["autobuild3".to_owned(), "autobuild4".to_owned()];
-    let a = get_archs(Path::new("/home/saki/aosc-os-abbs"), &binding);
+    let a = get_archs(Path::new("/home/saki/aosc-os-abbs"), &binding).unwrap();
 
     assert_eq!(
         a,
@@ -1067,4 +1129,150 @@ fn test_auto_add_label() {
             "pre-release".to_string()
         ]
     );
+}
+
+#[test]
+fn test_failarch() -> anyhow::Result<()> {
+    let exprs = [
+        "@(loongson3)",
+        "@(loongarch64|loongson3|riscv64)",
+        "@(mainline)",
+        "amd64",
+        "mainline",
+        "!(amd64|arm64|loongarch64)",
+        "!(mainline)",
+        "!(mainline|i486)",
+        "@(retro)",
+        "!(retro)",
+    ];
+    let test_cases = [
+        // Index, arch, buildable?
+        (0, vec!["loongson3"], false),
+        (
+            0,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "ppc64el",
+                "riscv64",
+                "i486",
+            ],
+            true,
+        ),
+        (1, vec!["loongarch64", "loongson3", "riscv64"], false),
+        (1, vec!["amd64", "arm64", "ppc64el", "i486"], true),
+        (
+            2,
+            vec![
+                "amd64",
+                "arm64",
+                "ppc64el",
+                "loongarch64",
+                "loongson3",
+                "riscv64",
+            ],
+            false,
+        ),
+        (2, vec!["i486"], true),
+        (3, vec!["amd64"], false),
+        (
+            3,
+            vec![
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+                "i486",
+            ],
+            true,
+        ),
+        (
+            4,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+            ],
+            false,
+        ),
+        (4, vec!["i486"], true),
+        (5, vec!["amd64", "arm64", "loongarch64"], true),
+        (5, vec!["loongson3", "ppc64el", "riscv64", "i486"], false),
+        (
+            6,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+            ],
+            true,
+        ),
+        (6, vec!["i486"], false),
+        (
+            7,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+                "i486",
+            ],
+            true,
+        ),
+        (7, vec!["armv7hf"], false),
+        (
+            8,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+            ],
+            true,
+        ),
+        (8, vec!["i486", "armv7hf"], false),
+        (9, vec!["i486", "armv7hf"], true),
+        (
+            9,
+            vec![
+                "amd64",
+                "arm64",
+                "loongarch64",
+                "loongson3",
+                "ppc64el",
+                "riscv64",
+            ],
+            false,
+        ),
+    ];
+    for (case_idx, (idx, arches, result)) in test_cases.into_iter().enumerate() {
+        eprintln!("Case {}:", case_idx + 1);
+        let expr = exprs[idx];
+        let expr = parse_fail_arch(expr)?;
+        let arch_groups = get_archgroups()?;
+        for arch in arches {
+            eprint!(
+                "{} should be {} under FAIL_ARCH=\"{}\" ...",
+                arch,
+                if result { "buildable" } else { "unbuildable" },
+                exprs[idx]
+            );
+            assert_eq!(result, buildable(arch, &expr, &arch_groups));
+            eprintln!(" yes")
+        }
+        eprintln!("");
+    }
+    Ok(())
 }

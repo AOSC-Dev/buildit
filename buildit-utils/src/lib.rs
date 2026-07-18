@@ -5,6 +5,7 @@ use github::{for_each_abbs, get_spec};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{
+    collections::HashMap,
     fs::OpenOptions,
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -41,6 +42,8 @@ pub const ALL_ARCH: &[&str] = &[
 ];
 
 pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+
+pub type ABArchGroupMap = HashMap<String, Vec<String>>;
 
 pub struct FindUpdate {
     pub package: String,
