@@ -24,6 +24,7 @@ pub mod github;
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
+pub const I486: &str = "32-bit Intel 486 `i486`";
 pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
 pub const LOONGARCH64_NOSIMD: &str = "LoongArch 64-bit (No SIMD) `loongarch64_nosimd`";
 pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
@@ -32,6 +33,7 @@ pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
 pub const COMMITS_COUNT_LIMIT: usize = 10;
 
 pub const ALL_ARCH: &[&str] = &[
+    // Mainline architectures:
     "amd64",
     "arm64",
     "loongarch64",
@@ -39,6 +41,10 @@ pub const ALL_ARCH: &[&str] = &[
     "loongson3",
     "ppc64el",
     "riscv64",
+
+    // Retro architectures:
+    // NOTE: only available architectures should be added!
+    // "i486"
 ];
 
 pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
