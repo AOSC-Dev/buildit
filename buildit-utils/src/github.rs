@@ -1131,6 +1131,9 @@ fn test_auto_add_label() {
     );
 }
 
+// Contains "prperly" formatted test cases.
+// Just ignore the long lines ...
+#[rustfmt::skip]
 #[test]
 fn test_failarch() -> anyhow::Result<()> {
     let exprs = [
@@ -1148,114 +1151,25 @@ fn test_failarch() -> anyhow::Result<()> {
     let test_cases = [
         // Index, arch, buildable?
         (0, vec!["loongson3"], false),
-        (
-            0,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "ppc64el",
-                "riscv64",
-                "i486",
-            ],
-            true,
-        ),
+        (0, vec!["amd64", "arm64", "loongarch64", "ppc64el", "riscv64", "i486"], true),
         (1, vec!["loongarch64", "loongson3", "riscv64"], false),
         (1, vec!["amd64", "arm64", "ppc64el", "i486"], true),
-        (
-            2,
-            vec![
-                "amd64",
-                "arm64",
-                "ppc64el",
-                "loongarch64",
-                "loongson3",
-                "riscv64",
-            ],
-            false,
-        ),
+        (2, vec!["amd64", "arm64", "ppc64el", "loongarch64", "loongson3", "riscv64"], false),
         (2, vec!["i486"], true),
         (3, vec!["amd64"], false),
-        (
-            3,
-            vec![
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-                "i486",
-            ],
-            true,
-        ),
-        (
-            4,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-            ],
-            false,
-        ),
+        (3, vec!["arm64", "loongarch64", "loongson3", "ppc64el", "riscv64", "i486"], true),
+        (4, vec!["amd64", "arm64", "loongarch64", "loongson3", "ppc64el", "riscv64"], false),
         (4, vec!["i486"], true),
         (5, vec!["amd64", "arm64", "loongarch64"], true),
         (5, vec!["loongson3", "ppc64el", "riscv64", "i486"], false),
-        (
-            6,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-            ],
-            true,
-        ),
+        (6, vec!["amd64", "arm64", "loongarch64", "loongson3", "ppc64el", "riscv64"], true),
         (6, vec!["i486"], false),
-        (
-            7,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-                "i486",
-            ],
-            true,
-        ),
+        (7, vec!["amd64", "arm64", "loongarch64", "loongson3", "ppc64el", "riscv64", "i486"], true),
         (7, vec!["armv7hf"], false),
-        (
-            8,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-            ],
-            true,
-        ),
+        (8, vec!["amd64", "arm64", "loongarch64", "loongson3", "ppc64el", "riscv64"], true),
         (8, vec!["i486", "armv7hf"], false),
         (9, vec!["i486", "armv7hf"], true),
-        (
-            9,
-            vec![
-                "amd64",
-                "arm64",
-                "loongarch64",
-                "loongson3",
-                "ppc64el",
-                "riscv64",
-            ],
-            false,
-        ),
+        (9, vec!["amd64", "arm64", "loongarch64", "loongson3", "ppc64el", "riscv64"], false),
     ];
     for (case_idx, (idx, arches, result)) in test_cases.into_iter().enumerate() {
         eprintln!("Case {}:", case_idx + 1);
