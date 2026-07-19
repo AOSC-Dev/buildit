@@ -35,6 +35,7 @@ pub enum FailArchExpr {
     Include(Vec<String>),
     /// !(amd64|arm64)
     Exclude(Vec<String>),
+    Empty,
 }
 
 struct OpenPR<'a> {
@@ -754,7 +755,7 @@ fn get_archgroups() -> anyhow::Result<ABArchGroupMap> {
 #[tracing::instrument(skip(p))]
 pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> anyhow::Result<Vec<&'static str>> {
     let mut is_noarch = vec![];
-    let mut failarch_expr = String::new();
+    let mut failarch_exprs = vec![];
 
     for_each_abbs(p, |pkg, path| {
         if !packages.contains(&pkg.to_string()) {
@@ -777,23 +778,27 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> anyhow::Result<Vec<
                 );
 
                 if let Some(fail_arch) = defines.get("FAIL_ARCH") {
-                    failarch_expr = fail_arch.clone();
-                };
+                    failarch_exprs.push(fail_arch.clone());
+                } else {
+                    failarch_exprs.push(String::new());
+                }
             }
         }
     });
 
     if is_noarch.is_empty() || is_noarch.iter().any(|x| !x) {
-        if failarch_expr.is_empty() {
+        if failarch_exprs.is_empty() {
             return Ok(ALL_ARCH.iter().map(|x| x.to_owned()).collect());
         }
         // FAIL_ARCH is defined. Check if any of ALL_ARCH is buildable.
         let archgroup_map = get_archgroups()?;
         let mut allowed = vec![];
-        let parsed_expr = parse_fail_arch(&failarch_expr)?;
-        for a in ALL_ARCH {
-            if buildable(a, &parsed_expr, &archgroup_map) {
-                allowed.push(a.to_owned());
+        for expr in failarch_exprs {
+            let parsed_expr = parse_fail_arch(&expr)?;
+            for a in ALL_ARCH {
+                if buildable(a, &parsed_expr, &archgroup_map) && !allowed.contains(a) {
+                    allowed.push(a.to_owned());
+                }
             }
         }
         Ok(allowed)
@@ -866,6 +871,9 @@ pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {
 }
 
 pub fn parse_fail_arch(expr: &str) -> anyhow::Result<FailArchExpr> {
+    if expr.trim().is_empty() {
+        return Ok(FailArchExpr::Empty)
+    }
     let mut vec = Vec::new();
     // Valid architecture name.
     let re_valid_arch = Regex::new("^[0-9a-z_]+$")?;
@@ -900,6 +908,7 @@ pub fn buildable(arch: &str, cond: &FailArchExpr, archgroup_map: &ABArchGroupMap
     let entries = match cond {
         FailArchExpr::Exclude(v) => v,
         FailArchExpr::Include(v) => v,
+        FailArchExpr::Empty => return true,
     };
     let mut matches = false;
     for entry in entries {
@@ -918,6 +927,7 @@ pub fn buildable(arch: &str, cond: &FailArchExpr, archgroup_map: &ABArchGroupMap
     match cond {
         FailArchExpr::Exclude(_) => matches,
         FailArchExpr::Include(_) => !matches,
+        FailArchExpr::Empty => true,
     }
 }
 

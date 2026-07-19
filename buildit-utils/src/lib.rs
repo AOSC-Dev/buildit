@@ -41,7 +41,6 @@ pub const ALL_ARCH: &[&str] = &[
     "loongson3",
     "ppc64el",
     "riscv64",
-
     // Retro architectures:
     // NOTE: only available architectures should be added!
     // "i486"
