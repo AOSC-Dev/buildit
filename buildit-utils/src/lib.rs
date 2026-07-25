@@ -233,13 +233,17 @@ async fn git_push(
     let branch = format!("{pkg}-{ver}");
     let title = format!("{pkg}: update to {ver}");
 
-    let branches = Command::new("git").arg("branch").arg("-a").output().await?;
-    let mut branches_stdout = BufReader::new(&*branches.stdout).lines();
+    let ls_remote_branch = Command::new("git")
+        .args(["ls-remote", "--heads", "origin", &branch])
+        .current_dir(abbs_path)
+        .output()
+        .await
+        .context("Checking if branch exists on remote")?;
 
-    while let Ok(Some(line)) = branches_stdout.next_line().await {
-        if line.contains(&branch) {
-            bail!("Branch {branch} already exists, for line: {line}");
-        }
+    let ls_remote_stdout = String::from_utf8_lossy(&ls_remote_branch.stdout);
+
+    if !ls_remote_stdout.trim().is_empty() {
+        bail!("Branch {branch} already exists on remote");
     }
 
     Command::new("git")
