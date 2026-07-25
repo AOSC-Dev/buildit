@@ -780,7 +780,7 @@ pub fn get_archs<'a>(p: &'a Path, packages: &'a [String]) -> anyhow::Result<Vec<
                 if let Some(fail_arch) = defines.get("FAIL_ARCH") {
                     failarch_exprs.push(fail_arch.clone());
                 } else {
-                    failarch_exprs.push(String::new());
+                    failarch_exprs.push("!(mainline)".into());
                 }
             }
         }
