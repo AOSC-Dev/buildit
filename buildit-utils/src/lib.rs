@@ -43,7 +43,7 @@ pub const ALL_ARCH: &[&str] = &[
     "riscv64",
     // Retro architectures:
     // NOTE: only available architectures should be added!
-    // "i486"
+    "i486"
 ];
 
 pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
