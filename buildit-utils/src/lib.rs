@@ -32,7 +32,7 @@ pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
 pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
 pub const COMMITS_COUNT_LIMIT: usize = 10;
 
-pub const ALL_ARCH: &[&str] = &[
+pub const MAINLINE_ARCH: &[&str] = &[
     // Mainline architectures:
     "amd64",
     "arm64",
@@ -41,9 +41,21 @@ pub const ALL_ARCH: &[&str] = &[
     "loongson3",
     "ppc64el",
     "riscv64",
-    // Retro architectures:
-    // NOTE: only available architectures should be added!
-    "i486"
+];
+
+pub const RETRO_ARCH: &[&str] = &[
+    "i486",
+];
+
+pub const ALL_ARCH: &[&str] = &[
+    "amd64",
+    "arm64",
+    "loongarch64",
+    "loongarch64_nosimd",
+    "loongson3",
+    "ppc64el",
+    "riscv64",
+    "i486",
 ];
 
 pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
