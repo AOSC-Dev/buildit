@@ -7,7 +7,7 @@ use crate::{
     paste_to_aosc_io,
 };
 use anyhow::{Context, anyhow, bail};
-use buildit_utils::{ALL_ARCH, find_update_and_update_checksum, github::OpenPRRequest};
+use buildit_utils::{ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH, find_update_and_update_checksum, github::OpenPRRequest};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use rand::{distr::SampleString, rng, seq::IndexedRandom};
@@ -112,8 +112,13 @@ fn handle_archs_args(archs: Vec<&str>) -> Vec<&str> {
     let mut archs = archs;
     if archs.contains(&"mainline") {
         // archs
-        archs.extend(ALL_ARCH.iter());
+        archs.extend(MAINLINE_ARCH.iter());
         archs.retain(|arch| *arch != "mainline");
+    }
+    if archs.contains(&"retro") || archs.contains(&"afterglow") {
+        // archs
+        archs.extend(RETRO_ARCH.iter());
+        archs.retain(|arch| *arch != "retro");
     }
     archs.sort();
     archs.dedup();

@@ -6,8 +6,7 @@ use crate::{
 use anyhow::Context;
 use anyhow::{anyhow, bail};
 use buildit_utils::{
-    ABBS_REPO_LOCK, ALL_ARCH,
-    github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
+    ABBS_REPO_LOCK, ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH, github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
 };
 use diesel::r2d2::PoolTransactionManager;
 use diesel::{
@@ -73,8 +72,13 @@ pub async fn pipeline_new(
     }
     if archs.contains(&"mainline") {
         // archs
-        archs.extend(ALL_ARCH.iter());
+        archs.extend(MAINLINE_ARCH.iter());
         archs.retain(|arch| *arch != "mainline");
+    }
+    if archs.contains(&"retro") || archs.contains(&"afterglow") {
+        // archs
+        archs.extend(RETRO_ARCH.iter());
+        archs.retain(|arch| *arch != "retro");
     }
     for arch in &archs {
         if !ALL_ARCH.contains(arch) && arch != &"noarch" {
