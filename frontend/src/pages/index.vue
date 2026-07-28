@@ -119,6 +119,7 @@
       archs: [
         "amd64",
         "arm64",
+	"i486",
         "loongarch64",
         "loongarch64_nosimd",
         "loongson3",
