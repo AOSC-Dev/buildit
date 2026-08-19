@@ -630,6 +630,7 @@ fn auto_add_label(title: &str) -> Vec<String> {
             vec![String::from("has-fix"), String::from("ftbfs")],
         ),
         ("rework", vec![String::from("rework")]),
+        ("survey", vec![String::from("survey")]),
     ];
 
     for (k, v) in v {
