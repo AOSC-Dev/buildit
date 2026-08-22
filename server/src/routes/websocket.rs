@@ -82,7 +82,6 @@ async fn handle_viewer_socket(
     // register our tx to WSStateMap
     // and return latest logs
     let viewer = Arc::new(Viewer {
-        remote_addr: who.clone(),
         sender: tx,
     });
     let msgs = {

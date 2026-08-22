@@ -1,4 +1,4 @@
-use crate::{ARGS, DbPool, HEARTBEAT_TIMEOUT, RemoteAddr, models::User};
+use crate::{ARGS, DbPool, HEARTBEAT_TIMEOUT, models::User};
 use anyhow::Context;
 use axum::{
     extract::{FromRequestParts, Json, State},
@@ -40,7 +40,6 @@ pub async fn ping() -> &'static str {
 }
 
 pub struct Viewer {
-    remote_addr: RemoteAddr,
     sender: UnboundedSender<axum::extract::ws::Message>,
 }
 
