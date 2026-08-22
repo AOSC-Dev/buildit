@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Context;
 use anyhow::anyhow;
 use axum::extract::{Json, Query, State};
-use buildit_utils::{AMD64, ARM64, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64};
+use buildit_utils::{AMD64, ARM64, ARMV4, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64};
 use buildit_utils::{LOONGARCH64, NOARCH};
 
 use chrono::{DateTime, Utc};
@@ -557,7 +557,8 @@ pub async fn handle_success_message(
                     "noarch" => NOARCH,
                     "amd64" => AMD64,
                     "arm64" => ARM64,
-		    "i486" => I486,
+                    "armv4" => ARMV4,
+                    "i486" => I486,
                     "loongson3" => LOONGSON3,
                     "ppc64el" => PPC64EL,
                     "riscv64" => RISCV64,

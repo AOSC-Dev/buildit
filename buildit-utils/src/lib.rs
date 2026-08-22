@@ -23,6 +23,7 @@ pub mod github;
 
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
+pub const ARMV4: &str = "ARMv4 `armv4`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
 pub const I486: &str = "32-bit Intel 486 `i486`";
 pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
@@ -43,9 +44,7 @@ pub const MAINLINE_ARCH: &[&str] = &[
     "riscv64",
 ];
 
-pub const RETRO_ARCH: &[&str] = &[
-    "i486",
-];
+pub const RETRO_ARCH: &[&str] = &["armv4", "i486"];
 
 pub const ALL_ARCH: &[&str] = &[
     "amd64",
@@ -55,6 +54,7 @@ pub const ALL_ARCH: &[&str] = &[
     "loongson3",
     "ppc64el",
     "riscv64",
+    "armv4",
     "i486",
 ];
 
