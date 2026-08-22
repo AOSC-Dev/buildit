@@ -888,7 +888,7 @@ pub fn for_each_abbs<F: FnMut(&str, &Path)>(path: &Path, mut f: F) {
 
 pub fn parse_fail_arch(expr: &str) -> anyhow::Result<FailArchExpr> {
     if expr.trim().is_empty() {
-        return Ok(FailArchExpr::Empty)
+        return Ok(FailArchExpr::Empty);
     }
     let mut vec = Vec::new();
     // Valid architecture name.

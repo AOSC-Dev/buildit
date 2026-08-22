@@ -7,7 +7,9 @@ use crate::{
     paste_to_aosc_io,
 };
 use anyhow::{Context, anyhow, bail};
-use buildit_utils::{ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH, find_update_and_update_checksum, github::OpenPRRequest};
+use buildit_utils::{
+    ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH, find_update_and_update_checksum, github::OpenPRRequest,
+};
 use chrono::Local;
 use diesel::{Connection, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use rand::{distr::SampleString, rng, seq::IndexedRandom};

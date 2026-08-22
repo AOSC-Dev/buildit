@@ -6,7 +6,8 @@ use crate::{
 use anyhow::Context;
 use anyhow::{anyhow, bail};
 use buildit_utils::{
-    ABBS_REPO_LOCK, ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH, github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
+    ABBS_REPO_LOCK, ALL_ARCH, MAINLINE_ARCH, RETRO_ARCH,
+    github::{get_archs, get_environment_requirement, resolve_packages, update_abbs},
 };
 use diesel::r2d2::PoolTransactionManager;
 use diesel::{
