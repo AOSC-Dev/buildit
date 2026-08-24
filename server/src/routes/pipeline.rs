@@ -140,6 +140,9 @@ pub struct PipelineListRequest {
     items_per_page: i64,
     stable_only: bool,
     github_pr_only: bool,
+    // comma-separated status values; empty means no status filter
+    #[serde(default)]
+    status: String,
 }
 
 #[derive(Serialize)]
@@ -183,21 +186,12 @@ pub async fn pipeline_list(
 
     Ok(Json(
         conn.transaction::<PipelineListResponse, diesel::result::Error, _>(|conn| {
-            // compute total items for pagination
-            let mut total_items_query = crate::schema::pipelines::dsl::pipelines.into_boxed();
+            let statuses: Vec<&str> = query
+                .status
+                .split(',')
+                .filter(|status| !status.is_empty())
+                .collect();
 
-            if query.stable_only {
-                total_items_query = total_items_query
-                    .filter(crate::schema::pipelines::dsl::git_branch.eq("stable"));
-            }
-            if query.github_pr_only {
-                total_items_query = total_items_query
-                    .filter(crate::schema::pipelines::dsl::github_pr.is_not_null());
-            }
-
-            let total_items = total_items_query.count().get_result(conn)?;
-
-            // collect pipelines
             let mut sql = crate::schema::pipelines::dsl::pipelines
                 .left_join(crate::schema::users::dsl::users)
                 .order_by(crate::schema::pipelines::dsl::id.desc())
@@ -210,105 +204,163 @@ pub async fn pipeline_list(
                 sql = sql.filter(crate::schema::pipelines::dsl::github_pr.is_not_null());
             }
 
-            let res: Vec<(Pipeline, Option<User>)> = if query.items_per_page == -1 {
-                sql.load::<(Pipeline, Option<User>)>(conn)?
-            } else {
-                sql.offset((query.page - 1) * query.items_per_page)
-                    .limit(query.items_per_page)
-                    .load::<(Pipeline, Option<User>)>(conn)?
-            };
-            let (pipelines, users): (Vec<Pipeline>, Vec<Option<User>>) = res.into_iter().unzip();
+            if statuses.is_empty() {
+                // fast path: compute total items in SQL, page first, and only
+                // load jobs of the pipelines on this page
+                let mut total_items_query = crate::schema::pipelines::dsl::pipelines.into_boxed();
 
-            // get all jobs of these pipelines
-            // and group by pipeline later
-            // see https://diesel.rs/guides/relations.html
-            let jobs = Job::belonging_to(&pipelines)
-                .select(Job::as_select())
-                .order(crate::schema::jobs::dsl::id.desc())
-                .load(conn)?;
-
-            let mut items = vec![];
-            for ((mut jobs, pipeline), creator) in jobs
-                .grouped_by(&pipelines)
-                .into_iter()
-                .zip(pipelines)
-                .zip(users)
-            {
-                // Mimic gitlab behavior: for each arch, only keep the latest
-                // (with maximum id) job. The maximum id is listed first via
-                // `.order(crate::schema::jobs::dsl::id.desc())`. Then
-                // `dedup_by` removes all but the first of consecutive elements.
-                jobs.sort_by(|a, b| a.arch.cmp(&b.arch));
-                jobs.dedup_by(|a, b| a.arch.eq(&b.arch));
-
-                let mut has_error = false;
-                let mut has_failed = false;
-                let mut has_unfinished = false;
-                for job in &jobs {
-                    match job.status.as_str() {
-                        "error" => has_error = true,
-                        "success" => {
-                            // success
-                        }
-                        "failed" => {
-                            // failed
-                            has_failed = true;
-                        }
-                        "created" => {
-                            has_unfinished = true;
-                        }
-                        "running" => {
-                            has_unfinished = true;
-                        }
-                        _ => {
-                            error!("Got job with unknown status: {:?}", job);
-                        }
-                    }
+                if query.stable_only {
+                    total_items_query = total_items_query
+                        .filter(crate::schema::pipelines::dsl::git_branch.eq("stable"));
+                }
+                if query.github_pr_only {
+                    total_items_query = total_items_query
+                        .filter(crate::schema::pipelines::dsl::github_pr.is_not_null());
                 }
 
-                let status = if has_error {
-                    "error"
-                } else if has_failed {
-                    "failed"
-                } else if has_unfinished {
-                    "running"
+                let total_items = total_items_query.count().get_result(conn)?;
+
+                let res: Vec<(Pipeline, Option<User>)> = if query.items_per_page == -1 {
+                    sql.load::<(Pipeline, Option<User>)>(conn)?
                 } else {
-                    "success"
+                    sql.offset((query.page - 1) * query.items_per_page)
+                        .limit(query.items_per_page)
+                        .load::<(Pipeline, Option<User>)>(conn)?
+                };
+                let (pipelines, users): (Vec<Pipeline>, Vec<Option<User>>) =
+                    res.into_iter().unzip();
+
+                // get all jobs of these pipelines
+                // and group by pipeline later
+                // see https://diesel.rs/guides/relations.html
+                let jobs = Job::belonging_to(&pipelines)
+                    .select(Job::as_select())
+                    .order(crate::schema::jobs::dsl::id.desc())
+                    .load(conn)?;
+
+                let items = build_pipeline_list_items(pipelines, users, jobs);
+                Ok(PipelineListResponse { total_items, items })
+            } else {
+                // status filter path: a pipeline's status is computed from its
+                // latest job per arch (see below), so compute it for every
+                // candidate pipeline, then filter and page in memory
+                let res: Vec<(Pipeline, Option<User>)> = sql.load::<(Pipeline, Option<User>)>(conn)?;
+                let (pipelines, users): (Vec<Pipeline>, Vec<Option<User>>) =
+                    res.into_iter().unzip();
+
+                let jobs = Job::belonging_to(&pipelines)
+                    .select(Job::as_select())
+                    .order(crate::schema::jobs::dsl::id.desc())
+                    .load(conn)?;
+
+                let items: Vec<PipelineListResponseItem> =
+                    build_pipeline_list_items(pipelines, users, jobs)
+                        .into_iter()
+                        .filter(|item| statuses.contains(&item.status))
+                        .collect();
+
+                let total_items = items.len() as i64;
+                let items = if query.items_per_page == -1 {
+                    items
+                } else {
+                    items
+                        .into_iter()
+                        .skip(((query.page - 1) * query.items_per_page) as usize)
+                        .take(query.items_per_page as usize)
+                        .collect()
                 };
 
-                // compute pipeline status based on job status
-                items.push(PipelineListResponseItem {
-                    id: pipeline.id,
-                    git_branch: pipeline.git_branch,
-                    git_sha: pipeline.git_sha,
-                    packages: pipeline.packages,
-                    archs: pipeline.archs,
-                    creation_time: pipeline.creation_time,
-                    github_pr: pipeline.github_pr,
-                    status,
-
-                    creator_github_login: creator
-                        .as_ref()
-                        .and_then(|user| user.github_login.as_ref())
-                        .cloned(),
-                    creator_github_avatar_url: creator
-                        .as_ref()
-                        .and_then(|user| user.github_avatar_url.as_ref())
-                        .cloned(),
-                    jobs: jobs
-                        .into_iter()
-                        .map(|job| PipelineListResponseJob {
-                            job_id: job.id,
-                            arch: job.arch,
-                            status: job.status,
-                        })
-                        .collect(),
-                });
+                Ok(PipelineListResponse { total_items, items })
             }
-
-            Ok(PipelineListResponse { total_items, items })
         })?,
     ))
+}
+
+fn build_pipeline_list_items(
+    pipelines: Vec<Pipeline>,
+    users: Vec<Option<User>>,
+    jobs: Vec<Job>,
+) -> Vec<PipelineListResponseItem> {
+    let mut items = vec![];
+    for ((mut jobs, pipeline), creator) in jobs
+        .grouped_by(&pipelines)
+        .into_iter()
+        .zip(pipelines)
+        .zip(users)
+    {
+        // Mimic gitlab behavior: for each arch, only keep the latest
+        // (with maximum id) job. The maximum id is listed first via
+        // `.order(crate::schema::jobs::dsl::id.desc())`. Then
+        // `dedup_by` removes all but the first of consecutive elements.
+        jobs.sort_by(|a, b| a.arch.cmp(&b.arch));
+        jobs.dedup_by(|a, b| a.arch.eq(&b.arch));
+
+        let mut has_error = false;
+        let mut has_failed = false;
+        let mut has_unfinished = false;
+        for job in &jobs {
+            match job.status.as_str() {
+                "error" => has_error = true,
+                "success" => {
+                    // success
+                }
+                "failed" => {
+                    // failed
+                    has_failed = true;
+                }
+                "created" => {
+                    has_unfinished = true;
+                }
+                "running" => {
+                    has_unfinished = true;
+                }
+                _ => {
+                    error!("Got job with unknown status: {:?}", job);
+                }
+            }
+        }
+
+        let status = if has_error {
+            "error"
+        } else if has_failed {
+            "failed"
+        } else if has_unfinished {
+            "running"
+        } else {
+            "success"
+        };
+
+        // compute pipeline status based on job status
+        items.push(PipelineListResponseItem {
+            id: pipeline.id,
+            git_branch: pipeline.git_branch,
+            git_sha: pipeline.git_sha,
+            packages: pipeline.packages,
+            archs: pipeline.archs,
+            creation_time: pipeline.creation_time,
+            github_pr: pipeline.github_pr,
+            status,
+
+            creator_github_login: creator
+                .as_ref()
+                .and_then(|user| user.github_login.as_ref())
+                .cloned(),
+            creator_github_avatar_url: creator
+                .as_ref()
+                .and_then(|user| user.github_avatar_url.as_ref())
+                .cloned(),
+            jobs: jobs
+                .into_iter()
+                .map(|job| PipelineListResponseJob {
+                    job_id: job.id,
+                    arch: job.arch,
+                    status: job.status,
+                })
+                .collect(),
+        });
+    }
+
+    items
 }
 
 pub async fn pipeline_status(
