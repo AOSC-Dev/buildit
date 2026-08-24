@@ -2,6 +2,33 @@
   <v-container>
     <v-row>
       <v-col>
+        <v-expansion-panels>
+          <v-expansion-panel title="Jobs">
+            <v-expansion-panel-text>
+              <v-container class="pa-0">
+                <v-row class="pa-0">
+                  <v-col class="pa-0">
+                    <v-select
+                      v-model="statuses"
+                      :items="statusItems"
+                      label="Status"
+                      multiple
+                      chips
+                      closable-chips
+                      density="compact"
+                      :hide-details="true"
+                      @update:model-value="onFilterChange">
+                    </v-select>
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
         <v-data-table-server
           v-model:page="page"
           v-model:items-per-page="itemsPerPage"
@@ -210,25 +237,45 @@
   }
 
   export default {
-    data: () => ({
-      page: 1,
-      itemsPerPage: 100,
-      headers: [
-        { title: 'Status', key: 'status', sortable: false },
-        { title: 'Job', key: 'job', sortable: false },
-        { title: 'Pipeline', key: 'pipeline', sortable: false },
-        { title: 'Actions', key: 'actions', sortable: false },
-      ],
-      loading: true,
-      totalItems: 0,
-      serverItems: [],
-      jobRestartSnackbar: false,
-      newJobID: 0,
-    }),
+    data() {
+      return {
+        page: Number(this.$route.query.page) || 1,
+        itemsPerPage: Number(this.$route.query.items_per_page) || 100,
+        statuses: (this.$route.query.status as string)?.split(',').filter(s => s) || [],
+        statusItems: [
+          { title: 'Created', value: 'created' },
+          { title: 'Running', value: 'running' },
+          { title: 'Passed', value: 'success' },
+          { title: 'Failed', value: 'failed' },
+          { title: 'Error', value: 'error' },
+        ],
+        headers: [
+          { title: 'Status', key: 'status', sortable: false },
+          { title: 'Job', key: 'job', sortable: false },
+          { title: 'Pipeline', key: 'pipeline', sortable: false },
+          { title: 'Actions', key: 'actions', sortable: false },
+        ],
+        loading: true,
+        totalItems: 0,
+        serverItems: [],
+        jobRestartSnackbar: false,
+        newJobID: 0,
+      };
+    },
     methods: {
+      onFilterChange() {
+        this.page = 1;
+        this.loadItems();
+      },
       async loadItems () {
+        this.$router.push({path: this.$route.path, query: {
+          page: String(this.page),
+          items_per_page: String(this.itemsPerPage),
+          status: this.statuses.join(',')
+        } });
+
         this.loading = true;
-        let url = hostname + `/api/job/list?page=${this.page}&items_per_page=${this.itemsPerPage}`;
+        let url = hostname + `/api/job/list?page=${this.page}&items_per_page=${this.itemsPerPage}&status=${this.statuses.join(',')}`;
         let data = (await axios.get(url)).data;
         this.totalItems = data.total_items;
         this.serverItems = data.items;

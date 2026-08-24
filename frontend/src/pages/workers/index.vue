@@ -2,14 +2,39 @@
   <v-container>
     <v-row>
       <v-col>
-        <v-data-table-server
-          :items-per-page="itemsPerPage"
+        <v-expansion-panels>
+          <v-expansion-panel title="Workers">
+            <v-expansion-panel-text>
+              <v-container class="pa-0">
+                <v-row class="pa-0">
+                  <v-col class="pa-0">
+                    <v-select
+                      v-model="statuses"
+                      :items="statusItems"
+                      label="Status"
+                      multiple
+                      chips
+                      closable-chips
+                      density="compact"
+                      :hide-details="true">
+                    </v-select>
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
+        <v-data-table
+          :items-per-page="-1"
           :headers="headers"
-          :items="serverItems"
-          :items-length="totalItems"
+          :items="filteredItems"
           :loading="loading"
           item-value="id"
-          @update:options="loadItems">
+          hide-default-footer>
           <template #item.hostname="{ item }">
             <router-link :to="{ path: `/workers/${(item as Worker).id}` }">
               {{ (item as Worker).hostname }}
@@ -55,7 +80,7 @@
               <router-link :to="{ path: `/jobs/${(item as Worker).running_job_id}` }">
                 # {{ (item as Worker).running_job_id }}
               </router-link>
-              {{ 
+              {{
                 (item as Worker).running_job_assign_time !== null && (item as Worker).running_job_assign_time !== undefined ?
                   " since " + new TimeAgo('en-US').format(new Date((item as Worker).running_job_assign_time)) : ""
               }}
@@ -64,7 +89,7 @@
               No internet connectivity
             </div>
           </template>
-        </v-data-table-server>
+        </v-data-table>
       </v-col>
     </v-row>
   </v-container>
@@ -83,11 +108,6 @@
 
   TimeAgo.addDefaultLocale(en)
 
-  interface LoadItemsOpts {
-    page: number;
-    itemsPerPage: number;
-  }
-
   interface Worker {
     id: number;
     hostname: string;
@@ -102,26 +122,53 @@
   }
 
   export default {
-    data: () => ({
-      itemsPerPage: 50,
-      headers: [
-        { title: 'Hostname', key: 'hostname', sortable: false },
-        { title: 'Architecture', key: 'arch', sortable: false },
-        { title: 'Logical Cores', key: 'logical_cores', sortable: false },
-        { title: 'Memory Size', key: 'memory_bytes', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes, { binary: true }) },
-        { title: 'Memory Per Core', key: 'memory_per_core', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes / item.logical_cores, { binary: true }) },
-        { title: 'Disk Free Space Size', key: 'disk_free_space_bytes', sortable: false, value: (item: any) => prettyBytes(item.disk_free_space_bytes) },
-        { title: 'Status', key: 'status', sortable: false },
-      ],
-      loading: true,
-      totalItems: 0,
-      serverItems: []
-    }),
+    data() {
+      return {
+        statuses: [] as string[],
+        statusItems: [
+          { title: 'Live', value: 'live' },
+          { title: 'Dead', value: 'dead' },
+          { title: 'Idle', value: 'idle' },
+          { title: 'Busy', value: 'busy' },
+        ],
+        headers: [
+          { title: 'Hostname', key: 'hostname', sortable: false },
+          { title: 'Architecture', key: 'arch', sortable: false },
+          { title: 'Logical Cores', key: 'logical_cores', sortable: false },
+          { title: 'Memory Size', key: 'memory_bytes', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes, { binary: true }) },
+          { title: 'Memory Per Core', key: 'memory_per_core', sortable: false, value: (item: any) => prettyBytes(item.memory_bytes / item.logical_cores, { binary: true }) },
+          { title: 'Disk Free Space Size', key: 'disk_free_space_bytes', sortable: false, value: (item: any) => prettyBytes(item.disk_free_space_bytes) },
+          { title: 'Status', key: 'status', sortable: false },
+        ],
+        loading: true,
+        serverItems: [] as Worker[]
+      };
+    },
+    computed: {
+      filteredItems(): Worker[] {
+        if (this.statuses.length === 0) {
+          return this.serverItems;
+        }
+        return this.serverItems.filter((worker: Worker) => {
+          const status = this.workerStatus(worker);
+          // "live" matches any live worker, whether idle or busy
+          return this.statuses.includes(status) || (this.statuses.includes('live') && status !== 'dead');
+        });
+      }
+    },
+    mounted() {
+      this.loadItems();
+    },
     methods: {
-      async loadItems (opts: LoadItemsOpts) {
+      workerStatus(worker: Worker): string {
+        if (!worker.is_live) {
+          return 'dead';
+        }
+        return worker.running_job_id !== null && worker.running_job_id !== undefined ? 'busy' : 'idle';
+      },
+      async loadItems () {
         this.loading = true;
-        let data = (await axios.get(hostname + `/api/worker/list?page=${opts.page}&items_per_page=${opts.itemsPerPage}`)).data;
-        this.totalItems = data.total_items;
+        let data = (await axios.get(hostname + `/api/worker/list?page=1&items_per_page=-1`)).data;
         this.serverItems = data.items;
         this.loading = false;
       }

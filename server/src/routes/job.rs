@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 pub struct JobListRequest {
     page: i64,
     items_per_page: i64,
+    // comma-separated status values; empty means no status filter
+    #[serde(default)]
+    status: String,
 }
 
 #[derive(Serialize)]
@@ -51,16 +54,32 @@ pub async fn job_list(
 
     Ok(Json(
         conn.transaction::<JobListResponse, anyhow::Error, _>(|conn| {
-            let total_items = crate::schema::jobs::dsl::jobs.count().get_result(conn)?;
+            let statuses: Vec<&str> = query
+                .status
+                .split(',')
+                .filter(|status| !status.is_empty())
+                .collect();
 
-            let sql = crate::schema::jobs::dsl::jobs
+            let mut total_items_query = crate::schema::jobs::dsl::jobs.into_boxed();
+            if !statuses.is_empty() {
+                total_items_query =
+                    total_items_query.filter(crate::schema::jobs::dsl::status.eq_any(&statuses));
+            }
+            let total_items = total_items_query.count().get_result(conn)?;
+
+            let mut sql = crate::schema::jobs::dsl::jobs
                 .inner_join(crate::schema::pipelines::dsl::pipelines)
                 .left_join(
                     crate::schema::users::dsl::users
                         .on(crate::schema::pipelines::dsl::creator_user_id
                             .eq(crate::schema::users::dsl::id.nullable())),
                 )
-                .order(crate::schema::jobs::dsl::id.desc());
+                .order(crate::schema::jobs::dsl::id.desc())
+                .into_boxed();
+
+            if !statuses.is_empty() {
+                sql = sql.filter(crate::schema::jobs::dsl::status.eq_any(&statuses));
+            }
 
             // all
             let res = if query.items_per_page == -1 {

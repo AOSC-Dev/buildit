@@ -11,7 +11,7 @@
                     <v-checkbox
                       v-model="stableOnly"
                       label="Stable Branch Only"
-                      @update:model-value="loadItems"
+                      @update:model-value="onFilterChange"
                       :hide-details="true">
                     </v-checkbox>
                   </v-col>
@@ -19,9 +19,22 @@
                     <v-checkbox
                       v-model="githubPROnly"
                       label="GitHub PR Only"
-                      @update:model-value="loadItems"
+                      @update:model-value="onFilterChange"
                       :hide-details="true">
                     </v-checkbox>
+                  </v-col>
+                  <v-col class="pa-0">
+                    <v-select
+                      v-model="statuses"
+                      :items="statusItems"
+                      label="Status"
+                      multiple
+                      chips
+                      closable-chips
+                      density="compact"
+                      :hide-details="true"
+                      @update:model-value="onFilterChange">
+                    </v-select>
                   </v-col>
                   <v-col class="pa-0">
                     <v-checkbox
@@ -213,6 +226,13 @@
         itemsPerPage: Number(this.$route.query.items_per_page) || 100,
         stableOnly: this.$route.query.stable_only === "true",
         githubPROnly: this.$route.query.github_pr_only === "true",
+        statuses: (this.$route.query.status as string)?.split(',').filter(s => s) || [],
+        statusItems: [
+          { title: 'Passed', value: 'success' },
+          { title: 'Failed', value: 'failed' },
+          { title: 'Running', value: 'running' },
+          { title: 'Error', value: 'error' },
+        ],
         headers: [
           { title: 'Status', key: 'status', sortable: false },
           { title: 'Pipeline', key: 'pipeline', sortable: false },
@@ -241,11 +261,16 @@
           items_per_page: String(this.itemsPerPage),
           stable_only: String(this.stableOnly),
           github_pr_only: String(this.githubPROnly),
+          status: this.statuses.join(','),
           auto_refresh: String(this.autoRefresh)
         } });
       }
     },
     methods: {
+      onFilterChange() {
+        this.page = 1;
+        this.loadItems();
+      },
       startAutoRefresh() {
         this.countdown = 30;
         this.intervalHandle = setInterval(() => {
@@ -264,11 +289,12 @@
           items_per_page: String(this.itemsPerPage),
           stable_only: String(this.stableOnly),
           github_pr_only: String(this.githubPROnly),
+          status: this.statuses.join(','),
           auto_refresh: String(this.autoRefresh)
         } });
 
         this.loading = true;
-        let data = (await axios.get(hostname + `/api/pipeline/list?page=${this.page}&items_per_page=${this.itemsPerPage}&stable_only=${this.stableOnly}&github_pr_only=${this.githubPROnly}`)).data;
+        let data = (await axios.get(hostname + `/api/pipeline/list?page=${this.page}&items_per_page=${this.itemsPerPage}&stable_only=${this.stableOnly}&github_pr_only=${this.githubPROnly}&status=${this.statuses.join(',')}`)).data;
         this.totalItems = data.total_items;
         this.serverItems = data.items;
         this.loading = false;
