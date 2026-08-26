@@ -1,3 +1,4 @@
+use crate::DbPool;
 use crate::models::{Job, Pipeline, User, Worker};
 use crate::routes::{AnyhowError, AppState};
 use anyhow::Context;
@@ -106,17 +107,19 @@ pub async fn job_list(
 
 #[derive(Deserialize)]
 pub struct JobInfoRequest {
-    job_id: i32,
+    pub(crate) job_id: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JobInfoResponse {
     // from job
-    job_id: i32,
-    pipeline_id: i32,
+    pub job_id: i32,
+    pub pipeline_id: i32,
     packages: String,
     arch: String,
     creation_time: chrono::DateTime<chrono::Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    creation_timestamp: chrono::DateTime<chrono::Utc>,
     status: String,
     build_success: Option<bool>,
     pushpkg_success: Option<bool>,
@@ -125,6 +128,8 @@ pub struct JobInfoResponse {
     skipped_packages: Option<String>,
     log_url: Option<String>,
     finish_time: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    finish_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     error_message: Option<String>,
     elapsed_secs: Option<i64>,
     assigned_worker_id: Option<i32>,
@@ -134,6 +139,8 @@ pub struct JobInfoResponse {
     require_min_total_mem_per_core: Option<f32>,
     require_min_disk: Option<i64>,
     assign_time: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    assign_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 
     // from pipeline
     git_branch: String,
@@ -145,73 +152,85 @@ pub struct JobInfoResponse {
     built_by_worker_hostname: Option<String>,
 }
 
-pub async fn job_info(
-    Query(query): Query<JobInfoRequest>,
-    State(AppState { pool, .. }): State<AppState>,
-) -> Result<Json<JobInfoResponse>, AnyhowError> {
+pub async fn query_job_info(
+    req: JobInfoRequest,
+    pool: &DbPool,
+) -> Result<JobInfoResponse, anyhow::Error> {
     let mut conn = pool
         .get()
         .context("Failed to get db connection from pool")?;
 
-    Ok(Json(
-        conn.transaction::<JobInfoResponse, diesel::result::Error, _>(|conn| {
-            // use alias to allow joining workers table twice
-            // https://github.com/diesel-rs/diesel/issues/2569
-            // https://github.com/diesel-rs/diesel/pull/2254
-            // https://docs.rs/diesel/latest/diesel/macro.alias.html
-            let assigned_workers = diesel::alias!(crate::schema::workers as assigned_workers);
-            let (job, pipeline, assigned_worker, built_by_worker) = crate::schema::jobs::dsl::jobs
-                .find(query.job_id)
-                .inner_join(crate::schema::pipelines::dsl::pipelines)
-                .left_join(
-                    assigned_workers.on(crate::schema::jobs::dsl::assigned_worker_id.eq(
-                        assigned_workers
-                            .field(crate::schema::workers::dsl::id)
-                            .nullable(),
-                    )),
-                )
-                .left_join(
-                    crate::schema::workers::dsl::workers
-                        .on(crate::schema::jobs::dsl::built_by_worker_id
-                            .eq(crate::schema::workers::dsl::id.nullable())),
-                )
-                .get_result::<(Job, Pipeline, Option<Worker>, Option<Worker>)>(conn)?;
+    conn.transaction::<JobInfoResponse, diesel::result::Error, _>(|conn| {
+        // use alias to allow joining workers table twice
+        // https://github.com/diesel-rs/diesel/issues/2569
+        // https://github.com/diesel-rs/diesel/pull/2254
+        // https://docs.rs/diesel/latest/diesel/macro.alias.html
+        let assigned_workers = diesel::alias!(crate::schema::workers as assigned_workers);
+        let (job, pipeline, assigned_worker, built_by_worker) = crate::schema::jobs::dsl::jobs
+            .find(req.job_id)
+            .inner_join(crate::schema::pipelines::dsl::pipelines)
+            .left_join(
+                assigned_workers.on(crate::schema::jobs::dsl::assigned_worker_id.eq(
+                    assigned_workers
+                        .field(crate::schema::workers::dsl::id)
+                        .nullable(),
+                )),
+            )
+            .left_join(
+                crate::schema::workers::dsl::workers
+                    .on(crate::schema::jobs::dsl::built_by_worker_id
+                        .eq(crate::schema::workers::dsl::id.nullable())),
+            )
+            .get_result::<(Job, Pipeline, Option<Worker>, Option<Worker>)>(conn)?;
 
-            Ok(JobInfoResponse {
-                job_id: job.id,
-                pipeline_id: job.pipeline_id,
-                packages: job.packages,
-                arch: job.arch,
-                creation_time: job.creation_time,
-                status: job.status,
-                build_success: job.build_success,
-                pushpkg_success: job.pushpkg_success,
-                successful_packages: job.successful_packages,
-                failed_package: job.failed_package,
-                skipped_packages: job.skipped_packages,
-                log_url: job.log_url,
-                finish_time: job.finish_time,
-                error_message: job.error_message,
-                elapsed_secs: job.elapsed_secs,
-                assigned_worker_id: job.assigned_worker_id,
-                built_by_worker_id: job.built_by_worker_id,
-                require_min_core: job.require_min_core,
-                require_min_total_mem: job.require_min_total_mem,
-                require_min_total_mem_per_core: job.require_min_total_mem_per_core,
-                require_min_disk: job.require_min_disk,
-                assign_time: job.assign_time,
+        Ok(JobInfoResponse {
+            job_id: job.id,
+            pipeline_id: job.pipeline_id,
+            packages: job.packages,
+            arch: job.arch,
+            creation_time: job.creation_time,
+            creation_timestamp: job.creation_time,
+            status: job.status,
+            build_success: job.build_success,
+            pushpkg_success: job.pushpkg_success,
+            successful_packages: job.successful_packages,
+            failed_package: job.failed_package,
+            skipped_packages: job.skipped_packages,
+            log_url: job.log_url,
+            finish_time: job.finish_time,
+            finish_timestamp: job.finish_time,
+            error_message: job.error_message,
+            elapsed_secs: job.elapsed_secs,
+            assigned_worker_id: job.assigned_worker_id,
+            built_by_worker_id: job.built_by_worker_id,
+            require_min_core: job.require_min_core,
+            require_min_total_mem: job.require_min_total_mem,
+            require_min_total_mem_per_core: job.require_min_total_mem_per_core,
+            require_min_disk: job.require_min_disk,
+            assign_time: job.assign_time,
+            assign_timestamp: job.assign_time,
 
-                // from pipeline
-                git_branch: pipeline.git_branch,
-                git_sha: pipeline.git_sha,
-                github_pr: pipeline.github_pr,
+            // from pipeline
+            git_branch: pipeline.git_branch,
+            git_sha: pipeline.git_sha,
+            github_pr: pipeline.github_pr,
 
-                // from worker
-                assigned_worker_hostname: assigned_worker.map(|w| w.hostname),
-                built_by_worker_hostname: built_by_worker.map(|w| w.hostname),
-            })
-        })?,
-    ))
+            // from worker
+            assigned_worker_hostname: assigned_worker.map(|w| w.hostname),
+            built_by_worker_hostname: built_by_worker.map(|w| w.hostname),
+        })
+    })
+    .with_context(|| format!("load job info for {}", req.job_id))
+}
+
+pub async fn job_info(
+    Query(query): Query<JobInfoRequest>,
+    State(AppState { pool, .. }): State<AppState>,
+) -> Result<Json<JobInfoResponse>, AnyhowError> {
+    query_job_info(query, &pool)
+        .await
+        .map(Json)
+        .map_err(AnyhowError)
 }
 
 #[derive(Deserialize)]
