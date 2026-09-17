@@ -22,7 +22,7 @@ tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "process"
 buildit-utils = { path = "../buildit-utils" }
 jsonwebtoken = "10.3.0"
 size = "0.5"
-dickens = { git = "https://github.com/AOSC-Dev/dickens.git", version = "0.1.0" }
+dickens = { git = "https://github.com/AOSC-Dev/dickens.git", rev = "62bae96d3ea4b227a86b1990f2d7ef61ebf054cb" }
 axum = { version = "0.8", features = ["ws"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing = "0.1.44"
