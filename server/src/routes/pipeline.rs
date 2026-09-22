@@ -244,7 +244,8 @@ pub async fn pipeline_list(
                 // status filter path: a pipeline's status is computed from its
                 // latest job per arch (see below), so compute it for every
                 // candidate pipeline, then filter and page in memory
-                let res: Vec<(Pipeline, Option<User>)> = sql.load::<(Pipeline, Option<User>)>(conn)?;
+                let res: Vec<(Pipeline, Option<User>)> =
+                    sql.load::<(Pipeline, Option<User>)>(conn)?;
                 let (pipelines, users): (Vec<Pipeline>, Vec<Option<User>>) =
                     res.into_iter().unzip();
 

@@ -18,8 +18,8 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use walkdir::WalkDir;
 
 use crate::{
-    ABArchGroupMap, ABBS_REPO_LOCK, ALL_ARCH, ALPHA, AMD64, ARM64, ARMV4, COMMITS_COUNT_LIMIT, I486,
-    LOONGARCH64, LOONGARCH64_NOSIMD, LOONGSON3, NOARCH, PPC64EL, RISCV64,
+    ABArchGroupMap, ABBS_REPO_LOCK, ALL_ARCH, ALPHA, AMD64, ARM64, ARMV4, COMMITS_COUNT_LIMIT,
+    I486, LOONGARCH64, LOONGARCH64_NOSIMD, LOONGSON3, NOARCH, PPC64EL, RISCV64,
 };
 
 const ARCHGROUP_DATA: &str = "/usr/lib/autobuild4/sets/arch_groups.json";
@@ -713,9 +713,7 @@ fn format_archs(archs: &[&str]) -> String {
     }
 
     // Afterglow
-    if archs.contains(&"alpha") ||
-       archs.contains(&"armv4") ||
-       archs.contains(&"i486") {
+    if archs.contains(&"alpha") || archs.contains(&"armv4") || archs.contains(&"i486") {
         if newline {
             s.push('\n');
         }

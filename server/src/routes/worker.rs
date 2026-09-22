@@ -10,7 +10,9 @@ use crate::{
 use anyhow::Context;
 use anyhow::anyhow;
 use axum::extract::{Json, Query, State};
-use buildit_utils::{ALPHA, AMD64, ARM64, ARMV4, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64};
+use buildit_utils::{
+    ALPHA, AMD64, ARM64, ARMV4, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64,
+};
 use buildit_utils::{LOONGARCH64, NOARCH};
 
 use chrono::{DateTime, Utc};

@@ -81,9 +81,7 @@ async fn handle_viewer_socket(
 
     // register our tx to WSStateMap
     // and return latest logs
-    let viewer = Arc::new(Viewer {
-        sender: tx,
-    });
+    let viewer = Arc::new(Viewer { sender: tx });
     let msgs = {
         let mut map = state_map.lock().unwrap();
         let state = map.entry(hostname.clone()).or_default();
