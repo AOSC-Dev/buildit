@@ -21,6 +21,7 @@ use tracing::{error, info, warn};
 
 pub mod github;
 
+pub const ALPHA: &str = "DEC Alpha `alpha`";
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const ARMV4: &str = "ARMv4 `armv4`";
@@ -44,7 +45,7 @@ pub const MAINLINE_ARCH: &[&str] = &[
     "riscv64",
 ];
 
-pub const RETRO_ARCH: &[&str] = &["armv4", "i486"];
+pub const RETRO_ARCH: &[&str] = &["alpha", "armv4", "i486"];
 
 pub const ALL_ARCH: &[&str] = &[
     "amd64",
@@ -54,6 +55,7 @@ pub const ALL_ARCH: &[&str] = &[
     "loongson3",
     "ppc64el",
     "riscv64",
+    "alpha",
     "armv4",
     "i486",
 ];

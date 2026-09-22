@@ -117,6 +117,7 @@
     data: () => ({
       status: {} as DashboardStatusResponse,
       archs: [
+        "alpha",
         "amd64",
         "arm64",
         "armv4",
