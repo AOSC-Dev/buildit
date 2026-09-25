@@ -121,6 +121,7 @@
         "amd64",
         "arm64",
         "armv4",
+        "armv7hf",
 	"i486",
         "loongarch64",
         "loongarch64_nosimd",

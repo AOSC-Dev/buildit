@@ -25,6 +25,7 @@ pub const ALPHA: &str = "DEC Alpha `alpha`";
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const ARMV4: &str = "ARMv4 `armv4`";
+pub const ARMV4: &str = "ARMv7 (Hard Float, NEON) `armv7hf`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
 pub const I486: &str = "32-bit Intel 486 `i486`";
 pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
@@ -45,7 +46,7 @@ pub const MAINLINE_ARCH: &[&str] = &[
     "riscv64",
 ];
 
-pub const RETRO_ARCH: &[&str] = &["alpha", "armv4", "i486"];
+pub const RETRO_ARCH: &[&str] = &["alpha", "armv4", "armv7hf", "i486"];
 
 pub const ALL_ARCH: &[&str] = &[
     "amd64",
@@ -57,6 +58,7 @@ pub const ALL_ARCH: &[&str] = &[
     "riscv64",
     "alpha",
     "armv4",
+    "armv7hf",
     "i486",
 ];
 

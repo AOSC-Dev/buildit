@@ -11,7 +11,7 @@ use anyhow::Context;
 use anyhow::anyhow;
 use axum::extract::{Json, Query, State};
 use buildit_utils::{
-    ALPHA, AMD64, ARM64, ARMV4, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64,
+    ALPHA, AMD64, ARM64, ARMV4, ARMV7HF, I486, LOONGARCH64_NOSIMD, LOONGSON3, PPC64EL, RISCV64,
 };
 use buildit_utils::{LOONGARCH64, NOARCH};
 
@@ -561,6 +561,7 @@ pub async fn handle_success_message(
                     "amd64" => AMD64,
                     "arm64" => ARM64,
                     "armv4" => ARMV4,
+                    "armv7hf" => ARMV7HF,
                     "i486" => I486,
                     "loongson3" => LOONGSON3,
                     "ppc64el" => PPC64EL,
