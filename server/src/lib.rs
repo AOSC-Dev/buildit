@@ -12,6 +12,7 @@ use tokio::net::{TcpListener, UnixListener, unix::UCred};
 
 pub mod api;
 pub mod bot;
+pub mod feed;
 pub mod formatter;
 pub mod github;
 pub mod models;

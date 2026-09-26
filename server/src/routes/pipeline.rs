@@ -1,3 +1,4 @@
+use crate::DbPool;
 use crate::models::User;
 use crate::routes::{AnyhowError, ApiAuth, AppState};
 use crate::{
@@ -69,69 +70,81 @@ pub async fn pipeline_new_pr(
 
 #[derive(Deserialize)]
 pub struct PipelineInfoRequest {
-    pipeline_id: i32,
+    pub pipeline_id: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct PipelineInfoResponseJob {
-    job_id: i32,
-    arch: String,
-    status: String,
+    pub job_id: i32,
+    pub arch: String,
+    pub status: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct PipelineInfoResponse {
     // from pipeline
-    pipeline_id: i32,
-    packages: String,
-    archs: String,
-    git_branch: String,
-    git_sha: String,
-    creation_time: chrono::DateTime<chrono::Utc>,
-    github_pr: Option<i64>,
+    pub pipeline_id: i32,
+    pub packages: String,
+    pub archs: String,
+    pub git_branch: String,
+    pub git_sha: String,
+    pub creation_time: chrono::DateTime<chrono::Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub creation_timestamp: chrono::DateTime<chrono::Utc>,
+    pub github_pr: Option<i64>,
 
     // related jobs
-    jobs: Vec<PipelineInfoResponseJob>,
+    pub jobs: Vec<PipelineInfoResponseJob>,
+}
+
+pub async fn query_pipeline_info(
+    req: PipelineInfoRequest,
+    pool: &DbPool,
+) -> Result<PipelineInfoResponse, anyhow::Error> {
+    let mut conn = pool
+        .get()
+        .context("Failed to get db connection from pool")?;
+
+    conn.transaction::<PipelineInfoResponse, diesel::result::Error, _>(|conn| {
+        let pipeline = crate::schema::pipelines::dsl::pipelines
+            .find(req.pipeline_id)
+            .get_result::<Pipeline>(conn)?;
+
+        let jobs: Vec<PipelineInfoResponseJob> = crate::schema::jobs::dsl::jobs
+            .filter(crate::schema::jobs::dsl::pipeline_id.eq(pipeline.id))
+            .order(crate::schema::jobs::dsl::id.asc())
+            .load::<Job>(conn)?
+            .into_iter()
+            .map(|job| PipelineInfoResponseJob {
+                job_id: job.id,
+                arch: job.arch,
+                status: job.status,
+            })
+            .collect();
+
+        Ok(PipelineInfoResponse {
+            pipeline_id: pipeline.id,
+            packages: pipeline.packages,
+            archs: pipeline.archs,
+            git_branch: pipeline.git_branch,
+            git_sha: pipeline.git_sha,
+            creation_time: pipeline.creation_time,
+            creation_timestamp: pipeline.creation_time,
+            github_pr: pipeline.github_pr,
+            jobs,
+        })
+    })
+    .with_context(|| format!("load pipeline info for {}", req.pipeline_id))
 }
 
 pub async fn pipeline_info(
     Query(query): Query<PipelineInfoRequest>,
     State(AppState { pool, .. }): State<AppState>,
 ) -> Result<Json<PipelineInfoResponse>, AnyhowError> {
-    let mut conn = pool
-        .get()
-        .context("Failed to get db connection from pool")?;
-
-    Ok(Json(
-        conn.transaction::<PipelineInfoResponse, diesel::result::Error, _>(|conn| {
-            let pipeline = crate::schema::pipelines::dsl::pipelines
-                .find(query.pipeline_id)
-                .get_result::<Pipeline>(conn)?;
-
-            let jobs: Vec<PipelineInfoResponseJob> = crate::schema::jobs::dsl::jobs
-                .filter(crate::schema::jobs::dsl::pipeline_id.eq(pipeline.id))
-                .order(crate::schema::jobs::dsl::id.asc())
-                .load::<Job>(conn)?
-                .into_iter()
-                .map(|job| PipelineInfoResponseJob {
-                    job_id: job.id,
-                    arch: job.arch,
-                    status: job.status,
-                })
-                .collect();
-
-            Ok(PipelineInfoResponse {
-                pipeline_id: pipeline.id,
-                packages: pipeline.packages,
-                archs: pipeline.archs,
-                git_branch: pipeline.git_branch,
-                git_sha: pipeline.git_sha,
-                creation_time: pipeline.creation_time,
-                github_pr: pipeline.github_pr,
-                jobs,
-            })
-        })?,
-    ))
+    query_pipeline_info(query, &pool)
+        .await
+        .map(Json)
+        .map_err(AnyhowError)
 }
 
 #[derive(Deserialize)]
