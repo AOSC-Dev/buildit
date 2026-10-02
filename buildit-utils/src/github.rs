@@ -18,9 +18,9 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use walkdir::WalkDir;
 
 use crate::{
-    ABArchGroupMap, ABBS_REPO_LOCK, ALL_ARCH, ALPHA, AMD64, ARM64, ARMV4, ARMV7HF,
-    COMMITS_COUNT_LIMIT, I486, LOONGARCH64, LOONGARCH64_NOSIMD, LOONGSON3, NOARCH, PPC64EL,
-    RISCV64,
+    ABArchGroupMap, ABBS_REPO_LOCK, ALL_ARCH, ALPHA, AMD64, ARM64, ARMV4, ARMV5TE, ARMV6HF,
+    ARMV7HF, COMMITS_COUNT_LIMIT, I486, LOONGARCH64, LOONGARCH64_NOSIMD, LOONGSON2F, LOONGSON3,
+    NOARCH, POWERPC, PPC64, PPC64EL, RISCV64,
 };
 
 const ARCHGROUP_DATA: &str = "/usr/lib/autobuild4/sets/arch_groups.json";
@@ -672,8 +672,13 @@ fn format_archs(archs: &[&str]) -> String {
     map.insert("riscv64", RISCV64);
     map.insert("alpha", ALPHA);
     map.insert("armv4", ARMV4);
+    map.insert("armv5te", ARMV5TE);
+    map.insert("armv6hf", ARMV6HF);
     map.insert("armv7hf", ARMV7HF);
     map.insert("i486", I486);
+    map.insert("loongson2f", LOONGSON2F);
+    map.insert("powerpc", POWERPC);
+    map.insert("ppc64", PPC64);
 
     let mut newline = false;
 
@@ -717,8 +722,13 @@ fn format_archs(archs: &[&str]) -> String {
     // Afterglow
     if archs.contains(&"alpha")
         || archs.contains(&"armv4")
+        || archs.contains(&"armv5te")
+        || archs.contains(&"armv6hf")
         || archs.contains(&"armv7hf")
         || archs.contains(&"i486")
+        || archs.contains(&"loongson2f")
+        || archs.contains(&"powerpc")
+        || archs.contains(&"ppc64")
     {
         if newline {
             s.push('\n');
@@ -726,7 +736,17 @@ fn format_archs(archs: &[&str]) -> String {
         s.push_str("**Afterglow Architectures**\n\n");
     }
 
-    for i in ["alpha", "armv4", "armv7hf", "i486"] {
+    for i in [
+        "alpha",
+        "armv4",
+        "armv5te",
+        "armv6hf",
+        "armv7hf",
+        "i486",
+        "loongson2f",
+        "powerpc",
+        "ppc64",
+    ] {
         if archs.contains(&i) {
             s.push_str(&format!("- [ ] {}\n", map[i]));
         }

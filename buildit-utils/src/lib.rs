@@ -25,12 +25,17 @@ pub const ALPHA: &str = "DEC Alpha `alpha`";
 pub const AMD64: &str = "AMD64 `amd64`";
 pub const ARM64: &str = "AArch64 `arm64`";
 pub const ARMV4: &str = "ARMv4 `armv4`";
+pub const ARMV5TE: &str = "ARMv5 (Thumb, DSP Extensions) `armv5te`";
+pub const ARMV6HF: &str = "ARMv6 (Hard Float), `armv6hf`";
 pub const ARMV7HF: &str = "ARMv7 (Hard Float, NEON) `armv7hf`";
 pub const NOARCH: &str = "Architecture-independent `noarch`";
 pub const I486: &str = "32-bit Intel 486 `i486`";
 pub const LOONGARCH64: &str = "LoongArch 64-bit `loongarch64`";
 pub const LOONGARCH64_NOSIMD: &str = "LoongArch 64-bit (No SIMD) `loongarch64_nosimd`";
-pub const LOONGSON3: &str = "Loongson 3 `loongson3`";
+pub const LOONGSON2F: &str = "Loongson 2F `loongson2f`";
+pub const LOONGSON3: &str = "Loongson 3 (MIPS) `loongson3`";
+pub const POWERPC: &str = "PowerPC 32-bit (Big Endian) `powerpc`";
+pub const PPC64: &str = "PowerPC 64-bit (Big Endian) `ppc64`";
 pub const PPC64EL: &str = "PowerPC 64-bit (Little Endian) `ppc64el`";
 pub const RISCV64: &str = "RISC-V 64-bit `riscv64`";
 pub const COMMITS_COUNT_LIMIT: usize = 10;
@@ -46,7 +51,17 @@ pub const MAINLINE_ARCH: &[&str] = &[
     "riscv64",
 ];
 
-pub const RETRO_ARCH: &[&str] = &["alpha", "armv4", "armv7hf", "i486"];
+pub const RETRO_ARCH: &[&str] = &[
+    "alpha",
+    "armv4",
+    "armv5te",
+    "armv6hf",
+    "armv7hf",
+    "i486",
+    "loongson2f",
+    "powerpc",
+    "ppc64",
+];
 
 pub const ALL_ARCH: &[&str] = &[
     "amd64",
@@ -58,8 +73,13 @@ pub const ALL_ARCH: &[&str] = &[
     "riscv64",
     "alpha",
     "armv4",
+    "armv5te",
+    "armv6hf",
     "armv7hf",
     "i486",
+    "loongson2f",
+    "powerpc",
+    "ppc64",
 ];
 
 pub static ABBS_REPO_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));

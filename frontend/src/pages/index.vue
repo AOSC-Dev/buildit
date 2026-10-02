@@ -121,11 +121,16 @@
         "amd64",
         "arm64",
         "armv4",
+        "armv5te",
+        "armv6hf",
         "armv7hf",
 	"i486",
         "loongarch64",
         "loongarch64_nosimd",
+        "loongson2f",
         "loongson3",
+        "powerpc",
+        "ppc64",
         "ppc64el",
         "riscv64"
       ]
