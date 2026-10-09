@@ -1,5 +1,6 @@
 <template>
   <v-container>
+    <h1 style="margin-block: 0.3em;">AOSC BuildIt!</h1>
     <v-row>
       <v-col cols="6" sm="4">
         <v-card style="min-height: 100%">
@@ -44,29 +45,46 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col v-for="arch in archs" :link="arch" cols="6" sm="4" md="3">
-        <v-card style="min-height: 100%">
-          <v-card-item>
-            <v-card-title>{{ arch }}</v-card-title>
-          </v-card-item>
-          <v-card-text>
-            Total Workers: {{status.by_arch && status.by_arch[arch].total_worker_count}}
-            <br/>
-            Live Workers: {{status.by_arch && status.by_arch[arch].live_worker_count}}
-            <br/>
-            Total Logical Cores: {{status.by_arch && status.by_arch[arch].total_logical_cores}}
-            <br/>
-            Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes), { binary: true })}}
-            <br/>
-            Total Jobs: {{status.by_arch && status.by_arch[arch].total_job_count}}
-            <br/>
-            Pending Jobs: {{status.by_arch && status.by_arch[arch].pending_job_count}}
-            <br/>
-            Running Jobs: {{status.by_arch && status.by_arch[arch].running_job_count}}
-          </v-card-text>
-        </v-card>
-      </v-col>
     </v-row>
+    
+    <template v-for="[name, arch_group] in Object.entries(arch_groups)" :key="name">
+      <v-divider style="margin-top: 1.5em;" />
+
+      <h2 style="margin-block: 0.5em; display: flex; align-items: baseline;">
+        <span>{{ arch_group.name }}</span>
+        <span style="font-size: small; font-weight: normal; margin-left: 0.5em; cursor: help;">
+          (What is it?)
+          <v-tooltip interactive activator="parent">
+            {{ arch_group.description }}
+          </v-tooltip>
+        </span>
+      </h2>
+
+      <v-row>
+        <v-col v-for="arch in arch_group.archs" :key="arch" :link="arch" cols="6" sm="4" md="3">
+          <v-card style="min-height: 100%">
+            <v-card-item>
+              <v-card-title>{{ arch }}</v-card-title>
+            </v-card-item>
+            <v-card-text>
+              Total Workers: {{status.by_arch && status.by_arch[arch].total_worker_count}}
+              <br/>
+              Live Workers: {{status.by_arch && status.by_arch[arch].live_worker_count}}
+              <br/>
+              Total Logical Cores: {{status.by_arch && status.by_arch[arch].total_logical_cores}}
+              <br/>
+              Total Memory: {{status.by_arch && prettyBytes(Number(status.by_arch[arch].total_memory_bytes), { binary: true })}}
+              <br/>
+              Total Jobs: {{status.by_arch && status.by_arch[arch].total_job_count}}
+              <br/>
+              Pending Jobs: {{status.by_arch && status.by_arch[arch].pending_job_count}}
+              <br/>
+              Running Jobs: {{status.by_arch && status.by_arch[arch].running_job_count}}
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+    </template>
   </v-container>
 </template>
 
@@ -116,24 +134,36 @@
     },
     data: () => ({
       status: {} as DashboardStatusResponse,
-      archs: [
-        "alpha",
-        "amd64",
-        "arm64",
-        "armv4",
-        "armv5te",
-        "armv6hf",
-        "armv7hf",
-	"i486",
-        "loongarch64",
-        "loongarch64_nosimd",
-        "loongson2f",
-        "loongson3",
-        "powerpc",
-        "ppc64",
-        "ppc64el",
-        "riscv64"
-      ]
+      arch_groups: {
+        mainline: {
+          name: "Mainline",
+          description: "It's mainline",
+          archs: [
+            "amd64",
+            "arm64",
+            "loongarch64",
+            "loongarch64_nosimd",
+            "ppc64el",
+            "riscv64",
+            "loongson3"
+          ]
+        },
+        retro: {
+          name: "Retro",
+          description: "It's retro",
+          archs: [
+            "alpha",
+            "armv4",
+            "armv5te",
+            "armv6hf",
+            "armv7hf",
+            "i486",
+            "loongson2f",
+            "powerpc",
+            "ppc64",
+          ]
+        },
+      },
     }),
   }
 </script>
