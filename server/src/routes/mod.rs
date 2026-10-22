@@ -23,6 +23,7 @@ use tracing::info;
 
 pub mod job;
 pub mod pipeline;
+pub mod sse;
 pub mod user;
 pub mod webhook;
 pub mod websocket;
@@ -30,6 +31,7 @@ pub mod worker;
 
 pub use job::*;
 pub use pipeline::*;
+pub use sse::*;
 pub use user::*;
 pub use webhook::*;
 pub use websocket::*;
